@@ -11,16 +11,16 @@ nodes:
           kubeletExtraArgs:
             node-labels: "ingress-ready=true"
             rotate-certificates: "true"
-            system-reserved: "cpu=200m,memory=500Mi"
-            kube-reserved: "cpu=200m,memory=500Mi"
+            system-reserved: "${CONTROL_PLANE_SYSTEM_RESERVED}"
+            kube-reserved: "${CONTROL_PLANE_KUBE_RESERVED}"
       - |
         kind: ClusterConfiguration
         apiServer:
           extraArgs:
             enable-bootstrap-token-auth: "true"
-            audit-log-maxage: "7"
-            audit-log-maxbackup: "3"
-            audit-log-maxsize: "100"
+            audit-log-maxage: "${AUDIT_LOG_MAXAGE}"
+            audit-log-maxbackup: "${AUDIT_LOG_MAXBACKUP}"
+            audit-log-maxsize: "${AUDIT_LOG_MAXSIZE}"
             audit-log-path: "/var/log/kubernetes/audit.log"
         controllerManager:
           extraArgs:
@@ -46,7 +46,7 @@ nodes:
         hostPort: 443
         protocol: TCP
     extraMounts:
-      - hostPath: ./logs
+      - hostPath: ${LOGS_DIR}
         containerPath: /var/log
 
   - role: worker
@@ -60,8 +60,8 @@ nodes:
           kubeletExtraArgs:
             rotate-certificates: "true"
             node-labels: "node-type=compute"
-            system-reserved: "cpu=200m,memory=500Mi"
-            kube-reserved: "cpu=200m,memory=500Mi"
+            system-reserved: "${WORKER_NODE_SYSTEM_RESERVED}"
+            kube-reserved: "${WORKER_NODE_KUBE_RESERVED}"
       - |
         kind: KubeletConfiguration
         serverTLSBootstrap: true
@@ -79,8 +79,8 @@ nodes:
           kubeletExtraArgs:
             rotate-certificates: "true"
             node-labels: "node-type=ml"
-            system-reserved: "cpu=500m,memory=1Gi"
-            kube-reserved: "cpu=500m,memory=1Gi"
+            system-reserved: "${ML_NODE_SYSTEM_RESERVED}"
+            kube-reserved: "${ML_NODE_KUBE_RESERVED}"
       - |
         kind: KubeletConfiguration
         serverTLSBootstrap: true
@@ -98,8 +98,8 @@ nodes:
           kubeletExtraArgs:
             rotate-certificates: "true"
             node-labels: "node-type=storage"
-            system-reserved: "cpu=200m,memory=500Mi"
-            kube-reserved: "cpu=200m,memory=500Mi"
+            system-reserved: "${WORKER_NODE_SYSTEM_RESERVED}"
+            kube-reserved: "${WORKER_NODE_KUBE_RESERVED}"
       - |
         kind: KubeletConfiguration
         serverTLSBootstrap: true
@@ -117,10 +117,10 @@ containerdConfigPatches:
   - |-
     [plugins."io.containerd.grpc.v1.cri".registry]
       [plugins."io.containerd.grpc.v1.cri".registry.mirrors]
-        [plugins."io.containerd.grpc.v1.cri".registry.mirrors."localhost:5000"]
-          endpoint = ["http://kind-registry:5000"]
+        [plugins."io.containerd.grpc.v1.cri".registry.mirrors."localhost:${REGISTRY_PORT}"]
+          endpoint = ["http://${REGISTRY_NAME}:${REGISTRY_PORT}"]
     [plugins."io.containerd.grpc.v1.cri".registry.configs]
-      [plugins."io.containerd.grpc.v1.cri".registry.configs."kind-registry:5000".tls]
+      [plugins."io.containerd.grpc.v1.cri".registry.configs."${REGISTRY_NAME}:${REGISTRY_PORT}".tls]
         insecure_skip_verify = true
 featureGates:
   EphemeralContainers: true
