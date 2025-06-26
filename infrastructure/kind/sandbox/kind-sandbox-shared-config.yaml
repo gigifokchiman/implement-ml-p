@@ -51,8 +51,6 @@ nodes:
 
   - role: worker
     image: kindest/node:v1.30.0
-    labels:
-      node-type: compute
     kubeadmConfigPatches:
       - |
         kind: JoinConfiguration
@@ -70,8 +68,6 @@ nodes:
         containerRuntimeEndpoint: unix:///run/containerd/containerd.sock
   - role: worker
     image: kindest/node:v1.30.0
-    labels:
-      node-type: ml
     kubeadmConfigPatches:
       - |
         kind: JoinConfiguration
@@ -89,8 +85,6 @@ nodes:
         containerRuntimeEndpoint: unix:///run/containerd/containerd.sock
   - role: worker
     image: kindest/node:v1.30.0
-    labels:
-      node-type: storage
     kubeadmConfigPatches:
       - |
         kind: JoinConfiguration
@@ -113,15 +107,6 @@ networking:
   serviceSubnet: "10.96.0.0/12"
   disableDefaultCNI: false
   kubeProxyMode: "iptables"
-containerdConfigPatches:
-  - |-
-    [plugins."io.containerd.grpc.v1.cri".registry]
-      [plugins."io.containerd.grpc.v1.cri".registry.mirrors]
-        [plugins."io.containerd.grpc.v1.cri".registry.mirrors."localhost:5000"]
-          endpoint = ["http://kind-registry:5000"]
-    [plugins."io.containerd.grpc.v1.cri".registry.configs]
-      [plugins."io.containerd.grpc.v1.cri".registry.configs."kind-registry:5000".tls]
-        insecure_skip_verify = true
 featureGates:
   EphemeralContainers: true
   GracefulNodeShutdown: true
