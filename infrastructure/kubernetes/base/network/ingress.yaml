@@ -18,7 +18,6 @@ spec:
     - hosts:
         - ml-platform.local
         - api.ml-platform.local
-        - minio.ml-platform.local
       secretName: ml-platform-tls
   rules:
     # Frontend

@@ -3,7 +3,7 @@
 # =============================================================================
 
 # Define all PHONY targets
-.PHONY: help setup test lint format clean docker-up docker-down docker-detect-socket docker-get-socket docker-status docker-reconfigure registry-up registry-down registry-login dev-kind-up dev-kind-down dev-kind-cleanup dev-aws-up dev-aws-down staging-aws-up staging-aws-down prod-aws-up prod-aws-down eks-configure-kubectl eks-status eks-github-up eks-github-down eks-plan eks-validate dev-build-push dev-logs dev-status deploy-dev deploy-staging deploy-prod debug-paths
+.PHONY: help setup test lint format clean docker-up docker-down docker-detect-socket docker-get-socket docker-status docker-reconfigure registry-up registry-down registry-login dev-kind-up dev-kind-down dev-kind-cleanup dev-aws-up dev-aws-down staging-aws-up staging-aws-down prod-aws-up prod-aws-down eks-configure-kubectl eks-status eks-github-up eks-github-down eks-plan eks-validate frontend-access frontend-build backend-build dev-build-push service-status dev-logs dev-status deploy-dev deploy-staging deploy-prod debug-paths
 
 # =============================================================================
 # PATH CONFIGURATION
@@ -54,8 +54,8 @@ DOCKER_CONFIG_FILE := $(INFRA_DIR)/.docker-config
 
 # Registry configuration
 LOCAL_REGISTRY_URL := localhost:5001
-LOCAL_REGISTRY_USER := dev
-LOCAL_REGISTRY_PASS := dev123
+LOCAL_REGISTRY_USER := $(shell echo $${REGISTRY_USERNAME:-dev})
+LOCAL_REGISTRY_PASS := $(shell echo $${REGISTRY_PASSWORD:-})
 
 # Cluster configuration
 KIND_CLUSTER_NAME := ml-platform-local
@@ -228,7 +228,11 @@ help:
 	@echo "  eks-github-down  - Stop EKS for GitHub Actions (ENV=dev|staging|prod)"
 	@echo ""
 	@echo "Application Management:"
-	@echo "  dev-build-push   - Build and push images (auto-detects registry)"
+	@echo "  frontend-access  - Access frontend via port forwarding"
+	@echo "  frontend-build   - Build and deploy frontend only"
+	@echo "  backend-build    - Build and deploy backend only"
+	@echo "  dev-build-push   - Build and deploy all services"
+	@echo "  service-status   - Quick status check for all services"
 	@echo "  dev-logs         - Show application logs"
 	@echo "  dev-status       - Show development environment status"
 	@echo ""
@@ -241,6 +245,10 @@ help:
 	@echo "  PROJECT_ROOT:    $(PROJECT_ROOT)"
 	@echo "  INFRA_DIR:       $(INFRA_DIR)"
 	@echo "  REGISTRY:        $(LOCAL_REGISTRY_URL)"
+	@echo ""
+	@echo "Security Configuration:"
+	@echo "  Copy .env.example to .env and set secure passwords"
+	@echo "  Environment variables: REGISTRY_USERNAME, REGISTRY_PASSWORD"
 
 # =============================================================================
 # DEVELOPMENT ENVIRONMENT
@@ -315,7 +323,12 @@ registry-down:
 
 registry-login:
 	@echo "Logging into local Docker registry..."
-	docker login $(LOCAL_REGISTRY_URL) -u $(LOCAL_REGISTRY_USER) -p $(LOCAL_REGISTRY_PASS)
+	@if [[ -z "$(LOCAL_REGISTRY_PASS)" ]]; then \
+		echo "⚠️  No registry password set. Registry may not require authentication."; \
+		echo "💡 Set REGISTRY_PASSWORD environment variable if authentication is needed."; \
+	else \
+		docker login $(LOCAL_REGISTRY_URL) -u $(LOCAL_REGISTRY_USER) -p $(LOCAL_REGISTRY_PASS); \
+	fi
 
 registry-status:
 	@echo "Checking registry status..."
@@ -335,7 +348,9 @@ dev-kind-up:
 	echo "🏗️  Initializing Terraform..."; \
 	cd $(TERRAFORM_LOCAL) && terraform init -upgrade; \
 	echo "🚀 Deploying Kind cluster with Docker socket: $$DOCKER_HOST"; \
-	cd $(TERRAFORM_LOCAL) && DOCKER_HOST=$$DOCKER_HOST terraform apply -auto-approve
+	cd $(TERRAFORM_LOCAL) && DOCKER_HOST=$$DOCKER_HOST terraform apply -auto-approve \
+		-var="registry_username=$(LOCAL_REGISTRY_USER)" \
+		-var="registry_password=$(LOCAL_REGISTRY_PASS)"
 	@echo ""
 	@echo "📦 Applying Kubernetes manifests..."
 	kubectl apply -k $(K8S_LOCAL)
@@ -559,25 +574,69 @@ eks-validate:
 # =============================================================================
 # APPLICATION MANAGEMENT
 # =============================================================================
-dev-build-push:
-	@echo "Building and pushing development images..."
+frontend-access:
+	@echo "🌐 Setting up frontend access..."
+	@echo "Frontend will be available at: http://localhost:8080"
+	@echo "Press Ctrl+C to stop"
+	@kubectl port-forward -n $(NAMESPACE) svc/frontend 8080:3000
+
+# Build only frontend
+frontend-build:
+	@echo "🎨 Building frontend image..."
+	@if kubectl config current-context | grep -q kind; then \
+		echo "📦 Using Kind registry ($(LOCAL_REGISTRY_URL))..."; \
+		docker build -t $(LOCAL_REGISTRY_URL)/$(FRONTEND_IMAGE):$(IMAGE_TAG_DEV) $(FRONTEND_DIR); \
+		docker push $(LOCAL_REGISTRY_URL)/$(FRONTEND_IMAGE):$(IMAGE_TAG_DEV); \
+		echo "✅ Frontend image pushed to local registry"; \
+		echo "🔄 Restarting frontend pods..."; \
+		kubectl rollout restart deployment/frontend -n $(NAMESPACE); \
+		kubectl rollout status deployment/frontend -n $(NAMESPACE); \
+	else \
+		echo "☁️  Using ECR..."; \
+		ECR_URL=$$(terraform -chdir=$(TERRAFORM_DEV) output -raw ecr_repositories | jq -r '.frontend' | cut -d'/' -f1); \
+		aws ecr get-login-password --region $(AWS_REGION) | docker login --username AWS --password-stdin $$ECR_URL; \
+		docker build -t $$ECR_URL/$(FRONTEND_IMAGE):dev $(FRONTEND_DIR); \
+		docker push $$ECR_URL/$(FRONTEND_IMAGE):dev; \
+		echo "✅ Frontend image pushed to ECR"; \
+		echo "🔄 Restarting frontend pods..."; \
+		kubectl rollout restart deployment/frontend -n $(NAMESPACE); \
+		kubectl rollout status deployment/frontend -n $(NAMESPACE); \
+	fi
+
+# Build only backend
+backend-build:
+	@echo "⚙️  Building backend image..."
 	@if kubectl config current-context | grep -q kind; then \
 		echo "📦 Using Kind registry ($(LOCAL_REGISTRY_URL))..."; \
 		docker build -t $(LOCAL_REGISTRY_URL)/$(BACKEND_IMAGE):$(IMAGE_TAG_DEV) $(BACKEND_DIR); \
-		docker build -t $(LOCAL_REGISTRY_URL)/$(FRONTEND_IMAGE):$(IMAGE_TAG_DEV) $(FRONTEND_DIR); \
 		docker push $(LOCAL_REGISTRY_URL)/$(BACKEND_IMAGE):$(IMAGE_TAG_DEV); \
-		docker push $(LOCAL_REGISTRY_URL)/$(FRONTEND_IMAGE):$(IMAGE_TAG_DEV); \
-		echo "✅ Images pushed to local registry"; \
+		echo "✅ Backend image pushed to local registry"; \
+		echo "🔄 Restarting backend pods..."; \
+		kubectl rollout restart deployment/backend -n $(NAMESPACE); \
+		kubectl rollout status deployment/backend -n $(NAMESPACE); \
 	else \
 		echo "☁️  Using ECR..."; \
 		ECR_URL=$$(terraform -chdir=$(TERRAFORM_DEV) output -raw ecr_repositories | jq -r '.backend' | cut -d'/' -f1); \
 		aws ecr get-login-password --region $(AWS_REGION) | docker login --username AWS --password-stdin $$ECR_URL; \
 		docker build -t $$ECR_URL/$(BACKEND_IMAGE):dev $(BACKEND_DIR); \
-		docker build -t $$ECR_URL/$(FRONTEND_IMAGE):dev $(FRONTEND_DIR); \
 		docker push $$ECR_URL/$(BACKEND_IMAGE):dev; \
-		docker push $$ECR_URL/$(FRONTEND_IMAGE):dev; \
-		echo "✅ Images pushed to ECR"; \
+		echo "✅ Backend image pushed to ECR"; \
+		echo "🔄 Restarting backend pods..."; \
+		kubectl rollout restart deployment/backend -n $(NAMESPACE); \
+		kubectl rollout status deployment/backend -n $(NAMESPACE); \
 	fi
+
+# Build all services (original command)
+dev-build-push: frontend-build backend-build
+	@echo "✅ All images built and deployed"
+
+# Quick status check for services
+service-status:
+	@echo "📊 Service Status:"
+	@kubectl get pods -n $(NAMESPACE) -o wide
+	@echo ""
+	@echo "🌐 Services:"
+	@kubectl get svc -n $(NAMESPACE)
 
 dev-logs:
 	@echo "Showing development environment logs..."

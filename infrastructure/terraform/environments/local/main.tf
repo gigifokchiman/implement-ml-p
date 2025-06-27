@@ -42,6 +42,20 @@ variable "registry_port" {
   default     = 5001
 }
 
+variable "registry_username" {
+  description = "Local registry username"
+  type        = string
+  default     = "dev"
+  sensitive   = true
+}
+
+variable "registry_password" {
+  description = "Local registry password"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
 # Locals
 locals {
   environment = "local"
@@ -169,9 +183,9 @@ resource "kubernetes_secret" "registry_credentials" {
     ".dockerconfigjson" = jsonencode({
       auths = {
         "localhost:${var.registry_port}" = {
-          username = "dev"
-          password = "dev123"
-          auth     = base64encode("dev:dev123")
+          username = var.registry_username
+          password = var.registry_password
+          auth     = base64encode("${var.registry_username}:${var.registry_password}")
         }
       }
     })
@@ -205,7 +219,7 @@ output "local_commands" {
   description = "Useful commands for local development"
   value = {
     kubectl_context = "kubectl config use-context kind-${var.cluster_name}"
-    registry_login  = "docker login localhost:${var.registry_port} -u dev -p dev123"
+    registry_login  = "docker login localhost:${var.registry_port} -u ${var.registry_username} -p ${var.registry_password}"
     deploy_apps     = "kubectl apply -k ../../kubernetes/overlays/dev-kind"
   }
 }

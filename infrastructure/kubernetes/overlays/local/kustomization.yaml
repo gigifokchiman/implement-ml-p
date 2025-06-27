@@ -6,7 +6,6 @@ namespace: ml-platform
 resources:
   - ../../base
   - minio.yaml
-  - registry.yaml
 
     # Use local-path storage class for Kind
 
@@ -22,7 +21,7 @@ patches:
   - patch: |-
       - op: replace
         path: /spec/storageClassName
-        value: local-path
+        value: standard
     target:
       kind: PersistentVolumeClaim
       name: minio-data
@@ -54,14 +53,14 @@ patches:
   - patch: |-
       - op: replace
         path: /spec/template/spec/containers/0/image
-        value: localhost:5001/ml-platform/backend:latest
+        value: host.docker.internal:5001/ml-platform/backend:latest
     target:
       kind: Deployment
       name: backend
   - patch: |-
       - op: replace
         path: /spec/template/spec/containers/0/image
-        value: localhost:5001/ml-platform/frontend:latest
+        value: host.docker.internal:5001/ml-platform/frontend:latest
     target:
       kind: Deployment
       name: frontend
@@ -83,12 +82,26 @@ patches:
     target:
       kind: Ingress
       name: ml-platform
+  - patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/securityContext/readOnlyRootFilesystem
+        value: false
+      - op: remove
+        path: /spec/template/spec/containers/0/volumeMounts/1
+      - op: remove
+        path: /spec/template/spec/volumes/1
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Always
+    target:
+      kind: Deployment
+      name: frontend
 
 secretGenerator:
   - literals:
-      - url=postgresql://admin:changeme123@localhost:5432/metadata
-      - username=admin
-      - password=changeme123
+      - url=postgresql://postgres:postgres@localhost:5432/ml_platform
+      - username=postgres
+      - password=postgres
     name: database-credentials
   - literals:
       - url=redis://localhost:6379
