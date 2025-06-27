@@ -1,0 +1,56 @@
+---
+# Main Ingress for ML Platform
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ml-platform
+  namespace: ml-platform
+  labels:
+    app.kubernetes.io/name: ingress
+    app.kubernetes.io/component: network
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - ml-platform.local
+        - api.ml-platform.local
+        - minio.ml-platform.local
+      secretName: ml-platform-tls
+  rules:
+    # Frontend
+    - host: ml-platform.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 3000
+    # Backend API
+    - host: api.ml-platform.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: backend
+                port:
+                  number: 8000
+    # MinIO Console
+    - host: minio.ml-platform.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: minio
+                port:
+                  number: 9001

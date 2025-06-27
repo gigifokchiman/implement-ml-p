@@ -1,0 +1,93 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: ml-platform
+
+resources:
+  - ../../base
+
+    # Configure S3 bucket for production
+
+    # Production resource limits
+
+patches:
+  # Use versioned tags for production (no :latest)
+  - patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/image
+        value: 123456789012.dkr.ecr.us-west-2.amazonaws.com/ml-platform/backend:v1.0.0
+    target:
+      kind: Deployment
+      name: backend
+  - patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/image
+        value: 123456789012.dkr.ecr.us-west-2.amazonaws.com/ml-platform/frontend:v1.0.0
+    target:
+      kind: Deployment
+      name: frontend
+  # Configure S3 bucket for production
+  - patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/env/2/value
+        value: "ml-platform-prod-data-lake"
+    target:
+      kind: Deployment
+      name: backend
+  - patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 3
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: 200m
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: 256Mi
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: 1000m
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: 1Gi
+    target:
+      kind: Deployment
+      name: backend
+  - patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 3
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: 200m
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: 256Mi
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: 1000m
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: 1Gi
+    target:
+      kind: Deployment
+      name: frontend
+
+    # Production secrets will be managed by external-secrets-operator
+    # or AWS Secrets Manager integration
+secretGenerator:
+  - literals:
+      - url=postgresql://admin:$(DATABASE_PASSWORD)@ml-platform-prod-metadata.region.rds.amazonaws.com:5432/metadata
+      - username=admin
+      - password=$(DATABASE_PASSWORD)
+    name: database-credentials
+  - literals:
+      - url=redis://ml-platform-prod-cache.region.cache.amazonaws.com:6379
+      - password=$(REDIS_PASSWORD)
+    name: redis-credentials
+
+labels:
+  - includeSelectors: true
+    pairs:
+      deployment-method: eks
+      environment: prod

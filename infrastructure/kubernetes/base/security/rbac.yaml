@@ -1,0 +1,49 @@
+---
+# Service Account for ML Platform workloads
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ml-platform
+  namespace: ml-platform
+  labels:
+    app.kubernetes.io/name: ml-platform
+    app.kubernetes.io/component: security
+automountServiceAccountToken: true
+---
+# Role for basic operations
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: ml-platform
+  name: ml-platform-operator
+  labels:
+    app.kubernetes.io/name: ml-platform-operator
+    app.kubernetes.io/component: security
+rules:
+  - apiGroups: [ "" ]
+    resources: [ "pods", "services", "configmaps", "secrets" ]
+    verbs: [ "get", "list", "watch" ]
+  - apiGroups: [ "apps" ]
+    resources: [ "deployments", "replicasets" ]
+    verbs: [ "get", "list", "watch" ]
+  - apiGroups: [ "batch" ]
+    resources: [ "jobs", "cronjobs" ]
+    verbs: [ "get", "list", "watch", "create", "update", "patch", "delete" ]
+---
+# RoleBinding for ML Platform service account
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ml-platform-operator
+  namespace: ml-platform
+  labels:
+    app.kubernetes.io/name: ml-platform-operator
+    app.kubernetes.io/component: security
+subjects:
+  - kind: ServiceAccount
+    name: ml-platform
+    namespace: ml-platform
+roleRef:
+  kind: Role
+  name: ml-platform-operator
+  apiGroup: rbac.authorization.k8s.io
