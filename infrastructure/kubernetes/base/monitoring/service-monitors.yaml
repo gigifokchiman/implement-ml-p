@@ -1,0 +1,136 @@
+---
+# ServiceMonitor for Backend services
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: backend-metrics
+  namespace: ml-platform
+  labels:
+    app.kubernetes.io/name: backend-metrics
+    app.kubernetes.io/component: monitoring
+    app.kubernetes.io/part-of: ml-platform
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: backend
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s
+---
+# ServiceMonitor for ML Platform Backend
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: ml-platform-backend-metrics
+  namespace: ml-platform
+  labels:
+    app.kubernetes.io/name: ml-platform-backend-metrics
+    app.kubernetes.io/component: monitoring
+    app.kubernetes.io/part-of: ml-platform
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ml-platform-backend
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s
+---
+# ServiceMonitor for PostgreSQL (local environment)
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: postgresql-metrics
+  namespace: ml-platform
+  labels:
+    app.kubernetes.io/name: postgresql-metrics
+    app.kubernetes.io/component: monitoring
+    app.kubernetes.io/part-of: ml-platform
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgresql
+  endpoints:
+    - port: postgresql
+      interval: 30s
+      scrapeTimeout: 10s
+---
+# ServiceMonitor for Redis (local environment)
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: redis-metrics
+  namespace: ml-platform
+  labels:
+    app.kubernetes.io/name: redis-metrics
+    app.kubernetes.io/component: monitoring
+    app.kubernetes.io/part-of: ml-platform
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: redis
+  endpoints:
+    - port: redis
+      interval: 30s
+      scrapeTimeout: 10s
+---
+# ServiceMonitor for MinIO (local environment)
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: minio-metrics
+  namespace: ml-platform
+  labels:
+    app.kubernetes.io/name: minio-metrics
+    app.kubernetes.io/component: monitoring
+    app.kubernetes.io/part-of: ml-platform
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: minio
+  endpoints:
+    - port: api
+      path: /minio/v2/metrics/cluster
+      interval: 30s
+      scrapeTimeout: 10s
+---
+# PodMonitor for ML Training Jobs
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: ml-training-jobs
+  namespace: ml-platform
+  labels:
+    app.kubernetes.io/name: ml-training-jobs
+    app.kubernetes.io/component: monitoring
+    app.kubernetes.io/part-of: ml-platform
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: ml-training
+  podMetricsEndpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s
+---
+# PodMonitor for Data Processing Jobs
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: data-processing-jobs
+  namespace: ml-platform
+  labels:
+    app.kubernetes.io/name: data-processing-jobs
+    app.kubernetes.io/component: monitoring
+    app.kubernetes.io/part-of: ml-platform
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: data-processing
+  podMetricsEndpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s

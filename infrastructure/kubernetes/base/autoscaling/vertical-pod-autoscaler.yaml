@@ -1,0 +1,177 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: vpa-system
+---
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: vpa
+  namespace: kube-system
+spec:
+  chart: vpa
+  repo: https://charts.fairwinds.com/stable
+  targetNamespace: vpa-system
+  version: "4.4.6"
+  valuesContent: |-
+    recommender:
+      enabled: true
+      replicaCount: 1
+      resources:
+        limits:
+          cpu: 200m
+          memory: 1000Mi
+        requests:
+          cpu: 50m
+          memory: 500Mi
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      containerSecurityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
+        readOnlyRootFilesystem: true
+
+    updater:
+      enabled: true
+      replicaCount: 1
+      resources:
+        limits:
+          cpu: 200m
+          memory: 1000Mi
+        requests:
+          cpu: 50m
+          memory: 500Mi
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      containerSecurityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
+        readOnlyRootFilesystem: true
+
+    admissionController:
+      enabled: true
+      replicaCount: 1
+      resources:
+        limits:
+          cpu: 200m
+          memory: 500Mi
+        requests:
+          cpu: 50m
+          memory: 200Mi
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      containerSecurityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
+        readOnlyRootFilesystem: true
+---
+# VPA for ML Platform backend
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: ml-platform-backend-vpa
+  namespace: ml-platform
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ml-platform-backend
+  updatePolicy:
+    updateMode: "Auto"
+  resourcePolicy:
+    containerPolicies:
+      - containerName: backend
+        maxAllowed:
+          cpu: 2
+          memory: 4Gi
+        minAllowed:
+          cpu: 100m
+          memory: 128Mi
+        controlledResources: [ "cpu", "memory" ]
+---
+# VPA for ML Platform frontend
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: ml-platform-frontend-vpa
+  namespace: ml-platform
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ml-platform-frontend
+  updatePolicy:
+    updateMode: "Auto"
+  resourcePolicy:
+    containerPolicies:
+      - containerName: frontend
+        maxAllowed:
+          cpu: 1
+          memory: 1Gi
+        minAllowed:
+          cpu: 50m
+          memory: 64Mi
+        controlledResources: [ "cpu", "memory" ]
+---
+# VPA for PostgreSQL
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: postgresql-vpa
+  namespace: ml-platform
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: StatefulSet
+    name: postgresql
+  updatePolicy:
+    updateMode: "Auto"
+  resourcePolicy:
+    containerPolicies:
+      - containerName: postgresql
+        maxAllowed:
+          cpu: 2
+          memory: 8Gi
+        minAllowed:
+          cpu: 250m
+          memory: 512Mi
+        controlledResources: [ "cpu", "memory" ]
+---
+# VPA for Redis
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: redis-vpa
+  namespace: ml-platform
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: redis
+  updatePolicy:
+    updateMode: "Auto"
+  resourcePolicy:
+    containerPolicies:
+      - containerName: redis
+        maxAllowed:
+          cpu: 1
+          memory: 4Gi
+        minAllowed:
+          cpu: 100m
+          memory: 256Mi
+        controlledResources: [ "cpu", "memory" ]

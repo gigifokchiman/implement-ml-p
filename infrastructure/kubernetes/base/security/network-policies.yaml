@@ -1,0 +1,511 @@
+---
+# Default deny all traffic
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: ml-platform
+spec:
+  podSelector: { }
+  policyTypes:
+    - Ingress
+    - Egress
+---
+# Allow DNS egress for all pods
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-egress
+  namespace: ml-platform
+spec:
+  podSelector: { }
+  policyTypes:
+    - Egress
+  egress:
+    - to: [ ]
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+# Backend service network policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: backend-network-policy
+  namespace: ml-platform
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: backend
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow traffic from frontend
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: frontend
+      ports:
+        - protocol: TCP
+          port: 8000
+    # Allow traffic from ingress controller
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8000
+    # Allow traffic from ml-platform services
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: ml-platform
+      ports:
+        - protocol: TCP
+          port: 8000
+  egress:
+    # Allow access to database
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: postgresql
+      ports:
+        - protocol: TCP
+          port: 5432
+    # Allow access to Redis
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: redis
+      ports:
+        - protocol: TCP
+          port: 6379
+    # Allow access to MinIO/S3 (local environment)
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: minio
+      ports:
+        - protocol: TCP
+          port: 9000
+    # Allow HTTPS egress for external APIs (AWS S3, etc.)
+    - to: [ ]
+      ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 80
+---
+# Frontend service network policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: frontend-network-policy
+  namespace: ml-platform
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: frontend
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow traffic from ingress controller
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 3000
+    # Allow traffic from any pod in the namespace (for health checks)
+    - from:
+        - podSelector: { }
+      ports:
+        - protocol: TCP
+          port: 3000
+  egress:
+    # Allow access to backend API
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: backend
+      ports:
+        - protocol: TCP
+          port: 8000
+    # Allow HTTPS egress for CDN, external APIs
+    - to: [ ]
+      ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 80
+---
+# PostgreSQL network policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgresql-network-policy
+  namespace: ml-platform
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: postgresql
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow access from backend and ML workloads
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: backend
+      ports:
+        - protocol: TCP
+          port: 5432
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: ml-platform-backend
+      ports:
+        - protocol: TCP
+          port: 5432
+    # Allow access from data processing jobs
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: data-processing
+      ports:
+        - protocol: TCP
+          port: 5432
+    # Allow access from ML training jobs
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: ml-training
+      ports:
+        - protocol: TCP
+          port: 5432
+  egress:
+    # PostgreSQL typically doesn't need egress except for replication
+    # Allow minimal egress for health checks
+    - to: [ ]
+      ports:
+        - protocol: TCP
+          port: 443  # For cloud provider APIs if needed
+---
+# Redis network policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: redis-network-policy
+  namespace: ml-platform
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: redis
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow access from backend
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: backend
+      ports:
+        - protocol: TCP
+          port: 6379
+    # Allow access from ML platform services
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: ml-platform-backend
+      ports:
+        - protocol: TCP
+          port: 6379
+    # Allow access from data processing workloads
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: data-processing
+      ports:
+        - protocol: TCP
+          port: 6379
+  egress:
+    # Redis typically doesn't need egress
+    # Allow minimal egress for health checks
+    - to: [ ]
+      ports:
+        - protocol: TCP
+          port: 443  # For cloud provider APIs if needed
+---
+# MinIO network policy (local environment)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: minio-network-policy
+  namespace: ml-platform
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: minio
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow API access from backend and ML workloads
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: backend
+      ports:
+        - protocol: TCP
+          port: 9000
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: ml-platform-backend
+      ports:
+        - protocol: TCP
+          port: 9000
+    # Allow access from data processing and ML workloads
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: data-processing
+      ports:
+        - protocol: TCP
+          port: 9000
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: ml-training
+      ports:
+        - protocol: TCP
+          port: 9000
+    # Allow console access from admin tools
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: admin
+      ports:
+        - protocol: TCP
+          port: 9001
+  egress:
+    # MinIO doesn't typically need egress
+    # Allow minimal egress for health checks
+    - to: [ ]
+      ports:
+        - protocol: TCP
+          port: 443  # For cloud provider APIs if needed
+---
+# ML Platform backend service network policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ml-platform-backend-network-policy
+  namespace: ml-platform
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: ml-platform-backend
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow traffic from frontend and other ML services
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: frontend
+      ports:
+        - protocol: TCP
+          port: 8000
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: ml-platform
+      ports:
+        - protocol: TCP
+          port: 8000
+    # Allow traffic from ingress
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8000
+  egress:
+    # Allow access to database, cache, and storage
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: postgresql
+      ports:
+        - protocol: TCP
+          port: 5432
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: redis
+      ports:
+        - protocol: TCP
+          port: 6379
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: minio
+      ports:
+        - protocol: TCP
+          port: 9000
+    # Allow HTTPS egress for external APIs
+    - to: [ ]
+      ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 80
+---
+# Data processing jobs network policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: data-processing-network-policy
+  namespace: ml-platform
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: data-processing
+  policyTypes:
+    - Egress
+  egress:
+    # Allow access to database
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: postgresql
+      ports:
+        - protocol: TCP
+          port: 5432
+    # Allow access to cache
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: redis
+      ports:
+        - protocol: TCP
+          port: 6379
+    # Allow access to object storage
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: minio
+      ports:
+        - protocol: TCP
+          port: 9000
+    # Allow HTTPS egress for external data sources
+    - to: [ ]
+      ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 80
+    # Allow communication with ML platform backend
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: ml-platform-backend
+      ports:
+        - protocol: TCP
+          port: 8000
+---
+# ML training jobs network policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ml-training-network-policy
+  namespace: ml-platform
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: ml-training
+  policyTypes:
+    - Egress
+  egress:
+    # Allow access to database for metadata
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: postgresql
+      ports:
+        - protocol: TCP
+          port: 5432
+    # Allow access to object storage for model artifacts
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: minio
+      ports:
+        - protocol: TCP
+          port: 9000
+    # Allow HTTPS egress for external model registries, datasets
+    - to: [ ]
+      ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 80
+    # Allow communication with ML platform backend
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: ml-platform-backend
+      ports:
+        - protocol: TCP
+          port: 8000
+---
+# Monitoring services network policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: monitoring-network-policy
+  namespace: ml-platform
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: monitoring
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow access from admin tools and ingress
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: admin
+  egress:
+    # Allow scraping metrics from all services
+    - to:
+        - podSelector: { }
+      ports:
+        - protocol: TCP
+          port: 8080  # Common metrics port
+        - protocol: TCP
+          port: 9090  # Prometheus
+        - protocol: TCP
+          port: 3000  # Grafana
+    # Allow HTTPS egress for external integrations
+    - to: [ ]
+      ports:
+        - protocol: TCP
+          port: 443

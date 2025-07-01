@@ -1,0 +1,261 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: jaeger-system
+  labels:
+    name: jaeger-system
+---
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: jaeger
+  namespace: kube-system
+spec:
+  chart: jaeger
+  repo: https://jaegertracing.github.io/helm-charts
+  targetNamespace: jaeger-system
+  version: "0.71.11"
+  valuesContent: |-
+    provisionDataStore:
+      cassandra: false
+      elasticsearch: true
+      kafka: false
+
+    storage:
+      type: elasticsearch
+      elasticsearch:
+        host: elasticsearch.jaeger-system.svc.cluster.local
+        port: 9200
+        scheme: http
+        user: ""
+        password: ""
+
+    agent:
+      enabled: true
+      daemonset:
+        useHostPort: true
+      resources:
+        limits:
+          cpu: 500m
+          memory: 512Mi
+        requests:
+          cpu: 256m
+          memory: 128Mi
+      securityContext:
+        runAsUser: 1000
+        runAsNonRoot: true
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containerSecurityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
+        readOnlyRootFilesystem: true
+
+    collector:
+      enabled: true
+      replicaCount: 2
+      resources:
+        limits:
+          cpu: 1
+          memory: 1Gi
+        requests:
+          cpu: 500m
+          memory: 512Mi
+      securityContext:
+        runAsUser: 1000
+        runAsNonRoot: true
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containerSecurityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
+        readOnlyRootFilesystem: true
+      service:
+        type: ClusterIP
+        grpc:
+          port: 14250
+        http:
+          port: 14268
+        zipkin:
+          port: 9411
+
+    query:
+      enabled: true
+      replicaCount: 2
+      resources:
+        limits:
+          cpu: 500m
+          memory: 512Mi
+        requests:
+          cpu: 256m
+          memory: 256Mi
+      securityContext:
+        runAsUser: 1000
+        runAsNonRoot: true
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containerSecurityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
+        readOnlyRootFilesystem: true
+      service:
+        type: ClusterIP
+        port: 80
+        targetPort: 16686
+      ingress:
+        enabled: true
+        className: nginx
+        annotations:
+          nginx.ingress.kubernetes.io/auth-type: basic
+          nginx.ingress.kubernetes.io/auth-secret: jaeger-basic-auth
+          nginx.ingress.kubernetes.io/auth-realm: 'Jaeger Authentication Required'
+        hosts:
+          - host: jaeger.local.ml-platform.dev
+            paths:
+              - path: /
+                pathType: Prefix
+        tls:
+          - secretName: jaeger-tls
+            hosts:
+              - jaeger.local.ml-platform.dev
+
+    elasticsearch:
+      enabled: true
+      replicas: 1
+      minimumMasterNodes: 1
+      resources:
+        requests:
+          cpu: 500m
+          memory: 1Gi
+        limits:
+          cpu: 1
+          memory: 2Gi
+      volumeClaimTemplate:
+        storageClassName: "fast-ssd"
+        resources:
+          requests:
+            storage: 10Gi
+      esConfig:
+        elasticsearch.yml: |
+          cluster.name: "jaeger"
+          network.host: 0.0.0.0
+          discovery.type: single-node
+          xpack.security.enabled: false
+          xpack.monitoring.enabled: false
+      securityContext:
+        fsGroup: 1000
+        runAsUser: 1000
+      containerSecurityContext:
+        capabilities:
+          drop:
+            - ALL
+        readOnlyRootFilesystem: false
+        runAsNonRoot: true
+        runAsUser: 1000
+---
+# Basic auth secret for Jaeger UI
+apiVersion: v1
+kind: Secret
+metadata:
+  name: jaeger-basic-auth
+  namespace: jaeger-system
+type: Opaque
+data:
+  # admin:admin (change in production)
+  auth: YWRtaW46JGFwcjEkSDY1dnkwWSQxekNxaXhyLlYyWmMuQ1VCd094T0Qx
+---
+# Service Monitor for Prometheus
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: jaeger-collector
+  namespace: jaeger-system
+  labels:
+    app: jaeger
+    component: collector
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: jaeger
+      app.kubernetes.io/component: collector
+  endpoints:
+    - port: admin
+      path: /metrics
+      interval: 30s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: jaeger-query
+  namespace: jaeger-system
+  labels:
+    app: jaeger
+    component: query
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: jaeger
+      app.kubernetes.io/component: query
+  endpoints:
+    - port: admin
+      path: /metrics
+      interval: 30s
+---
+# Network Policy for Jaeger
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: jaeger-network-policy
+  namespace: jaeger-system
+spec:
+  podSelector: { }
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow traffic from ML Platform namespace
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ml-platform
+      ports:
+        - protocol: TCP
+          port: 14250  # gRPC
+        - protocol: TCP
+          port: 14268  # HTTP
+        - protocol: TCP
+          port: 9411   # Zipkin
+    # Allow traffic from ingress
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 16686  # Query UI
+    # Allow internal communication
+    - from:
+        - podSelector: { }
+  egress:
+    # Allow DNS
+    - to: [ ]
+      ports:
+        - protocol: UDP
+          port: 53
+    # Allow internal communication
+    - to:
+        - podSelector: { }
+    # Allow Elasticsearch communication
+    - to:
+        - podSelector:
+            matchLabels:
+              app: elasticsearch-master

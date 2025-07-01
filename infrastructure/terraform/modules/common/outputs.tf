@@ -47,10 +47,6 @@ output "resource_prefix" {
   value       = replace(local.name_prefix, "-", "")
 }
 
-locals {
-  name_prefix = var.environment == "local" ? var.project_name : "${var.project_name}-${var.environment}"
-}
-
 # Configuration outputs with environment-specific defaults
 output "database_config" {
   description = "Database configuration with environment defaults"

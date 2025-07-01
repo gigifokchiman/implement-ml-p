@@ -1,0 +1,58 @@
+# Generated Kubernetes manifests
+*.generated.yaml
+*.generated.yml
+generated/
+build/
+dist/
+
+# Kustomize builds
+kustomization.yaml.bak
+kustomization.yml.bak
+
+# Helm
+charts/
+*.tgz
+requirements.lock
+Chart.lock
+
+# Secrets and credentials (never commit these)
+*secret*.yaml
+*secret*.yml
+*credentials*.yaml
+*credentials*.yml
+*.key
+*.crt
+*.pem
+*.p12
+
+# Environment-specific overlays that contain secrets
+overlays/*/secrets/
+overlays/*/credentials/
+
+# Temporary files from kubectl/kustomize
+.kubectl_*
+.kustomize_*
+*.tmp
+*.temp
+
+# Local development files
+dev-*
+local-*
+test-*
+scratch/
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Backup files
+*.bak
+*.backup
+*~

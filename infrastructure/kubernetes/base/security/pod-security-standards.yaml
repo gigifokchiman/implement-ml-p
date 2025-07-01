@@ -1,0 +1,449 @@
+# Pod Security Standards enforcement for ML Platform namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ml-platform
+  labels:
+    name: ml-platform
+    # Pod Security Standards labels
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+    # Version labels
+    pod-security.kubernetes.io/enforce-version: v1.28
+    pod-security.kubernetes.io/audit-version: v1.28
+    pod-security.kubernetes.io/warn-version: v1.28
+---
+# Pod Security Standards for monitoring namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+  labels:
+    name: monitoring
+    # Less restrictive for monitoring tools
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/enforce-version: v1.28
+    pod-security.kubernetes.io/audit-version: v1.28
+    pod-security.kubernetes.io/warn-version: v1.28
+---
+# Pod Security Standards for system namespaces
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: jaeger-system
+  labels:
+    name: jaeger-system
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/audit: baseline
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/enforce-version: v1.28
+    pod-security.kubernetes.io/audit-version: v1.28
+    pod-security.kubernetes.io/warn-version: v1.28
+---
+# Security Policy for ML Platform applications
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: ml-platform-security-policy
+  annotations:
+    policies.kyverno.io/title: ML Platform Security Policy
+    policies.kyverno.io/description: Enforces security best practices for ML Platform workloads
+spec:
+  validationFailureAction: enforce
+  background: true
+  rules:
+    # Require security context
+    - name: require-pod-security-context
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - ml-platform
+      validate:
+        message: "Pod must define securityContext"
+        pattern:
+          spec:
+            securityContext:
+              runAsNonRoot: true
+              runAsUser: ">0"
+              fsGroup: ">0"
+              seccompProfile:
+                type: RuntimeDefault
+
+    # Require container security context
+    - name: require-container-security-context
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - ml-platform
+      validate:
+        message: "Containers must define securityContext"
+        pattern:
+          spec:
+            containers:
+              - name: "*"
+                securityContext:
+                  allowPrivilegeEscalation: false
+                  capabilities:
+                    drop:
+                      - ALL
+                  readOnlyRootFilesystem: true
+                  runAsNonRoot: true
+
+    # Require resource limits
+    - name: require-resource-limits
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - ml-platform
+      validate:
+        message: "Containers must define resource limits"
+        pattern:
+          spec:
+            containers:
+              - name: "*"
+                resources:
+                  limits:
+                    memory: "?*"
+                    cpu: "?*"
+                  requests:
+                    memory: "?*"
+                    cpu: "?*"
+
+    # Disallow privileged containers
+    - name: disallow-privileged
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - ml-platform
+      validate:
+        message: "Privileged containers are not allowed"
+        pattern:
+          spec:
+            =(securityContext):
+              =(privileged): "false"
+            containers:
+              - name: "*"
+                =(securityContext):
+                  =(privileged): "false"
+
+    # Require specific service account
+    - name: require-service-account
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - ml-platform
+      validate:
+        message: "Pod must specify serviceAccountName"
+        pattern:
+          spec:
+            serviceAccountName: "?*"
+
+    # Disallow host namespaces
+    - name: disallow-host-namespaces
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - ml-platform
+      validate:
+        message: "Host namespaces are not allowed"
+        pattern:
+          spec:
+            =(hostNetwork): "false"
+            =(hostIPC): "false"
+            =(hostPID): "false"
+
+    # Require probe definitions
+    - name: require-probes
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - ml-platform
+      validate:
+        message: "Containers should define readiness and liveness probes"
+        pattern:
+          spec:
+            containers:
+              - name: "*"
+                readinessProbe: "?*"
+                livenessProbe: "?*"
+---
+# OPA Gatekeeper Constraint Template for additional security
+apiVersion: templates.gatekeeper.sh/v1beta1
+kind: ConstraintTemplate
+metadata:
+  name: mlplatformsecurity
+spec:
+  crd:
+    spec:
+      names:
+        kind: MLPlatformSecurity
+      validation:
+        type: object
+        properties:
+          allowedImages:
+            type: array
+            items:
+              type: string
+          allowedRegistries:
+            type: array
+            items:
+              type: string
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package mlplatformsecurity
+
+        violation[{"msg": msg}] {
+          container := input.review.object.spec.containers[_]
+          not starts_with(container.image, input.parameters.allowedRegistries[_])
+          msg := sprintf("Container image '%v' is not from allowed registry", [container.image])
+        }
+
+        violation[{"msg": msg}] {
+          container := input.review.object.spec.containers[_]
+          ends_with(container.image, ":latest")
+          msg := sprintf("Container image '%v' should not use 'latest' tag", [container.image])
+        }
+
+        violation[{"msg": msg}] {
+          container := input.review.object.spec.containers[_]
+          container.securityContext.runAsUser == 0
+          msg := "Container should not run as root user"
+        }
+---
+# Constraint using the template
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: MLPlatformSecurity
+metadata:
+  name: ml-platform-security-constraint
+spec:
+  match:
+    kinds:
+      - apiGroups: [ "" ]
+        kinds: [ "Pod" ]
+    namespaces: [ "ml-platform" ]
+  parameters:
+    allowedRegistries:
+      - "registry.ml-platform.dev/"
+      - "docker.io/library/"
+      - "gcr.io/ml-platform/"
+      - "ghcr.io/ml-platform/"
+    allowedImages:
+      - "python:3.11-slim"
+      - "node:18-alpine"
+      - "nginx:1.25-alpine"
+---
+# Pod Disruption Budget enforcement policy
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-pod-disruption-budget
+spec:
+  validationFailureAction: enforce
+  background: true
+  rules:
+    - name: require-pdb-for-deployments
+      match:
+        any:
+          - resources:
+              kinds:
+                - Deployment
+              namespaces:
+                - ml-platform
+      validate:
+        message: "Deployments with more than 1 replica must have a PodDisruptionBudget"
+        deny:
+          conditions:
+            any:
+              - key: "{{ request.object.spec.replicas || 1 }}"
+                operator: GreaterThan
+                value: 1
+              - key: "{{ query(@, 'length(request.object.metadata.ownerReferences || `[]`)') }}"
+                operator: Equals
+                value: 0
+        validate:
+          message: "PodDisruptionBudget is required for multi-replica Deployments"
+          anyPattern:
+            - metadata:
+                ownerReferences:
+                  - kind: PodDisruptionBudget
+            - spec:
+                replicas: 1
+---
+# Network Policy enforcement
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-network-policy
+spec:
+  validationFailureAction: enforce
+  background: true
+  rules:
+    - name: require-network-policy
+      match:
+        any:
+          - resources:
+              kinds:
+                - Namespace
+              names:
+                - ml-platform
+      generate:
+        kind: NetworkPolicy
+        name: default-deny-all
+        namespace: "{{ request.object.metadata.name }}"
+        data:
+          spec:
+            podSelector: { }
+            policyTypes:
+              - Ingress
+              - Egress
+---
+# Security scanning admission controller
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: security-scan-policy
+  namespace: ml-platform
+data:
+  policy.yaml: |
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: image-security-policy
+    data:
+      policy: |
+        {
+          "rules": [
+            {
+              "action": "REJECT",
+              "description": "Block images with HIGH or CRITICAL vulnerabilities",
+              "condition": "vulnerabilities.critical > 0 || vulnerabilities.high > 5"
+            },
+            {
+              "action": "WARN",
+              "description": "Warn on images with MEDIUM vulnerabilities",
+              "condition": "vulnerabilities.medium > 10"
+            },
+            {
+              "action": "ALLOW",
+              "description": "Allow images with low vulnerabilities",
+              "condition": "true"
+            }
+          ]
+        }
+---
+# Security monitoring ServiceMonitor
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: security-metrics
+  namespace: ml-platform
+spec:
+  selector:
+    matchLabels:
+      app: security-exporter
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 60s
+---
+# Security metrics exporter
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: security-exporter
+  namespace: ml-platform
+  labels:
+    app: security-exporter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: security-exporter
+  template:
+    metadata:
+      labels:
+        app: security-exporter
+    spec:
+      serviceAccountName: security-exporter
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        fsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: security-exporter
+          image: falcosecurity/falco-exporter:0.8.0
+          ports:
+            - name: metrics
+              containerPort: 9376
+          env:
+            - name: FALCO_GRPC_ENDPOINT
+              value: "unix:///var/run/falco/falco.sock"
+          resources:
+            limits:
+              cpu: 100m
+              memory: 128Mi
+            requests:
+              cpu: 50m
+              memory: 64Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - name: falco-socket
+              mountPath: /var/run/falco
+      volumes:
+        - name: falco-socket
+          hostPath:
+            path: /var/run/falco
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: security-exporter
+  namespace: ml-platform
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: security-exporter
+  namespace: ml-platform
+  labels:
+    app: security-exporter
+spec:
+  type: ClusterIP
+  ports:
+    - name: metrics
+      port: 9376
+      targetPort: 9376
+  selector:
+    app: security-exporter

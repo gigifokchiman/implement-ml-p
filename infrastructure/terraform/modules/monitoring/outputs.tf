@@ -168,3 +168,35 @@ output "useful_commands" {
 }
 
 # Local values removed - using monitoring_namespace from main.tf
+# Jaeger outputs
+output "jaeger_query_endpoint" {
+  description = "Jaeger Query UI endpoint"
+  value       = var.enable_jaeger && var.enable_ingress ? "https://jaeger.${var.environment}.ml-platform.dev" : "http://jaeger-query.${local.monitoring_namespace}.svc.cluster.local"
+}
+
+output "jaeger_collector_endpoint" {
+  description = "Jaeger Collector endpoint for trace submission"
+  value       = var.enable_jaeger ? "jaeger-collector.${local.monitoring_namespace}.svc.cluster.local:14250" : ""
+}
+
+# OpenTelemetry outputs
+output "otel_collector_endpoint" {
+  description = "OpenTelemetry Collector endpoint"
+  value       = var.enable_opentelemetry ? "http://otel-collector.${var.namespace}.svc.cluster.local:4318" : ""
+}
+
+output "otel_grpc_endpoint" {
+  description = "OpenTelemetry Collector gRPC endpoint"
+  value       = var.enable_opentelemetry ? "otel-collector.${var.namespace}.svc.cluster.local:4317" : ""
+}
+
+# Tracing configuration
+output "tracing_enabled" {
+  description = "Whether distributed tracing is enabled"
+  value       = var.enable_jaeger || var.enable_opentelemetry
+}
+
+output "tracing_sampling_rate" {
+  description = "Configured tracing sampling rate"
+  value       = var.tracing_sampling_rate
+}

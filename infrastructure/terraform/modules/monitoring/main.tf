@@ -437,3 +437,141 @@ resource "kubernetes_ingress_v1" "grafana" {
 
   depends_on = [helm_release.prometheus]
 }
+# Jaeger for distributed tracing (if enabled)
+resource "helm_release" "jaeger" {
+  count = var.enable_jaeger ? 1 : 0
+
+  name       = "jaeger"
+  repository = "https://jaegertracing.github.io/helm-charts"
+  chart      = "jaeger"
+  version    = var.jaeger_chart_version
+  namespace  = local.monitoring_namespace
+
+  values = [
+    yamlencode({
+      provisionDataStore = {
+        cassandra     = false
+        elasticsearch = var.environment != "local"
+        kafka         = false
+      }
+
+      storage = var.environment == "local" ? {
+        type = "memory"
+        } : {
+        type = "elasticsearch"
+        elasticsearch = {
+          host     = "elasticsearch.${local.monitoring_namespace}.svc.cluster.local"
+          port     = 9200
+          scheme   = "http"
+          user     = ""
+          password = ""
+        }
+      }
+
+      agent = {
+        enabled = true
+        daemonset = {
+          useHostPort = true
+        }
+        resources = {
+          limits = {
+            cpu    = "500m"
+            memory = "512Mi"
+          }
+          requests = {
+            cpu    = "256m"
+            memory = "128Mi"
+          }
+        }
+      }
+
+      collector = {
+        enabled      = true
+        replicaCount = var.environment == "local" ? 1 : 2
+        resources = {
+          limits = {
+            cpu    = "1"
+            memory = "1Gi"
+          }
+          requests = {
+            cpu    = "500m"
+            memory = "512Mi"
+          }
+        }
+      }
+
+      query = {
+        enabled      = true
+        replicaCount = var.environment == "local" ? 1 : 2
+        resources = {
+          limits = {
+            cpu    = "500m"
+            memory = "512Mi"
+          }
+          requests = {
+            cpu    = "256m"
+            memory = "256Mi"
+          }
+        }
+        ingress = {
+          enabled   = var.enable_ingress
+          className = "nginx"
+          hosts = [{
+            host = "jaeger.${var.environment}.ml-platform.dev"
+            paths = [{
+              path     = "/"
+              pathType = "Prefix"
+            }]
+          }]
+        }
+      }
+
+      elasticsearch = var.environment != "local" ? {
+        enabled  = true
+        replicas = 1
+        resources = {
+          requests = {
+            cpu    = "500m"
+            memory = "1Gi"
+          }
+          limits = {
+            cpu    = "1"
+            memory = "2Gi"
+          }
+        }
+      } : null
+    })
+  ]
+
+  depends_on = [helm_release.prometheus]
+}
+
+# OpenTelemetry Operator for auto-instrumentation
+resource "helm_release" "opentelemetry_operator" {
+  count = var.enable_opentelemetry ? 1 : 0
+
+  name       = "opentelemetry-operator"
+  repository = "https://open-telemetry.github.io/opentelemetry-helm-charts"
+  chart      = "opentelemetry-operator"
+  version    = "0.47.1"
+  namespace  = local.monitoring_namespace
+
+  values = [
+    yamlencode({
+      manager = {
+        resources = {
+          limits = {
+            cpu    = "100m"
+            memory = "128Mi"
+          }
+          requests = {
+            cpu    = "100m"
+            memory = "64Mi"
+          }
+        }
+      }
+    })
+  ]
+
+  depends_on = [helm_release.prometheus]
+}

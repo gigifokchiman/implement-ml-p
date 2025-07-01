@@ -152,3 +152,40 @@ variable "frontend_namespaces" {
   type        = list(string)
   default     = ["ml-platform", "ml-platform-local-public"]
 }
+# Jaeger tracing configuration
+variable "enable_jaeger" {
+  description = "Enable Jaeger distributed tracing"
+  type        = bool
+  default     = true
+}
+
+variable "jaeger_chart_version" {
+  description = "Jaeger Helm chart version"
+  type        = string
+  default     = "0.71.11"
+}
+
+# OpenTelemetry configuration
+variable "enable_opentelemetry" {
+  description = "Enable OpenTelemetry operator and collector"
+  type        = bool
+  default     = true
+}
+
+variable "tracing_sampling_rate" {
+  description = "Sampling rate for traces (0.0 to 1.0)"
+  type        = number
+  default     = 0.1
+
+  validation {
+    condition     = var.tracing_sampling_rate >= 0.0 && var.tracing_sampling_rate <= 1.0
+    error_message = "Sampling rate must be between 0.0 and 1.0."
+  }
+}
+
+# Ingress configuration
+variable "enable_ingress" {
+  description = "Enable ingress for monitoring services"
+  type        = bool
+  default     = false
+}

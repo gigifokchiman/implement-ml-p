@@ -1,0 +1,257 @@
+# NVIDIA Device Plugin for GPU monitoring
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: nvidia-device-plugin-daemonset
+  namespace: kube-system
+  labels:
+    app: nvidia-device-plugin
+spec:
+  selector:
+    matchLabels:
+      app: nvidia-device-plugin
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: nvidia-device-plugin
+    spec:
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      priorityClassName: system-node-critical
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: nvidia-device-plugin-ctr
+          image: nvcr.io/nvidia/k8s-device-plugin:v0.14.1
+          env:
+            - name: FAIL_ON_INIT_ERROR
+              value: "false"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ "ALL" ]
+          volumeMounts:
+            - name: device-plugin
+              mountPath: /var/lib/kubelet/device-plugins
+      volumes:
+        - name: device-plugin
+          hostPath:
+            path: /var/lib/kubelet/device-plugins
+      nodeSelector:
+        accelerator: nvidia
+---
+# NVIDIA GPU Metrics Exporter
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: nvidia-gpu-exporter
+  namespace: monitoring
+  labels:
+    app: nvidia-gpu-exporter
+spec:
+  selector:
+    matchLabels:
+      app: nvidia-gpu-exporter
+  template:
+    metadata:
+      labels:
+        app: nvidia-gpu-exporter
+    spec:
+      hostPID: true
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      securityContext:
+        runAsNonRoot: false
+        runAsUser: 0
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: nvidia-gpu-exporter
+          image: utkuozdemir/nvidia_gpu_exporter:1.2.0
+          ports:
+            - name: metrics
+              containerPort: 9835
+              protocol: TCP
+          env:
+            - name: NVIDIA_VISIBLE_DEVICES
+              value: "all"
+          resources:
+            limits:
+              cpu: 200m
+              memory: 256Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+              add:
+                - SYS_ADMIN
+          volumeMounts:
+            - name: proc
+              mountPath: /host/proc
+              readOnly: true
+            - name: sys
+              mountPath: /host/sys
+              readOnly: true
+      volumes:
+        - name: proc
+          hostPath:
+            path: /proc
+        - name: sys
+          hostPath:
+            path: /sys
+      nodeSelector:
+        accelerator: nvidia
+---
+# Service for GPU metrics
+apiVersion: v1
+kind: Service
+metadata:
+  name: nvidia-gpu-exporter
+  namespace: monitoring
+  labels:
+    app: nvidia-gpu-exporter
+spec:
+  type: ClusterIP
+  ports:
+    - name: metrics
+      port: 9835
+      targetPort: 9835
+      protocol: TCP
+  selector:
+    app: nvidia-gpu-exporter
+---
+# ServiceMonitor for GPU metrics
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: nvidia-gpu-exporter
+  namespace: monitoring
+  labels:
+    app: nvidia-gpu-exporter
+spec:
+  selector:
+    matchLabels:
+      app: nvidia-gpu-exporter
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s
+---
+# GPU metrics Grafana dashboard
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gpu-metrics-dashboard
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  gpu-monitoring.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "GPU Monitoring",
+        "tags": ["gpu", "nvidia", "ml-platform"],
+        "timezone": "browser",
+        "panels": [
+          {
+            "id": 1,
+            "title": "GPU Utilization",
+            "type": "timeseries",
+            "targets": [
+              {
+                "expr": "nvidia_gpu_utilization_gpu",
+                "legendFormat": "GPU {{gpu}} - {{instance}}"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "percent",
+                "min": 0,
+                "max": 100
+              }
+            },
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+          },
+          {
+            "id": 2,
+            "title": "GPU Memory Utilization",
+            "type": "timeseries",
+            "targets": [
+              {
+                "expr": "nvidia_gpu_memory_used_bytes / nvidia_gpu_memory_total_bytes * 100",
+                "legendFormat": "GPU {{gpu}} Memory - {{instance}}"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "percent",
+                "min": 0,
+                "max": 100
+              }
+            },
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+          },
+          {
+            "id": 3,
+            "title": "GPU Temperature",
+            "type": "timeseries",
+            "targets": [
+              {
+                "expr": "nvidia_gpu_temperature_celsius",
+                "legendFormat": "GPU {{gpu}} - {{instance}}"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "celsius"
+              }
+            },
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+          },
+          {
+            "id": 4,
+            "title": "GPU Power Usage",
+            "type": "timeseries",
+            "targets": [
+              {
+                "expr": "nvidia_gpu_power_usage_watts",
+                "legendFormat": "GPU {{gpu}} - {{instance}}"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "watt"
+              }
+            },
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+          },
+          {
+            "id": 5,
+            "title": "GPU Processes",
+            "type": "table",
+            "targets": [
+              {
+                "expr": "nvidia_gpu_process_info",
+                "legendFormat": "{{process_name}}"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 24, "x": 0, "y": 16}
+          }
+        ],
+        "time": {"from": "now-1h", "to": "now"},
+        "refresh": "30s"
+      }
+    }

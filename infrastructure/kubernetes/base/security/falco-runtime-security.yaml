@@ -1,0 +1,353 @@
+# Falco runtime security monitoring
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: falco-system
+  labels:
+    name: falco-system
+---
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: falco
+  namespace: kube-system
+spec:
+  chart: falco
+  repo: https://falcosecurity.github.io/charts
+  targetNamespace: falco-system
+  version: "3.8.4"
+  valuesContent: |-
+    driver:
+      kind: ebpf
+
+    collectors:
+      enabled: true
+      docker:
+        enabled: false
+      containerd:
+        enabled: true
+        socket: /run/containerd/containerd.sock
+      crio:
+        enabled: false
+
+    falco:
+      grpc:
+        enabled: true
+        bind_address: "0.0.0.0:5060"
+        threadiness: 8
+
+      grpc_output:
+        enabled: true
+
+      http_output:
+        enabled: true
+        url: "http://falco-exporter.falco-system.svc.cluster.local:9376/events"
+
+      log_stderr: true
+      log_level: info
+
+      priority: debug
+
+      rules_file:
+        - /etc/falco/falco_rules.yaml
+        - /etc/falco/falco_rules.local.yaml
+        - /etc/falco/k8s_audit_rules.yaml
+        - /etc/falco/rules.d
+
+      load_plugins: [k8saudit, json]
+
+      plugins:
+        - name: k8saudit
+          library_path: libk8saudit.so
+          init_config:
+            maxEventSize: 262144
+            webhookMaxBatchSize: 12582912
+          open_params: "http://:9765/k8s-audit"
+        - name: json
+          library_path: libjson.so
+
+    customRules:
+      ml-platform-rules.yaml: |-
+        # ML Platform specific security rules
+
+        # Detect suspicious ML model access
+        - rule: Suspicious ML Model Access
+          desc: Detect unauthorized access to ML model files
+          condition: >
+            open_read and
+            fd.name contains "/models/" and
+            not proc.name in (python, python3, jupyter, mlflow) and
+            not container.image.repository contains "ml-platform"
+          output: >
+            Unauthorized access to ML model file
+            (user=%user.name command=%proc.cmdline file=%fd.name
+            container=%container.name image=%container.image)
+          priority: WARNING
+          tags: [ml-platform, model-security]
+
+        # Detect model tampering
+        - rule: ML Model File Modification
+          desc: Detect modifications to ML model files
+          condition: >
+            open_write and
+            fd.name contains "/models/" and
+            not proc.name in (python, python3, mlflow, kubectl) and
+            not container.image.repository contains "ml-platform"
+          output: >
+            ML model file modification detected
+            (user=%user.name command=%proc.cmdline file=%fd.name
+            container=%container.name image=%container.image)
+          priority: CRITICAL
+          tags: [ml-platform, model-tampering]
+
+        # Detect cryptocurrency mining
+        - rule: Crypto Mining Activity
+          desc: Detect potential cryptocurrency mining in ML workloads
+          condition: >
+            proc.name in (xmrig, cpuminer, t-rex, gminer, lolminer, nbminer) or
+            proc.cmdline contains "stratum+tcp://" or
+            proc.cmdline contains "mining" or
+            (proc.name contains "python" and proc.cmdline contains "hashrate")
+          output: >
+            Potential crypto mining activity detected
+            (user=%user.name command=%proc.cmdline container=%container.name)
+          priority: CRITICAL
+          tags: [ml-platform, crypto-mining]
+
+        # Detect data exfiltration
+        - rule: ML Data Exfiltration Attempt
+          desc: Detect potential data exfiltration from ML platform
+          condition: >
+            (outbound and
+            fd.sip.name != "" and
+            not fd.sip.name in (ml-platform-backend, prometheus, grafana) and
+            proc.name in (curl, wget, scp, rsync) and
+            proc.cmdline contains "/data/") or
+            (open_read and
+            fd.name contains "/data/" and
+            proc.name in (nc, netcat, socat))
+          output: >
+            Potential ML data exfiltration attempt
+            (user=%user.name command=%proc.cmdline file=%fd.name
+            destination=%fd.sip.name container=%container.name)
+          priority: CRITICAL
+          tags: [ml-platform, data-exfiltration]
+
+        # Detect privilege escalation
+        - rule: ML Platform Privilege Escalation
+          desc: Detect privilege escalation attempts in ML platform
+          condition: >
+            spawned_process and
+            proc.name in (sudo, su, doas) and
+            container.name contains "ml-platform"
+          output: >
+            Privilege escalation attempt in ML platform
+            (user=%user.name command=%proc.cmdline container=%container.name)
+          priority: CRITICAL
+          tags: [ml-platform, privilege-escalation]
+
+        # Detect GPU hijacking
+        - rule: Unauthorized GPU Access
+          desc: Detect unauthorized access to GPU resources
+          condition: >
+            open_read and
+            (fd.name contains "/dev/nvidia" or fd.name contains "/proc/driver/nvidia") and
+            not container.image.repository contains "ml-platform" and
+            not proc.name in (nvidia-smi, nvidia-ml-py)
+          output: >
+            Unauthorized GPU access detected
+            (user=%user.name command=%proc.cmdline file=%fd.name
+            container=%container.name image=%container.image)
+          priority: WARNING
+          tags: [ml-platform, gpu-security]
+
+    resources:
+      requests:
+        cpu: 100m
+        memory: 512Mi
+      limits:
+        cpu: 200m
+        memory: 1024Mi
+
+    securityContext:
+      runAsUser: 0
+      runAsGroup: 0
+      privileged: true
+
+    serviceAccount:
+      create: true
+      name: falco
+
+    rbac:
+      create: true
+
+    tolerations:
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/master
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/control-plane
+
+    nodeSelector: {}
+
+    daemonset:
+      updateStrategy:
+        type: RollingUpdate
+---
+# Falco Sidekick for alert routing
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: falco-sidekick
+  namespace: kube-system
+spec:
+  chart: falco-sidekick
+  repo: https://falcosecurity.github.io/charts
+  targetNamespace: falco-system
+  version: "0.7.15"
+  valuesContent: |-
+    replicaCount: 2
+
+    image:
+      registry: docker.io
+      repository: falcosecurity/falco-sidekick
+      tag: 2.28.0
+
+    config:
+      debug: false
+      customfields: "environment:ml-platform"
+
+      slack:
+        webhookurl: "${SLACK_WEBHOOK_URL}"
+        channel: "#security-alerts"
+        username: "falco"
+        iconurl: "https://falco.org/img/favicon.png"
+        minimumpriority: "warning"
+        messageformat: "long"
+
+      webhook:
+        address: "http://alertmanager.monitoring.svc.cluster.local:9093/api/v1/alerts"
+        customHeaders:
+          Content-Type: "application/json"
+        minimumpriority: "warning"
+
+      prometheus:
+        extralabels: "environment:ml-platform"
+
+    resources:
+      limits:
+        cpu: 200m
+        memory: 256Mi
+      requests:
+        cpu: 100m
+        memory: 128Mi
+
+    securityContext:
+      runAsUser: 1234
+      runAsGroup: 1234
+      runAsNonRoot: true
+      readOnlyRootFilesystem: true
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+          - ALL
+
+    service:
+      type: ClusterIP
+      port: 2801
+---
+# Falco rules for Kubernetes audit events
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: falco-k8s-audit-rules
+  namespace: falco-system
+data:
+  k8s-audit-rules.yaml: |
+    # Kubernetes audit rules for ML Platform
+
+    - rule: ML Platform Secret Access
+      desc: Detect access to ML Platform secrets
+      condition: >
+        ka and
+        ka.verb in (get, list) and
+        ka.resource.name contains "secret" and
+        ka.resource.namespace = "ml-platform" and
+        not ka.user.name contains "system:"
+      output: >
+        ML Platform secret accessed
+        (user=%ka.user.name verb=%ka.verb resource=%ka.resource.name
+        namespace=%ka.resource.namespace)
+      priority: WARNING
+      source: k8s_audit
+      tags: [ml-platform, secrets]
+
+    - rule: Privileged Pod Creation in ML Platform
+      desc: Detect creation of privileged pods in ML Platform namespace
+      condition: >
+        ka and
+        ka.verb = "create" and
+        ka.resource.name = "pods" and
+        ka.resource.namespace = "ml-platform" and
+        ka.request.object.spec.securityContext.privileged = true
+      output: >
+        Privileged pod created in ML Platform
+        (user=%ka.user.name pod=%ka.request.object.metadata.name
+        namespace=%ka.resource.namespace)
+      priority: CRITICAL
+      source: k8s_audit
+      tags: [ml-platform, privileged]
+
+    - rule: ML Platform ConfigMap Modification
+      desc: Detect modifications to ML Platform ConfigMaps
+      condition: >
+        ka and
+        ka.verb in (update, patch, delete) and
+        ka.resource.name = "configmaps" and
+        ka.resource.namespace = "ml-platform" and
+        not ka.user.name contains "system:"
+      output: >
+        ML Platform ConfigMap modified
+        (user=%ka.user.name verb=%ka.verb configmap=%ka.request.object.metadata.name)
+      priority: WARNING
+      source: k8s_audit
+      tags: [ml-platform, config]
+---
+# Network Policy for Falco
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: falco-network-policy
+  namespace: falco-system
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: falco
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow access to Falco gRPC from same namespace
+    - from:
+        - podSelector: { }
+      ports:
+        - protocol: TCP
+          port: 5060
+  egress:
+    # Allow DNS
+    - to: [ ]
+      ports:
+        - protocol: UDP
+          port: 53
+    # Allow access to Kubernetes API
+    - to: [ ]
+      ports:
+        - protocol: TCP
+          port: 443
+    # Allow access to Sidekick
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: falco-sidekick
+      ports:
+        - protocol: TCP
+          port: 2801
