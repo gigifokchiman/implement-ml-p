@@ -1,0 +1,92 @@
+name: Infrastructure Tests
+
+on:
+  pull_request:
+    paths:
+      - 'infrastructure/**'
+      - '.github/workflows/infrastructure-tests.yaml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'infrastructure/**'
+
+jobs:
+  static-tests:
+    name: Static Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.0
+
+      - name: Install tools
+        run: |
+          # Install required tools
+          curl -L https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz | tar xz
+          sudo mv kubeconform /usr/local/bin
+
+          curl -L https://github.com/open-policy-agent/opa/releases/latest/download/opa_linux_amd64 -o opa
+          chmod +x opa && sudo mv opa /usr/local/bin
+
+          pip install checkov
+
+      - name: Run static tests
+        working-directory: infrastructure/tests
+        run: make test-static
+
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.0
+
+      - name: Run unit tests
+        working-directory: infrastructure/tests
+        run: make test-unit
+
+  security-tests:
+    name: Security Scans
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'config'
+          scan-ref: 'infrastructure/'
+
+      - name: Run tfsec
+        uses: aquasecurity/tfsec-action@v1.0.0
+        with:
+          working_directory: infrastructure/terraform
+
+      - name: Run security tests
+        working-directory: infrastructure/tests
+        run: make test-security
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [ static-tests, unit-tests, security-tests ]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Kind
+        uses: helm/kind-action@v1.8.0
+        with:
+          cluster_name: test
+
+      - name: Run integration tests
+        working-directory: infrastructure/tests
+        run: make test-integration

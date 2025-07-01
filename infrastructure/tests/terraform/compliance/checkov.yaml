@@ -1,0 +1,45 @@
+# Checkov configuration for Terraform security scanning
+framework:
+  - terraform
+  - terraform_plan
+
+# Exclude directories
+directory:
+  - "../../../terraform"
+
+# Skip specific checks - ONLY for local environment
+# Production environments should have strict security checks
+skip-check: [ ]  # No global skips - use environment-specific configs
+
+# Check specific directories only
+directory-filter:
+  - "environments/"
+  - "modules/"
+
+# Output configuration
+output: cli
+quiet: false
+compact: true
+
+# Severity levels
+check-severity:
+  - HIGH
+  - CRITICAL
+
+# Custom policies directory (if we add custom Checkov policies)
+external-checks-dir: [ ]
+
+# Download external modules for scanning
+download-external-modules: false
+
+# Framework specific configurations
+terraform-plan-file: null
+
+# Baseline configuration
+baseline: null
+
+# Skip downloading updates
+skip-download: false
+
+# Include suppressed violations in output
+include-all-checkov-policies: false

@@ -1,398 +1,305 @@
-# Infrastructure Testing Suite
+# Infrastructure Testing Guide
 
-Comprehensive testing framework for ML Platform infrastructure ensuring reliability, security, and performance.
+This guide explains our infrastructure testing strategy and how to run tests effectively.
 
-## Overview
+## Testing Philosophy
 
-This testing suite provides multi-layered validation for infrastructure code, Kubernetes manifests, security compliance,
-and system performance.
+We follow a **pyramid testing approach** for infrastructure:
 
-## Test Categories
+```
+         Integration Tests
+        /                 \    (slowest, most realistic)
+       /   Compliance      \
+      /    & Security       \
+     /                       \
+    /      Unit Tests         \
+   /                           \
+  /      Static Analysis        \
+ /_____________________________ \  (fastest, immediate feedback)
+```
 
-### 🏗️ Infrastructure Validation
+## What We Test
 
-- **Terraform Tests** - Infrastructure as Code validation
-- **Kubernetes Tests** - Manifest and configuration validation
+### 1. Static Analysis (< 30 seconds)
 
-### 🔒 Security & Compliance
+**Purpose**: Catch syntax errors and formatting issues before anything runs
 
-- **Security Scanning** - Infrastructure and container security
-- **Compliance Checks** - Industry standards validation
+- **Terraform Format** - Ensures consistent code style
+- **Terraform Validate** - Checks HCL syntax is correct
+- **Kubernetes Validate** - Validates YAML manifests can be built
+- **Basic Security Checks** - Catches obvious security issues
 
-### 🚀 Runtime Testing
+### 2. Compliance & Security (< 2 minutes)
 
-- **Integration Tests** - End-to-end deployment validation
-- **Performance Tests** - Load testing and resource monitoring
+**Purpose**: Enforce security policies and best practices
 
-## Quick Start
+- **Terraform Security** - Scans for misconfigurations (tfsec, checkov)
+- **Kubernetes Policies** - OPA policies for security standards
+- **Resource Policies** - Ensures proper resource limits
+- **Network Policies** - Validates network segmentation
+
+### 3. Unit Tests (< 5 minutes)
+
+**Purpose**: Test individual modules work correctly
+
+- **Terraform Module Tests** - Tests modules in isolation
+- **Policy Tests** - Validates OPA policies work as expected
+- **Mock Testing** - Tests without real infrastructure
+
+### 4. Integration Tests (15-30 minutes)
+
+**Purpose**: Validate everything works together
+
+- **Deployment Tests** - Actually deploys to test environment
+- **End-to-End Tests** - Tests complete workflows
+- **Performance Tests** - Basic load testing
+
+## How to Run Tests
+
+### Prerequisites
 
 ```bash
-# Run all basic tests
-./tests/run-all.sh
-
-# Run extended tests (includes integration & performance)
-./tests/run-all.sh --type extended
-
-# Run tests in parallel
-./tests/run-all.sh --parallel --type extended
-
-# Skip specific test categories
-./tests/run-all.sh --skip-security --skip-performance
+# Install required tools (one-time setup)
+cd infrastructure/tests
+make install
 ```
 
-## Test Structure
+### For Developers (Daily Use)
 
-```
-tests/
-├── run-all.sh              # Master test orchestrator
-├── terraform/              # Terraform validation
-│   └── validate.sh         # Syntax, security, cost validation
-├── kubernetes/              # Kubernetes validation  
-│   └── validate.sh         # Manifest, security, policy validation
-├── integration/             # End-to-end testing
-│   └── deploy-test.sh       # Full deployment testing
-├── security/                # Security scanning
-│   └── scan.sh             # Multi-tool security analysis
-└── performance/             # Performance testing
-    └── load-test.sh        # Load testing and monitoring
-```
-
-## Test Types
-
-### Basic Tests (Default)
-
-- Terraform validation (fmt, validate, plan)
-- Kubernetes manifest validation
-- Security scanning (static analysis)
-
-**Duration:** ~5-10 minutes  
-**Requirements:** terraform, kubectl, kustomize
-
-### Extended Tests
-
-- All basic tests
-- Integration tests (full deployment)
-- Performance tests (load testing)
-- Autoscaling validation
-
-**Duration:** ~15-30 minutes  
-**Requirements:** Basic + kind, ab/wrk, docker
-
-## Individual Test Suites
-
-### Terraform Validation
-
+#### Before Committing Code
 ```bash
-./tests/terraform/validate.sh
+# Run fast checks (< 1 minute)
+make test-static
+
+# If you see formatting errors
+make fix-terraform-fmt
 ```
 
-**Tests:**
-
-- ✅ Syntax validation (`terraform fmt`, `terraform validate`)
-- ✅ Planning validation (`terraform plan`)
-- ✅ Security scanning (Checkov, tfsec)
-- ✅ Cost estimation and warnings
-- ✅ Tagging compliance
-- ✅ Backup configuration validation
-
-### Kubernetes Validation
-
+#### After Making Changes
 ```bash
-./tests/kubernetes/validate.sh
+# Run static + unit tests (< 5 minutes)
+make test
+
+# Run specific test types
+make test-terraform      # Just Terraform tests
+make test-kubernetes     # Just Kubernetes tests
+make test-security       # Just security scans
 ```
 
-**Tests:**
-
-- ✅ Manifest building (`kustomize build`)
-- ✅ Kubernetes validation (`kubectl apply --dry-run`)
-- ✅ Security policies (security contexts, privileges)
-- ✅ Resource limits and requests
-- ✅ Image tag policies
-- ✅ Storage configuration
-- ✅ Health check validation
-
-### Integration Tests
-
-```bash
-./tests/integration/deploy-test.sh [basic|extended]
-```
-
-**Tests:**
-
-- ✅ Kind cluster creation
-- ✅ Ingress controller deployment
-- ✅ Application deployment
-- ✅ Pod health validation
-- ✅ Service connectivity
-- ✅ Persistent storage
-- ✅ Security context validation
-- ✅ Pod restart resilience (extended)
-
-### Security Tests
-
-```bash
-./tests/security/scan.sh
-```
-
-**Tests:**
-
-- ✅ Infrastructure security (Checkov, tfsec)
-- ✅ Kubernetes security (kubesec, kube-score)
-- ✅ Container scanning (Trivy)
-- ✅ Secret detection (gitleaks, trufflehog)
-- ✅ Compliance validation (Pod Security Standards)
-- ✅ Network policy validation
-- ✅ Backup strategy validation
-
-### Performance Tests
-
-```bash
-./tests/performance/load-test.sh [basic|extended]
-```
-
-**Tests:**
-
-- ✅ Load testing (Apache Bench, wrk)
-- ✅ Resource utilization monitoring
-- ✅ Storage performance testing
-- ✅ Network latency testing
-- ✅ Autoscaling validation (extended)
-- ✅ Database performance (extended)
-
-## CI/CD Integration
-
-### GitHub Actions
-
-Tests automatically run on:
-
-- Push to `main`/`develop` branches
-- Pull requests to `main`
-- Manual workflow dispatch
+### For CI/CD Pipeline
 
 ```yaml
-# .github/workflows/infrastructure-tests.yml
-name: Infrastructure Tests
-on:
-  push:
-    branches: [main, develop]
-    paths: ['infrastructure/**']
-  pull_request:
-    branches: [main]
+# In your pipeline
+- name: Static Tests
+  run: make test-static
+
+- name: Security Tests
+  run: make test-security
+
+- name: Unit Tests
+  run: make test-unit
+
+# Only on main branch
+- name: Integration Tests
+  run: make test-integration
 ```
 
-### Manual Triggers
+## Understanding Test Results
 
+### ✅ Success Output
+
+```
+🔍 Checking Terraform formatting...
+✅ Terraform formatting OK
+
+🔍 Validating Terraform configurations...
+  Validating local environment...
+  Validating dev environment...
+✅ Terraform validation passed
+```
+
+### ❌ Failure Output
+```
+🔍 Checking Terraform formatting...
+❌ Run 'make fix-terraform-fmt' to fix
+
+🔍 Running security scans...
+❌ HIGH: S3 bucket has public access enabled
+  File: terraform/modules/storage/main.tf:45
+```
+
+## Common Test Scenarios
+
+### Scenario 1: "My Terraform won't validate"
 ```bash
-# Trigger specific test types via GitHub UI
-# - basic: Terraform + Kubernetes validation
-# - extended: All tests including integration
-# - security: Security-focused testing
-# - performance: Performance and load testing
+# See detailed errors
+cd ../terraform/environments/dev
+terraform init
+terraform validate
+
+# Common fixes:
+# - Missing required variables
+# - Module source paths incorrect
+# - Provider version conflicts
 ```
 
-## Test Environment Support
-
-### Local Development
-
-- **Platform:** Kind cluster
-- **Storage:** local-path storage class
-- **Networking:** NodePort services
-- **Duration:** Fast validation
-
-### Cloud Environments
-
-- **Platform:** EKS clusters
-- **Storage:** EBS volumes
-- **Networking:** Load balancers
-- **Duration:** Comprehensive testing
-
-## Tool Dependencies
-
-### Required (Core Tests)
-
+### Scenario 2: "Security scan is failing"
 ```bash
-# Install core dependencies
-brew install terraform kubectl kustomize  # macOS
-apt-get install terraform kubectl          # Linux
+# Run security scan with details
+make test-security
+
+# See specific issues
+tfsec ../terraform --format json | jq '.results[]'
+
+# Common issues:
+# - S3 buckets without encryption
+# - RDS without backup retention
+# - Security groups with 0.0.0.0/0
 ```
 
-### Optional (Extended Tests)
-
+### Scenario 3: "Kubernetes manifests failing"
 ```bash
-# Security tools
-brew install checkov tfsec trivy gitleaks
-pip install checkov
+# Test specific overlay
+cd kubernetes/validation
+./validate.sh local
 
-# Performance tools  
-brew install wrk
-apt-get install apache2-utils
-
-# Kubernetes tools
-brew install kubesec kube-score
+# Common issues:
+# - Invalid YAML syntax
+# - Missing required fields
+# - Resource limits not set
 ```
 
-### Installation Scripts
+## Test Types in Detail
 
+### Terraform Tests
+
+| Test     | Purpose              | Tool                 | Fix Command              |
+|----------|----------------------|----------------------|--------------------------|
+| Format   | Code style           | `terraform fmt`      | `make fix-terraform-fmt` |
+| Validate | Syntax check         | `terraform validate` | Fix syntax errors        |
+| Security | Find vulnerabilities | `tfsec`, `checkov`   | Fix security issues      |
+| Unit     | Test modules         | `terraform test`     | Fix module logic         |
+
+### Kubernetes Tests
+
+| Test     | Purpose              | Tool              | Fix Command           |
+|----------|----------------------|-------------------|-----------------------|
+| Build    | Can manifests build? | `kustomize build` | Fix YAML syntax       |
+| Validate | Are manifests valid? | `kubeconform`     | Fix K8s API issues    |
+| Policies | Security compliance  | `opa eval`        | Fix policy violations |
+
+## Writing New Tests
+
+### Adding Terraform Tests
+
+```hcl
+# terraform/unit/my_module.tftest.hcl
+run "test_name" {
+  command = plan
+  
+  module {
+    source = "../../modules/my_module"
+  }
+  
+  variables {
+    name = "test"
+  }
+  
+  assert {
+    condition     = output.id != ""
+    error_message = "ID should not be empty"
+  }
+}
+```
+
+### Adding OPA Policies
+
+```rego
+# kubernetes/policies/my_policy.rego
+package kubernetes.mypolicy
+
+deny[msg] {
+  input.kind == "Deployment"
+  not input.spec.replicas
+  msg := "Deployment must specify replicas"
+}
+```
+
+### Adding Policy Tests
+
+```rego
+# kubernetes/policies/my_policy_test.rego
+test_deny_missing_replicas {
+  deny[_] with input as {
+    "kind": "Deployment",
+    "spec": {}
+  }
+}
+```
+
+## Debugging Failed Tests
+
+### Enable Verbose Output
 ```bash
-# Install all tools (macOS)
-./tests/install-tools-macos.sh
+# See what's happening
+VERBOSE=1 make test
 
-# Install all tools (Linux)  
-./tests/install-tools-linux.sh
+# Run specific test with debug
+terraform test -test-directory=terraform/unit -verbose
 ```
 
-## Test Reports
+### Common Issues and Solutions
 
-Tests generate detailed reports in multiple formats:
+1. **"Docker not available"**
+    - Start Docker Desktop
+    - Or skip local tests: `make test-static test-unit`
 
-### Test Summary
+2. **"terraform: command not found"**
+    - Install Terraform: `brew install terraform`
+    - Or use tfenv: `tfenv install 1.6.0`
 
-- Console output with pass/fail status
-- Execution duration for each test suite
-- Overall success rate
-
-### Detailed Reports
-
-- **Security Report:** `tests/security/security-report-*.md`
-- **Performance Report:** `tests/performance/performance-report-*.md`
-- **Integration Report:** Test logs and artifacts
-
-### CI/CD Artifacts
-
-- Test result files uploaded as GitHub Actions artifacts
-- Downloadable reports for detailed analysis
+3. **"Policy violations found"**
+    - Run: `make test-kubernetes-policies`
+    - Check which policies failed
+    - Update manifests to comply
 
 ## Best Practices
 
-### Development Workflow
+1. **Run tests frequently**
+    - Before every commit: `make test-static`
+    - After changes: `make test`
 
-1. **Local Testing:** Run basic tests before committing
-2. **PR Testing:** Extended tests run automatically
-3. **Pre-deployment:** Manual security/performance testing
-4. **Post-deployment:** Monitoring and alerting
+2. **Fix issues immediately**
+    - Don't commit with failing tests
+    - Use fix commands when available
 
-### Test Maintenance
+3. **Add tests for new code**
+    - New module? Add unit tests
+    - New security requirement? Add OPA policy
 
-- **Weekly:** Review and update security scanning rules
-- **Monthly:** Update tool versions and dependencies
-- **Quarterly:** Review test coverage and add new tests
+4. **Keep tests fast**
+    - Static tests should be instant
+    - Unit tests should be quick
+    - Only integration tests can be slow
 
-### Troubleshooting
-
-#### Common Issues
-
-**"Storage class not found"**
-
-```bash
-# Update storage class in environment overlay
-# For local: local-path
-# For AWS: gp2, gp3
-```
-
-**"Security scan failures"**
+## Getting Help
 
 ```bash
-# Install security tools
-brew install checkov tfsec trivy
+# See all available commands
+make help
 
-# Or skip security tests
-./tests/run-all.sh --skip-security
+# Run specific test type
+make test-<TAB>  # Auto-completion
+
+# See test source
+cat Makefile
 ```
 
-**"Integration test timeouts"**
+## Summary
 
-```bash
-# Check cluster resources
-kubectl get nodes
-kubectl get pods --all-namespaces
+- **Static tests** - Run constantly (every save)
+- **Unit tests** - Run before commits
+- **Security tests** - Run before PRs
+- **Integration tests** - Run in CI/CD
 
-# Increase timeout in test scripts
-```
-
-#### Debug Mode
-
-```bash
-# Run with verbose output
-set -x
-./tests/run-all.sh --type extended
-
-# Check individual test logs
-./tests/terraform/validate.sh 2>&1 | tee terraform.log
-```
-
-## Performance Baselines
-
-### Target Metrics
-
-- **Frontend RPS:** >50 requests/second
-- **API Response Time:** <200ms average
-- **Pod Startup Time:** <30 seconds
-- **Storage I/O:** >100MB/s throughput
-
-### Resource Limits
-
-- **CPU:** 70% target for autoscaling
-- **Memory:** 80% target for autoscaling
-- **Storage:** 85% warning threshold
-
-## Security Standards
-
-### Compliance Frameworks
-
-- **SOC 2 Type II:** Encryption, access controls, audit logging
-- **GDPR:** Data minimization, retention policies
-- **PCI DSS:** Network segmentation, encryption (if applicable)
-
-### Security Policies
-
-- Containers run as non-root users
-- Read-only root filesystems
-- No privileged containers
-- Resource limits enforced
-- Network policies implemented
-
-## Contributing
-
-### Adding New Tests
-
-1. Create test script in appropriate directory
-2. Follow existing naming conventions
-3. Add to master test runner (`run-all.sh`)
-4. Update documentation
-5. Test in CI/CD pipeline
-
-### Test Script Template
-
-```bash
-#!/bin/bash
-set -euo pipefail
-
-# Test description and purpose
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-# Test functions
-test_example() {
-    # Test implementation
-    return 0
-}
-
-# Main execution
-main() {
-    run_test "Example Test" "test_example"
-}
-
-main "$@"
-```
-
-## Support
-
-For questions or issues:
-
-- 📖 Check this documentation
-- 🐛 Create GitHub issue for bugs
-- 💡 Suggest improvements via PR
-- 🔧 Check troubleshooting section
-
----
-
-**Next Steps:** Run `./tests/run-all.sh --help` to get started!
+Remember: The goal is to catch issues early when they're cheap to fix!

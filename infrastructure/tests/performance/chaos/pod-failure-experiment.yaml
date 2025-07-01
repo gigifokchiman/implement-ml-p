@@ -1,0 +1,117 @@
+# Chaos Engineering Experiment: Pod Failure
+# Tests system resilience when pods randomly fail
+
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: pod-failure-experiment
+  namespace: ml-platform
+  labels:
+    app.kubernetes.io/name: chaos-experiment
+    app.kubernetes.io/component: resilience-test
+spec:
+  # Target selector
+  selector:
+    namespaces:
+      - ml-platform
+    labelSelectors:
+      "app.kubernetes.io/part-of": "ml-platform"
+  
+  # Chaos action
+  action: pod-failure
+  
+  # Experiment mode
+  mode: fixed-percent
+  value: "20"  # Kill 20% of matching pods
+  
+  # Duration of the experiment
+  duration: "300s"  # 5 minutes
+  
+  # Optional: Schedule the experiment
+  scheduler:
+    cron: "@every 1h"  # Run every hour for continuous testing
+
+---
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: frontend-pod-failure
+  namespace: ml-platform
+spec:
+  selector:
+    namespaces:
+      - ml-platform
+    labelSelectors:
+      "app": "frontend"
+  
+  action: pod-kill
+  mode: fixed
+  value: "1"  # Kill exactly 1 frontend pod
+  duration: "60s"
+
+---
+# Network chaos experiment
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: network-delay-experiment
+  namespace: ml-platform
+spec:
+  action: delay
+  mode: all
+  selector:
+    namespaces:
+      - ml-platform
+    labelSelectors:
+      "app": "backend"
+  
+  delay:
+    latency: "100ms"
+    correlation: "100"
+    jitter: "0ms"
+  
+  duration: "300s"
+
+---
+# IO chaos experiment
+apiVersion: chaos-mesh.org/v1alpha1
+kind: IOChaos
+metadata:
+  name: disk-pressure-experiment
+  namespace: ml-platform
+spec:
+  action: latency
+  mode: all
+  selector:
+    namespaces:
+      - ml-platform
+    labelSelectors:
+      "app": "minio"
+  
+  volumePath: /data
+  
+  delay: "100ms"
+  
+  duration: "300s"
+
+---
+# Stress test experiment
+apiVersion: chaos-mesh.org/v1alpha1
+kind: StressChaos
+metadata:
+  name: cpu-stress-experiment
+  namespace: ml-platform
+spec:
+  mode: all
+  selector:
+    namespaces:
+      - ml-platform
+    labelSelectors:
+      "app": "backend"
+  
+  duration: "300s"
+  
+  stressors:
+    cpu:
+      workers: 1
+      load: 50  # 50% CPU load

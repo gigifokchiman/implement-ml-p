@@ -1,0 +1,68 @@
+# tfsec configuration for Terraform security scanning
+
+# Minimum severity level to report
+minimum_severity: HIGH
+
+# Global excludes - these apply to ALL environments
+# Only exclude checks that are fundamentally incompatible
+exclude: [ ]
+
+# Include paths
+include_paths:
+  - "environments/"
+  - "modules/"
+
+# Exclude paths
+exclude_paths:
+  - ".terraform/"
+  - "*.tfvars"
+  - "test/"
+  - "examples/"
+
+# Output format
+format: default
+
+# Include explanations in output
+include_explanations: true
+
+# Include link to rule information
+include_rule_link: true
+
+# Check for newer version
+update_check: false
+
+# Working directory
+working_dir: "../../../terraform"
+
+# Custom checks directory
+custom_check_dir: null
+
+# Config file for custom configuration
+config_file: null
+
+# Soft fail - don't exit with error code
+soft_fail: false
+
+# Force color output
+force_color: false
+
+# No color output
+no_color: false
+
+# Include passed checks in output
+include_passed: false
+
+# Statistics
+statistics: true
+
+# Debug mode
+debug: false
+
+# Verbose output
+verbose: false
+
+# Run checks concurrently
+concurrency: 1
+
+# Timeout for individual checks
+timeout: "10m"

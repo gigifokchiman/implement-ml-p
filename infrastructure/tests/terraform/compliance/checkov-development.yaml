@@ -1,0 +1,34 @@
+# Checkov configuration for DEVELOPMENT environments
+# Moderate security checks - stricter than local, less than production
+
+framework:
+  - terraform
+  - terraform_plan
+
+# Target development environment
+directory:
+  - "../../../terraform/environments/dev"
+
+# Limited skip checks for development (fewer than local, none for production)
+skip-check:
+  # Development resource exemptions (cost optimization)
+  - CKV_K8S_10  # CPU requests should be set (dev can be more flexible)
+  - CKV_K8S_11  # CPU limits should be set (dev can be more flexible)
+  
+  # Development testing exemptions
+  - CKV_K8S_14  # Image Tag should be fixed (dev may use latest for testing)
+
+# Check both HIGH and CRITICAL for development
+check-severity:
+  - HIGH
+  - CRITICAL
+
+# Output configuration
+output: cli
+quiet: false
+compact: true
+
+# Moderate settings for development
+download-external-modules: false
+include-all-checkov-policies: false
+soft-fail: false

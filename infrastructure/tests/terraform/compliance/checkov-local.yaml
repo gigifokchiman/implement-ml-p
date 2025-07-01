@@ -1,0 +1,49 @@
+# Checkov configuration for LOCAL environment only
+# Local development has relaxed security checks
+
+framework:
+  - terraform
+  - terraform_plan
+
+# Target only local environment
+directory:
+  - "../../../terraform/environments/local"
+
+# Skip checks that don't apply to local Kind cluster development
+skip-check:
+  # Kind cluster specific exemptions (only for local)
+  - CKV_K8S_1   # Process should not have allowPrivilegeEscalation (Kind needs this)
+  - CKV_K8S_8   # Liveness Probe Should be Configured (not critical for local dev)
+  - CKV_K8S_9   # Readiness Probe Should be Configured (not critical for local dev)
+  - CKV_K8S_10  # CPU requests should be set (local development)
+  - CKV_K8S_11  # CPU limits should be set (local development)
+  - CKV_K8S_12  # Memory requests should be set (local development)
+  - CKV_K8S_13  # Memory limits should be set (local development)
+  
+  # Local development specific exemptions
+  - CKV_K8S_14  # Image Tag should be fixed (local development can use latest)
+  - CKV_K8S_15  # Image Pull Policy should be Always (local development)
+  - CKV_K8S_21  # The default namespace should not be used (MinIO deployment)
+  
+  # Local storage exemptions
+  - CKV2_K8S_6  # MinIO should not use default service account (local only)
+  
+  # Network security exemptions for local
+  - CKV_K8S_19  # Access to host IPC namespace should be forbidden (Kind needs this)
+  - CKV_K8S_17  # Containers should not share the host process ID namespace
+  
+  # Local secrets management (less strict for development)
+  - CKV_K8S_35  # Prefer using secrets as files over secrets as environment variables
+
+# Output configuration
+output: cli
+quiet: false
+compact: true
+
+# Only check HIGH and CRITICAL for local (more permissive)
+check-severity:
+  - CRITICAL
+
+# Framework specific configurations
+download-external-modules: false
+include-all-checkov-policies: false

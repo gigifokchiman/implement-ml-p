@@ -1,0 +1,38 @@
+# Checkov configuration for PRODUCTION environments
+# Strict security checks with no exemptions
+
+framework:
+  - terraform
+  - terraform_plan
+
+# Target production environments
+directory:
+  - "../../../terraform/environments/prod"
+  - "../../../terraform/environments/staging"
+
+# NO SKIP CHECKS for production - all security rules must pass
+skip-check: [ ]
+
+# Strict severity checking for production
+check-severity:
+  - HIGH
+  - CRITICAL
+  - MEDIUM  # Include medium severity for production
+
+# Output configuration
+output: cli
+quiet: false
+compact: false  # More verbose output for production
+
+# Enhanced checks for production
+include-all-checkov-policies: true
+download-external-modules: true
+
+# Fail on any security violations
+soft-fail: false
+
+# Custom policies for production (if we add them)
+external-checks-dir: [ ]
+
+# Baseline - no exceptions for production
+baseline: null

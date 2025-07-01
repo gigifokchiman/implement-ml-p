@@ -94,7 +94,7 @@ module "vpc" {
 # EKS Cluster
 module "eks" {
   source  = "terraform-aws-modules/eks/aws"
-  version = "~> 19.0"
+  version = "~> 20.0"
 
   cluster_name    = local.name_prefix
   cluster_version = "1.28"
@@ -104,9 +104,8 @@ module "eks" {
   cluster_endpoint_public_access = true
 
   # Cluster access entry
-  # Cluster creator admin permissions managed via aws-auth configmap
-  manage_aws_auth_configmap = true
-  create_aws_auth_configmap = true
+  # EKS access management (replaces aws-auth configmap in v20+)
+  enable_cluster_creator_admin_permissions = true
 
   cluster_addons = {
     coredns = {

@@ -1,5 +1,5 @@
 # Local Development Environment Configuration
-# Uses our custom provider for Kind cluster with local Docker registry
+# Uses modular approach for reusability and maintainability
 
 terraform {
   required_version = ">= 1.0"
@@ -16,7 +16,34 @@ terraform {
       source  = "hashicorp/helm"
       version = "~> 2.11"
     }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.4"
+    }
   }
+}
+
+# Common configuration module
+module "common" {
+  source = "../../modules/common"
+
+  project_name          = var.project_name
+  environment           = var.environment
+  region                = var.region
+  common_tags           = var.common_tags
+  enable_monitoring     = var.enable_monitoring
+  enable_backup         = var.enable_backup
+  backup_retention_days = var.backup_retention_days
+  deletion_protection   = var.deletion_protection
+  resource_quotas       = var.resource_quotas
+  network_config        = var.network_config
+  database_config       = var.database_config
+  cache_config          = var.cache_config
+  storage_config        = var.storage_config
+  registry_config       = var.registry_config
+  kubernetes_config     = var.kubernetes_config
+  security_config       = var.security_config
+  development_mode      = var.development_mode
 }
 
 # Provider configurations
@@ -24,38 +51,9 @@ provider "kind" {
   # Uses DOCKER_HOST env var if set
 }
 
-# Variables
-variable "cluster_name" {
-  description = "Kind cluster name"
-  type        = string
-  default     = "ml-platform-local"
-}
-
-variable "registry_port" {
-  description = "Local registry port (NodePort)"
-  type        = number
-  default     = 30500
-}
-
-# Locals
-locals {
-  environment = "local"
-  name_prefix = var.cluster_name
-
-  common_tags = {
-    "Environment" = local.environment
-    "Project"     = "ml-platform"
-    "ManagedBy"   = "terraform"
-  }
-}
-
-# =============================================================================
 # KIND CLUSTER FOR LOCAL DEVELOPMENT
-# =============================================================================
-
-# Kind cluster configuration using internal provider
 resource "kind_cluster" "default" {
-  name           = var.cluster_name
+  name           = module.common.name_prefix
   wait_for_ready = true
 
   kind_config {
@@ -66,7 +64,7 @@ resource "kind_cluster" "default" {
       role = "control-plane"
 
       kubeadm_config_patches = [
-        "kind: InitConfiguration\nnodeRegistration:\n  kubeletExtraArgs:\n    node-labels: \"ingress-ready=true\""
+        "kind: InitConfiguration\nnodeRegistration:\n  kubeletExtraArgs:\n    node-labels: \"ingress-ready=true,Environment=${module.common.environment},Project=${var.project_name}\""
       ]
 
       extra_port_mappings {
@@ -86,16 +84,21 @@ resource "kind_cluster" "default" {
 
     nodes {
       role = "worker"
+
+      kubeadm_config_patches = [
+        "kind: JoinConfiguration\nnodeRegistration:\n  kubeletExtraArgs:\n    node-labels: \"Environment=${module.common.environment},Project=${var.project_name}\""
+      ]
     }
 
     nodes {
       role = "worker"
+
+      kubeadm_config_patches = [
+        "kind: JoinConfiguration\nnodeRegistration:\n  kubeletExtraArgs:\n    node-labels: \"Environment=${module.common.environment},Project=${var.project_name}\""
+      ]
     }
   }
 }
-
-# Note: Registry will be deployed inside the Kind cluster using Kubernetes
-# This avoids the need for external Docker provider
 
 # Provider configurations for Kind cluster
 provider "kubernetes" {
@@ -114,148 +117,208 @@ provider "helm" {
   }
 }
 
-# =============================================================================
-# ML PLATFORM SERVICES MODULE
-# =============================================================================
+# LOCAL NETWORK (VPC SIMULATION) MODULE
+module "local_network" {
+  source = "../../modules/local-network"
 
-# Deploy comprehensive ML platform services
-module "ml_platform_services" {
-  source = "../../modules/local-services"
+  name_prefix  = module.common.name_prefix
+  environment  = module.common.environment
+  cluster_name = kind_cluster.default.name
 
-  cluster_name = var.cluster_name
-  namespace    = "ml-platform"
-  environment  = "local"
+  # Enable stricter policies in non-development mode
+  enable_strict_policies = !module.common.is_development
 
-  # Enable development mode for local testing
-  development_mode = {
-    enabled           = true
-    minimal_resources = true
-    allow_insecure    = true
-    debug_logging     = false
+  # Configure cross-subnet communication
+  allow_cross_subnet_communication = {
+    public_to_private           = true
+    private_to_database         = true
+    ml_workload_to_database     = true
+    data_processing_to_database = true
+    monitoring_to_all           = true
   }
 
-  # Configure resource quotas for local development
-  resource_quotas = {
-    enabled = true
-    compute = {
-      requests_cpu    = "2"
-      requests_memory = "4Gi"
-      limits_cpu      = "4"
-      limits_memory   = "8Gi"
-    }
-    storage = {
-      requests_storage = "100Gi"
-    }
-  }
-
-  # Customize service configurations for local environment
-  postgresql_config = {
-    storage_size = "10Gi"
-    resources = {
-      requests = {
-        memory = "128Mi"
-        cpu    = "100m"
-      }
-      limits = {
-        memory = "256Mi"
-        cpu    = "250m"
-      }
-    }
-  }
-
-  redis_config = {
-    storage_size = "5Gi"
-    resources = {
-      requests = {
-        memory = "64Mi"
-        cpu    = "50m"
-      }
-      limits = {
-        memory = "128Mi"
-        cpu    = "100m"
-      }
-    }
-  }
-
-  minio_config = {
-    storage_size = "20Gi"
-    resources = {
-      requests = {
-        memory = "128Mi"
-        cpu    = "100m"
-      }
-      limits = {
-        memory = "256Mi"
-        cpu    = "250m"
-      }
-    }
-  }
-
-  ingress_config = {
-    http_port  = 8080
-    https_port = 8443
-    tls = {
-      common_name = "*.${var.cluster_name}.local"
-      dns_names   = ["${var.cluster_name}.local", "localhost"]
-    }
-  }
-
-  # Enable monitoring and observability
-  enable_monitoring       = true
-  enable_network_policies = true
-  enable_metrics_server   = true
-
-  additional_labels = {
-    "ml-platform/deployment" = "local"
-    "ml-platform/managed-by" = "terraform"
-  }
+  tags = module.common.common_tags
 
   depends_on = [kind_cluster.default]
 }
 
-# Legacy namespace resource (keep for backward compatibility)
+# DATABASE MODULE (deployed to database subnet)
+module "database" {
+  source = "../../modules/database"
+
+  name_prefix           = module.common.name_prefix
+  environment           = module.common.environment
+  namespace             = module.local_network.subnet_namespaces["database"]
+  config                = module.common.database_config
+  backup_retention_days = module.common.database_config.storage_size > 20 ? var.backup_retention_days : 1
+  deletion_protection   = var.deletion_protection
+  enable_monitoring     = var.enable_monitoring
+  development_mode      = module.common.is_development
+  local_storage_class   = "standard"
+  tags                  = module.common.common_tags
+
+  depends_on = [module.local_network]
+}
+
+# CACHE MODULE (deployed to database subnet)
+module "cache" {
+  source = "../../modules/cache"
+
+  name_prefix           = module.common.name_prefix
+  environment           = module.common.environment
+  namespace             = module.local_network.subnet_namespaces["database"]
+  config                = module.common.cache_config
+  backup_retention_days = var.backup_retention_days
+  development_mode      = module.common.is_development
+  local_storage_class   = "standard"
+  tags                  = module.common.common_tags
+
+  depends_on = [module.local_network]
+}
+
+# STORAGE MODULE (deployed to private subnet)
+module "storage" {
+  source = "../../modules/storage"
+
+  name_prefix         = module.common.name_prefix
+  environment         = module.common.environment
+  namespace           = module.local_network.subnet_namespaces["private"]
+  config              = var.storage_config
+  development_mode    = module.common.is_development
+  local_storage_class = "standard"
+  tags                = module.common.common_tags
+
+  depends_on = [module.local_network]
+}
+
+# MONITORING MODULE (deployed to monitoring subnet)
+module "monitoring" {
+  source = "../../modules/monitoring"
+
+  name_prefix               = module.common.name_prefix
+  environment               = module.common.environment
+  namespace                 = module.local_network.subnet_namespaces["monitoring"]
+  create_namespace          = false # namespace created by local_network module
+  enable_prometheus         = var.enable_monitoring
+  enable_grafana            = var.enable_monitoring
+  enable_alertmanager       = var.enable_monitoring
+  enable_node_exporter      = var.enable_monitoring
+  enable_persistent_storage = true
+  storage_class             = "standard"
+  development_mode          = module.common.is_development
+  expose_grafana_ui         = true
+  grafana_hostname          = "${module.common.name_prefix}.local"
+  grafana_admin_password    = "admin123"
+
+  # Configure ServiceMonitors for VPC simulation subnets
+  ml_workload_namespaces     = [module.local_network.subnet_namespaces["ml-workload"]]
+  data_processing_namespaces = [module.local_network.subnet_namespaces["data-processing"]]
+  application_namespaces     = [module.local_network.subnet_namespaces["private"]]
+  frontend_namespaces        = [module.local_network.subnet_namespaces["public"]]
+
+  tags = module.common.common_tags
+
+  depends_on = [module.local_network]
+}
+
+# Legacy Kubernetes namespace for ML Platform (now using private subnet)
 resource "kubernetes_namespace" "ml_platform" {
   metadata {
     name = "ml-platform-legacy"
-    labels = {
-      name       = "ml-platform-legacy"
-      deprecated = "true"
-    }
+    labels = merge(
+      {
+        name                              = "ml-platform-legacy"
+        "app.kubernetes.io/part-of"       = "ml-platform"
+        "network.ml-platform/subnet-type" = "private"
+        deprecated                        = "true"
+      },
+      module.common.common_tags
+    )
+  }
+
+  depends_on = [module.local_network]
+}
+
+# Resource quotas (if enabled)
+resource "kubernetes_resource_quota" "ml_platform" {
+  count = var.resource_quotas.enabled ? 1 : 0
+
+  metadata {
+    name      = "ml-platform-quota"
+    namespace = kubernetes_namespace.ml_platform.metadata[0].name
+  }
+
+  spec {
+    hard = merge(
+      var.resource_quotas.compute != null ? {
+        "requests.cpu"    = module.common.resource_quotas.compute.requests_cpu
+        "requests.memory" = module.common.resource_quotas.compute.requests_memory
+        "limits.cpu"      = module.common.resource_quotas.compute.limits_cpu
+        "limits.memory"   = module.common.resource_quotas.compute.limits_memory
+      } : {},
+      var.resource_quotas.storage != null ? {
+        "requests.storage" = module.common.resource_quotas.storage.requests_storage
+      } : {}
+    )
   }
 }
 
-# Local registry secret for Kind cluster
-# Uses the in-cluster registry deployed by the ml_platform_services module
-resource "kubernetes_secret" "registry_credentials" {
+# Cross-subnet connection secrets for applications in private subnet
+resource "kubernetes_secret" "database_connection" {
   metadata {
-    name      = "registry-credentials"
-    namespace = module.ml_platform_services.namespace
+    name      = "database-connection"
+    namespace = module.local_network.subnet_namespaces["private"]
+    labels = {
+      "network.ml-platform/secret-type"   = "cross-subnet-connection"
+      "network.ml-platform/target-subnet" = "database"
+    }
   }
 
   data = {
-    ".dockerconfigjson" = jsonencode({
-      auths = {
-        "localhost:${var.registry_port}" = {
-          username = ""
-          password = ""
-          auth     = base64encode(":")
-        }
-        "${module.ml_platform_services.registry_connection.internal_endpoint}" = {
-          username = ""
-          password = ""
-          auth     = base64encode(":")
-        }
-      }
-    })
+    url = module.database.connection.url
   }
 
-  type = "kubernetes.io/dockerconfigjson"
+  type = "Opaque"
 }
 
-# =============================================================================
-# OUTPUTS
-# =============================================================================
+resource "kubernetes_secret" "redis_connection" {
+  metadata {
+    name      = "redis-connection"
+    namespace = module.local_network.subnet_namespaces["private"]
+    labels = {
+      "network.ml-platform/secret-type"   = "cross-subnet-connection"
+      "network.ml-platform/target-subnet" = "database"
+    }
+  }
 
+  data = {
+    url = module.cache.connection.url
+  }
+
+  type = "Opaque"
+}
+
+resource "kubernetes_secret" "s3_connection" {
+  metadata {
+    name      = "s3-connection"
+    namespace = module.local_network.subnet_namespaces["private"]
+    labels = {
+      "network.ml-platform/secret-type"   = "storage-connection"
+      "network.ml-platform/target-subnet" = "private"
+    }
+  }
+
+  data = {
+    endpoint   = module.storage.connection.endpoint
+    access_key = module.storage.credentials.access_key
+    secret_key = module.storage.credentials.secret_key
+    buckets    = jsonencode(module.storage.connection.buckets)
+  }
+
+  type = "Opaque"
+}
+
+# OUTPUTS
 output "cluster_info" {
   description = "Kind cluster connection information"
   sensitive   = true
@@ -263,117 +326,121 @@ output "cluster_info" {
     name                   = kind_cluster.default.name
     endpoint               = kind_cluster.default.endpoint
     kubeconfig_path        = kind_cluster.default.kubeconfig_path
-    local_registry_url     = "localhost:${var.registry_port}"
     cluster_ca_certificate = kind_cluster.default.cluster_ca_certificate
   }
 }
 
-output "ml_platform_services" {
-  description = "ML Platform services connection details"
-  value       = module.ml_platform_services.connection_details
+output "service_connections" {
+  description = "Service connection details"
   sensitive   = true
+  value = {
+    database   = module.database.connection
+    cache      = module.cache.connection
+    storage    = module.storage.connection
+    monitoring = module.monitoring.monitoring_endpoints
+  }
 }
 
 output "development_urls" {
-  description = "Local development environment URLs"
-  value = merge(
-    {
-      # Legacy URLs
-      frontend       = "http://localhost:8080"
-      registry_ui    = "http://localhost:${var.registry_port}/v2/_catalog"
-      kubernetes_api = kind_cluster.default.endpoint
-    },
-    # ML Platform service URLs
-    module.ml_platform_services.development_urls
-  )
-}
-
-output "service_endpoints" {
-  description = "Internal service endpoints for application configuration"
+  description = "Local development URLs"
   value = {
-    # Database
-    postgresql = {
-      host     = module.ml_platform_services.postgresql_connection.host
-      port     = module.ml_platform_services.postgresql_connection.port
-      database = module.ml_platform_services.postgresql_connection.database
-      url      = module.ml_platform_services.postgresql_connection.url
-    }
-
-    # Cache
-    redis = {
-      host = module.ml_platform_services.redis_connection.host
-      port = module.ml_platform_services.redis_connection.port
-      url  = module.ml_platform_services.redis_connection.url
-    }
-
-    # Object Storage
-    minio = {
-      endpoint   = module.ml_platform_services.minio_connection.endpoint
-      access_key = module.ml_platform_services.minio_connection.access_key
-      buckets    = module.ml_platform_services.minio_connection.buckets
-    }
-
-    # Registry
-    docker_registry = {
-      internal_url = module.ml_platform_services.registry_connection.internal_endpoint
-      external_url = module.ml_platform_services.registry_connection.external_endpoint
-    }
+    grafana    = module.monitoring.grafana_external_url
+    prometheus = "http://localhost:9090" # Port forward required
+    frontend   = "http://localhost:8080"
+    registry   = "http://localhost:30500"
   }
-  sensitive = true
 }
 
-output "local_commands" {
+output "cluster_name" {
+  description = "Name of the Kind cluster"
+  value       = kind_cluster.default.name
+}
+
+output "useful_commands" {
   description = "Useful commands for local development"
   sensitive   = true
   value = merge(
     {
-      # Legacy commands
-      kubectl_context = "kubectl config use-context kind-${var.cluster_name}"
-      registry_push   = "docker tag myimage:latest localhost:${var.registry_port}/myimage:latest && docker push localhost:${var.registry_port}/myimage:latest"
-      deploy_apps     = "kubectl apply -k ../../kubernetes/overlays/local"
+      kubectl_context = "kubectl config use-context kind-${module.common.name_prefix}"
+      apply_k8s       = "kubectl apply -k ../../../kubernetes/overlays/local"
+
+      # VPC simulation commands
+      list_subnets          = "kubectl get namespaces -l network.ml-platform/vpc-simulation=true"
+      view_network_policies = "kubectl get networkpolicies --all-namespaces -l network.ml-platform/managed-by=terraform"
     },
-    # ML Platform service commands
-    module.ml_platform_services.useful_commands
+    # Monitoring commands from the monitoring module
+    module.monitoring.useful_commands
   )
 }
 
+output "vpc_simulation" {
+  description = "VPC simulation details"
+  value       = module.local_network.vpc_simulation
+}
+
+output "subnet_information" {
+  description = "VPC subnet simulation information"
+  value       = module.local_network.subnets
+}
+
+output "subnet_deployment_guide" {
+  description = "Guide for deploying to VPC simulation subnets"
+  value       = module.local_network.subnet_deployment_guide
+}
+
+output "vpc_comparison" {
+  description = "Comparison between AWS VPC and local simulation"
+  value       = module.local_network.vpc_comparison
+}
+
+output "monitoring_guide" {
+  description = "Guide for teams to add monitoring to their services"
+  value       = module.monitoring.service_discovery_guide
+}
+
 output "environment_summary" {
-  description = "Complete local environment summary"
+  description = "Environment summary"
   value = {
-    cluster = {
-      name       = kind_cluster.default.name
-      endpoint   = kind_cluster.default.endpoint
-      nodes      = 3
-      node_types = ["control-plane", "worker", "worker"]
+    environment = module.common.environment
+    name_prefix = module.common.name_prefix
+    is_local    = module.common.is_local
+
+    vpc_simulation = {
+      enabled          = true
+      subnets          = length(module.local_network.subnet_namespaces)
+      network_policies = "VPC-like behavior with Kubernetes NetworkPolicies"
     }
 
     services = {
-      postgresql = "PostgreSQL 16 with 10Gi storage"
-      redis      = "Redis 7 with 5Gi storage"
-      minio      = "MinIO S3-compatible with 20Gi storage (3 buckets)"
-      ingress    = "NGINX Ingress Controller with TLS"
-      registry   = "Docker Registry 2 (in-cluster) with NodePort 30500"
-    }
-
-    namespace = module.ml_platform_services.namespace
-
-    access = {
-      ingress_http  = "http://localhost:8080"
-      ingress_https = "https://localhost:8443"
-      registry      = "http://localhost:${var.registry_port}"
+      database   = "PostgreSQL in database subnet (${module.local_network.subnet_namespaces["database"]})"
+      cache      = "Redis in database subnet (${module.local_network.subnet_namespaces["database"]})"
+      storage    = "MinIO in private subnet (${module.local_network.subnet_namespaces["private"]})"
+      monitoring = "Prometheus + Grafana in monitoring subnet (${module.local_network.subnet_namespaces["monitoring"]})"
     }
 
     monitoring = {
-      metrics_server   = "Enabled"
-      network_policies = "Enabled"
-      resource_quotas  = "Enabled"
+      prometheus_enabled   = var.enable_monitoring
+      grafana_enabled      = var.enable_monitoring
+      alertmanager_enabled = var.enable_monitoring
+      service_discovery    = "Automatic via ServiceMonitors and PodMonitors"
+      dashboards           = "ML Platform, Training, Data Processing, Infrastructure"
+      alerts               = "Training jobs, data processing, infrastructure health"
     }
 
-    node_simulation = {
-      general_workload = "Simulates m5.large instances"
-      data_processing  = "Simulates c5.2xlarge instances with taints"
-      ml_workload      = "Simulates m5.xlarge instances with taints"
-      gpu_workload     = "Simulates g4dn.xlarge instances (no GPU)"
+    security = {
+      network_policies   = true
+      pod_security       = true
+      vpc_simulation     = "Network segmentation using Kubernetes namespaces"
+      cross_subnet_rules = "Controlled communication between subnets"
+    }
+
+    deployment_targets = {
+      frontend_apps    = module.local_network.subnet_namespaces["public"]
+      backend_services = module.local_network.subnet_namespaces["private"]
+      databases        = module.local_network.subnet_namespaces["database"]
+      ml_training      = module.local_network.subnet_namespaces["ml-workload"]
+      data_processing  = module.local_network.subnet_namespaces["data-processing"]
+      monitoring_stack = module.local_network.subnet_namespaces["monitoring"]
     }
   }
 }
