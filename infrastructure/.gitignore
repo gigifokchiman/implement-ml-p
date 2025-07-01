@@ -1,0 +1,106 @@
+# Terraform Files
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+.terraform/
+.terraform.lock.hcl
+terraform.tfplan
+terraform.tfplan.*
+*.tfvars
+!terraform.tfvars.example
+!*.tfvars.example
+.terraformrc
+terraform.rc
+
+# Terraform Logs and Crashes
+crash.log
+crash.*.log
+terraform.log
+
+# Override files
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Lock files
+.terraform.tfstate.lock.info
+
+# Provider binaries
+terraform-provider-*
+
+# Environment-specific variables
+.env
+.env.local
+.env.*.local
+
+# Kubernetes configs
+kubeconfig
+kubeconfig.*
+.kube/
+*.kubeconfig
+
+# AWS credentials and config
+.aws/
+aws-credentials
+
+# Docker configuration
+.docker-config
+.docker/
+
+# SSH keys and certificates
+*.key
+*.pem
+*.crt
+*.p12
+id_rsa*
+id_ed25519*
+
+# Helm
+.helm/
+helm-*.tgz
+
+# Temporary files
+*.tmp
+*.temp
+.tmp/
+tmp/
+
+# Local state and backups
+local-state/
+backups/
+*.backup
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Test outputs
+test-results/
+test-reports/
+coverage/
+
+# Local development files
+local-*
+dev-*
+scratch/
+playground/
+
+# Generated documentation
+docs/generated/
+
+# Package files
+*.tgz
+*.tar.gz
+*.zip

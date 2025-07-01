@@ -1,24 +1,80 @@
-# Test artifacts
-*.log
-*.tmp
+# Test Results and Reports
 test-results/
-coverage/
-.terraform/
-*.tfplan
-*.tfstate*
-
-# Tool caches
-.checkov.yaml
-.tfsec/
-opa-bundle.tar.gz
-
-# Reports
+test-reports/
+test-output/
+*-results.json
+*-results.xml
+*-results.md
 *-report-*.md
 *-report-*.html
-*-report-*.json
+coverage/
+.coverage
 
-# Temporary files
-/tmp/
-*.bak
-*.swp
-.DS_Store
+# Security Scan Results
+*-scan-results/
+trivy-*-results.*
+checkov-results.*
+tfsec-results.*
+gitleaks-results.*
+trufflehog-results.*
+semgrep-results.*
+kubesec-*-results.*
+polaris-results.*
+grype-*-results.*
+safety-results.*
+bandit-results.*
+npm-audit-results.*
+
+# Terraform Test Files
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+terraform.tfvars
+.terraform.lock.hcl
+
+# Chaos Testing Results
+chaos-test-report-*.md
+*-chaos-results.json
+
+# Performance Test Results
+k6-results/
+load-test-results/
+stress-test-results/
+baseline-results.json
+
+# Drift Detection
+drift-report-*.json
+drift-analysis-*.md
+drift-backups/
+
+# Network Policy Testing
+network-policy-test-report-*.md
+netpol-test/
+
+# Temporary test files
+*.tmp
+*.temp
+test-*.yaml
+test-*.json
+
+# Kubernetes test resources
+test-pods/
+test-namespaces/
+
+# Docker test images
+test-images/
+
+# Logs from tests
+*.log
+logs/
+test-logs/
+
+# Cache and temporary directories
+.cache/
+tmp/
+.tmp/
+
+# IDE files in tests
+.vscode/
+.idea/
