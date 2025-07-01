@@ -85,6 +85,16 @@ local-state/
 backups/
 *.backup
 
+# Generated kubeconfig files
+*-config
+*kubeconfig*
+kubeconfig
+*.kubeconfig
+
+# Registry backups and artifacts
+*-registry-backup-*.tar.gz
+local-registry-backup*.tar.gz
+
 # IDE and editor files
 .vscode/
 .idea/
