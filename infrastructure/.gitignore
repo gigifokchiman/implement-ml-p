@@ -48,6 +48,20 @@ aws-credentials
 .docker-config
 .docker/
 
+# Docker build context and volumes
+.dockerignore.local
+docker-compose.override.yml
+docker-compose.*.local.yml
+
+# Docker volumes and data
+docker-data/
+.volumes/
+postgres-data/
+redis-data/
+
+# Container logs
+container-logs/
+
 # SSH keys and certificates
 *.key
 *.pem
