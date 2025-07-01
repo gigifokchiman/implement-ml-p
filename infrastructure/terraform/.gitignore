@@ -1,0 +1,60 @@
+# Terraform State Files
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+
+# Terraform directories
+.terraform/
+.terraform.lock.hcl
+
+# Terraform plans
+*.tfplan
+terraform.tfplan
+terraform.tfplan.*
+
+# Variable files (keep examples)
+*.tfvars
+!terraform.tfvars.example
+!*.tfvars.example
+!examples/**/*.tfvars
+
+# Override files
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# CLI configuration files
+.terraformrc
+terraform.rc
+
+# Crash logs
+crash.log
+crash.*.log
+terraform.log
+
+# Lock files
+.terraform.tfstate.lock.info
+
+# Provider binaries and cache
+terraform-provider-*
+.terraform.d/
+
+# Backend configuration (environment-specific)
+backend.tf
+!backend.tf.example
+
+# Generated files
+*.generated.tf
+*.auto.tf
+!examples/**/*.auto.tf
+
+# Module testing
+.test/
+test-results/
+test-fixtures/.terraform/
+
+# Temporary files
+*.tmp
+*.temp
+.tmp/
