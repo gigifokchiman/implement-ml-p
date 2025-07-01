@@ -1,0 +1,306 @@
+name: Terraform Drift Detection
+
+on:
+  schedule:
+    # Run drift detection daily at 6 AM UTC
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to check for drift'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+      threshold:
+        description: 'Drift threshold (number of changes to trigger alert)'
+        required: false
+        default: '5'
+        type: string
+
+env:
+  AWS_REGION: us-west-2
+  TERRAFORM_VERSION: 1.6.0
+
+jobs:
+  drift-detection:
+    name: Detect Terraform Drift
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        environment: ${{ github.event_name == 'workflow_dispatch' && fromJSON(format('["{0}"]', github.event.inputs.environment)) || fromJSON('["dev", "staging", "prod"]') }}
+    env:
+      DRIFT_THRESHOLD: ${{ github.event.inputs.threshold || '5' }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+      - name: Terraform Init
+        working-directory: ./infrastructure/terraform/environments/${{ matrix.environment }}
+        run: |
+          terraform init -backend-config="bucket=${{ secrets.TERRAFORM_STATE_BUCKET }}" \
+                         -backend-config="key=${{ matrix.environment }}/terraform.tfstate" \
+                         -backend-config="region=${{ env.AWS_REGION }}"
+
+      - name: Run Drift Detection
+        id: drift
+        working-directory: ./infrastructure/tests/terraform
+        run: |
+          set +e  # Don't exit on drift detection
+          ./drift-detection.sh ${{ matrix.environment }}
+          echo "drift_status=$?" >> $GITHUB_OUTPUT
+
+          # Find the latest report
+          latest_report=$(ls -t drift-analysis-${{ matrix.environment }}-*.md 2>/dev/null | head -1)
+          if [ -n "$latest_report" ]; then
+            echo "report_file=$latest_report" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload Drift Reports
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: drift-reports-${{ matrix.environment }}
+          path: |
+            infrastructure/tests/terraform/drift-report-${{ matrix.environment }}-*.json
+            infrastructure/tests/terraform/drift-analysis-${{ matrix.environment }}-*.md
+          retention-days: 30
+
+      - name: Parse Drift Results
+        id: parse
+        if: always()
+        run: |
+          # Find the latest drift report
+          latest_json=$(ls -t infrastructure/tests/terraform/drift-report-${{ matrix.environment }}-*.json 2>/dev/null | head -1)
+
+          if [ -f "$latest_json" ]; then
+            # Extract drift information
+            change_count=$(jq '[.resource_changes[]? | select(.change.actions[]? | contains("update") or contains("delete") or contains("create"))] | length' "$latest_json" 2>/dev/null || echo "0")
+
+            echo "change_count=$change_count" >> $GITHUB_OUTPUT
+
+            # Create summary for GitHub
+            if [ "$change_count" -gt 0 ]; then
+              echo "drift_summary=⚠️ **Drift Detected**: $change_count resources have drifted from their expected configuration" >> $GITHUB_OUTPUT
+            else
+              echo "drift_summary=✅ **No Drift**: Infrastructure matches configuration" >> $GITHUB_OUTPUT
+            fi
+
+            # Extract drifted resources
+            drifted_resources=$(jq -r '[.resource_changes[]? | select(.change.actions[]? | contains("update") or contains("delete") or contains("create")) | .address] | join(", ")' "$latest_json" 2>/dev/null || echo "")
+            echo "drifted_resources=$drifted_resources" >> $GITHUB_OUTPUT
+          else
+            echo "drift_summary=❌ **Error**: Could not analyze drift results" >> $GITHUB_OUTPUT
+            echo "change_count=0" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Comment on PR (if applicable)
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            const environment = '${{ matrix.environment }}';
+            const driftStatus = '${{ steps.drift.outputs.drift_status }}';
+            const changeCount = '${{ steps.parse.outputs.change_count }}';
+            const driftSummary = '${{ steps.parse.outputs.drift_summary }}';
+            const driftedResources = '${{ steps.parse.outputs.drifted_resources }}';
+
+            let comment = `## 🔍 Terraform Drift Detection - ${environment.toUpperCase()}\n\n`;
+            comment += `${driftSummary}\n\n`;
+
+            if (changeCount > 0) {
+              comment += `### Drifted Resources\n`;
+              comment += `\`\`\`\n${driftedResources}\`\`\`\n\n`;
+              comment += `### Next Steps\n`;
+              comment += `1. Review the drift report in the artifacts\n`;
+              comment += `2. Investigate the cause of drift\n`;
+              comment += `3. Update Terraform configuration if needed\n`;
+              comment += `4. Run \`terraform plan\` and \`terraform apply\` to remediate\n\n`;
+            }
+
+            comment += `**Environment:** ${environment}\n`;
+            comment += `**Timestamp:** ${new Date().toISOString()}\n`;
+            comment += `**Threshold:** ${{ env.DRIFT_THRESHOLD }} changes\n`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+      - name: Create Issue for Drift (if significant)
+        if: steps.parse.outputs.change_count > env.DRIFT_THRESHOLD && github.event_name == 'schedule'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const environment = '${{ matrix.environment }}';
+            const changeCount = '${{ steps.parse.outputs.change_count }}';
+            const driftedResources = '${{ steps.parse.outputs.drifted_resources }}';
+            const threshold = '${{ env.DRIFT_THRESHOLD }}';
+
+            const title = `🚨 Terraform Drift Alert - ${environment.toUpperCase()} (${changeCount} changes)`;
+
+            const body = `## Terraform Drift Detected
+
+            **Environment:** ${environment}
+            **Changes Detected:** ${changeCount}
+            **Threshold:** ${threshold}
+            **Date:** ${new Date().toISOString()}
+
+            ### Drifted Resources
+            \`\`\`
+            ${driftedResources}
+            \`\`\`
+
+            ### Impact
+            - Infrastructure state does not match Terraform configuration
+            - This may indicate manual changes or external automation
+            - Could lead to unexpected behavior during next deployment
+
+            ### Action Required
+            1. 🔍 **Investigate**: Review what caused the drift
+            2. 📝 **Update**: Update Terraform configuration if changes are intended
+            3. 🔄 **Remediate**: Run \`terraform apply\` to fix unintended drift
+            4. 🛡️ **Prevent**: Implement controls to prevent future drift
+
+            ### Commands
+            \`\`\`bash
+            cd infrastructure/terraform/environments/${environment}
+            terraform plan
+            terraform apply
+            \`\`\`
+
+            **Auto-generated by Terraform Drift Detection workflow**
+            `;
+
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: body,
+              labels: ['infrastructure', 'drift', 'urgent', environment]
+            });
+
+      - name: Send Slack Notification (if configured)
+        if: steps.parse.outputs.change_count > env.DRIFT_THRESHOLD && secrets.SLACK_WEBHOOK_URL
+        run: |
+          curl -X POST -H 'Content-type: application/json' \
+            --data '{
+              "text": "🚨 Terraform Drift Detected",
+              "attachments": [
+                {
+                  "color": "warning",
+                  "fields": [
+                    {
+                      "title": "Environment",
+                      "value": "${{ matrix.environment }}",
+                      "short": true
+                    },
+                    {
+                      "title": "Changes",
+                      "value": "${{ steps.parse.outputs.change_count }}",
+                      "short": true
+                    },
+                    {
+                      "title": "Threshold",
+                      "value": "${{ env.DRIFT_THRESHOLD }}",
+                      "short": true
+                    },
+                    {
+                      "title": "Resources",
+                      "value": "${{ steps.parse.outputs.drifted_resources }}",
+                      "short": false
+                    }
+                  ],
+                  "actions": [
+                    {
+                      "type": "button",
+                      "text": "View Workflow",
+                      "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                    }
+                  ]
+                }
+              ]
+            }' \
+            "${{ secrets.SLACK_WEBHOOK_URL }}"
+
+      - name: Fail job if critical drift
+        if: steps.parse.outputs.change_count > 10
+        run: |
+          echo "❌ Critical drift detected: ${{ steps.parse.outputs.change_count }} changes"
+          echo "This exceeds the critical threshold of 10 changes"
+          exit 1
+
+  summary:
+    name: Drift Detection Summary
+    runs-on: ubuntu-latest
+    needs: drift-detection
+    if: always()
+
+    steps:
+      - name: Download all drift reports
+        uses: actions/download-artifact@v3
+
+      - name: Generate Summary Report
+        run: |
+          echo "# Terraform Drift Detection Summary" > summary.md
+          echo "" >> summary.md
+          echo "**Date:** $(date)" >> summary.md
+          echo "**Triggered by:** ${{ github.event_name }}" >> summary.md
+          echo "" >> summary.md
+          echo "| Environment | Status | Changes | Action Required |" >> summary.md
+          echo "|-------------|--------|---------|-----------------|" >> summary.md
+
+          # Process each environment
+          for env in dev staging prod; do
+            if [ -d "drift-reports-$env" ]; then
+              latest_json=$(ls -t drift-reports-$env/drift-report-$env-*.json 2>/dev/null | head -1)
+              if [ -f "$latest_json" ]; then
+                change_count=$(jq '[.resource_changes[]? | select(.change.actions[]? | contains("update") or contains("delete") or contains("create"))] | length' "$latest_json" 2>/dev/null || echo "0")
+
+                if [ "$change_count" -eq 0 ]; then
+                  echo "| $env | ✅ No Drift | 0 | None |" >> summary.md
+                elif [ "$change_count" -le 5 ]; then
+                  echo "| $env | ⚠️ Minor Drift | $change_count | Review |" >> summary.md
+                else
+                  echo "| $env | 🚨 Major Drift | $change_count | **Immediate Action** |" >> summary.md
+                fi
+              else
+                echo "| $env | ❌ Error | - | Check logs |" >> summary.md
+              fi
+            else
+              echo "| $env | ⏭️ Skipped | - | - |" >> summary.md
+            fi
+          done
+
+          echo "" >> summary.md
+          echo "## Next Steps" >> summary.md
+          echo "1. Review detailed reports in workflow artifacts" >> summary.md
+          echo "2. Investigate and remediate any drift" >> summary.md
+          echo "3. Update monitoring and prevention measures" >> summary.md
+
+      - name: Upload Summary Report
+        uses: actions/upload-artifact@v3
+        with:
+          name: drift-summary
+          path: summary.md

@@ -1,0 +1,63 @@
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: network-delay-experiment
+  namespace: ml-platform
+spec:
+  action: delay
+  mode: one
+  selector:
+    namespaces:
+      - ml-platform
+    labelSelectors:
+      app: ml-platform-backend
+  delay:
+    latency: "100ms"
+    correlation: "100"
+    jitter: "0ms"
+  duration: "5m"
+  scheduler:
+    cron: "@every 6h"
+---
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: network-partition-experiment
+  namespace: ml-platform
+spec:
+  action: partition
+  mode: fixed
+  value: "1"
+  selector:
+    namespaces:
+      - ml-platform
+    labelSelectors:
+      app: ml-platform-backend
+  direction: to
+  target:
+    mode: fixed
+    value: "1"
+    selector:
+      namespaces:
+        - ml-platform
+      labelSelectors:
+        app: postgresql
+  duration: "2m"
+---
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: network-loss-experiment
+  namespace: ml-platform
+spec:
+  action: loss
+  mode: one
+  selector:
+    namespaces:
+      - ml-platform
+    labelSelectors:
+      app: ml-platform-backend
+  loss:
+    loss: "10"
+    correlation: "100"
+  duration: "3m"

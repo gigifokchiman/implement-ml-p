@@ -1,0 +1,348 @@
+name: Security Scanning
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run security scans daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+jobs:
+  container-security-scan:
+    name: Container Security Scanning
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build images for scanning
+        run: |
+          docker build -t ml-platform-backend:scan ./app/backend
+          docker build -t ml-platform-frontend:scan ./app/frontend
+
+      - name: Run Trivy vulnerability scanner - Backend
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'ml-platform-backend:scan'
+          format: 'sarif'
+          output: 'trivy-backend-results.sarif'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+
+      - name: Run Trivy vulnerability scanner - Frontend
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'ml-platform-frontend:scan'
+          format: 'sarif'
+          output: 'trivy-frontend-results.sarif'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: '.'
+
+      - name: Run Grype vulnerability scanner
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin
+          grype ml-platform-backend:scan -o json > grype-backend-results.json
+          grype ml-platform-frontend:scan -o json > grype-frontend-results.json
+
+      - name: Upload vulnerability scan results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: vulnerability-scan-results
+          path: |
+            trivy-*-results.sarif
+            grype-*-results.json
+
+  infrastructure-security-scan:
+    name: Infrastructure Security Scanning
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.0
+
+      - name: Run tfsec security scanner
+        uses: aquasecurity/tfsec-action@v1.0.3
+        with:
+          working_directory: './infrastructure/terraform'
+          format: sarif
+          sarif_file: tfsec-results.sarif
+          additional_args: --exclude-downloaded-modules
+
+      - name: Run Checkov security scanner
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: './infrastructure/terraform'
+          output_format: sarif
+          output_file_path: checkov-results.sarif
+          skip_check: CKV2_AWS_61  # Skip specific checks if needed
+
+      - name: Run Semgrep security scanner
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: >-
+            p/security-audit
+            p/secrets
+            p/terraform
+          sarif_output_file: semgrep-results.sarif
+
+      - name: Upload infrastructure scan results
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: '.'
+
+  kubernetes-security-scan:
+    name: Kubernetes Security Scanning
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+
+      - name: Run Kubesec security scanner
+        run: |
+          curl -sSX POST \
+            --data-binary @infrastructure/kubernetes/base/app-ml-platform/backend.yaml \
+            https://v2.kubesec.io/scan > kubesec-backend-results.json
+
+          curl -sSX POST \
+            --data-binary @infrastructure/kubernetes/base/app-ml-platform/frontend.yaml \
+            https://v2.kubesec.io/scan > kubesec-frontend-results.json
+
+      - name: Run Polaris security audit
+        run: |
+          curl -L https://github.com/FairwindsOps/polaris/releases/latest/download/polaris_linux_amd64.tar.gz | tar xz
+          chmod +x polaris
+          ./polaris audit --audit-path infrastructure/kubernetes/ \
+            --format json > polaris-results.json
+
+      - name: Run Falco rules validation
+        run: |
+          curl -L https://github.com/falcosecurity/falco/releases/download/0.36.2/falco-0.36.2-linux-x86_64.tar.gz | tar xz
+          ./falco-0.36.2-linux-x86_64/usr/bin/falco \
+            --validate-rules \
+            --rules-file infrastructure/kubernetes/base/security/falco-rules.yaml || true
+
+      - name: Upload Kubernetes scan results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: kubernetes-security-scan-results
+          path: |
+            kubesec-*-results.json
+            polaris-results.json
+
+  dependency-security-scan:
+    name: Dependency Security Scanning
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        component: [ backend, frontend ]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js (for frontend)
+        if: matrix.component == 'frontend'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: app/frontend/package-lock.json
+
+      - name: Set up Python (for backend)
+        if: matrix.component == 'backend'
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies - Frontend
+        if: matrix.component == 'frontend'
+        working-directory: ./app/frontend
+        run: npm ci
+
+      - name: Install dependencies - Backend
+        if: matrix.component == 'backend'
+        working-directory: ./app/backend
+        run: |
+          pip install -r requirements.txt
+          pip install safety bandit
+
+      - name: Run npm audit (Frontend)
+        if: matrix.component == 'frontend'
+        working-directory: ./app/frontend
+        run: |
+          npm audit --audit-level=moderate --json > npm-audit-results.json || true
+
+      - name: Run Safety check (Backend)
+        if: matrix.component == 'backend'
+        working-directory: ./app/backend
+        run: |
+          safety check --json > safety-results.json || true
+
+      - name: Run Bandit security linter (Backend)
+        if: matrix.component == 'backend'
+        working-directory: ./app/backend
+        run: |
+          bandit -r . -f json -o bandit-results.json || true
+
+      - name: Upload dependency scan results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: dependency-security-scan-${{ matrix.component }}
+          path: |
+            app/${{ matrix.component }}/*-results.json
+
+  secret-scanning:
+    name: Secret Scanning
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run GitLeaks secret scanner
+        run: |
+          curl -L https://github.com/zricethezav/gitleaks/releases/latest/download/gitleaks_linux_x64.tar.gz | tar xz
+          chmod +x gitleaks
+          ./gitleaks detect --report-format sarif --report-path gitleaks-results.sarif || true
+
+      - name: Run TruffleHog secret scanner
+        run: |
+          curl -L https://github.com/trufflesecurity/trufflehog/releases/latest/download/trufflehog_linux_amd64.tar.gz | tar xz
+          chmod +x trufflehog
+          ./trufflehog filesystem . --json > trufflehog-results.json || true
+
+      - name: Upload secret scan results
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: gitleaks-results.sarif
+
+      - name: Upload TruffleHog results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: secret-scan-results
+          path: trufflehog-results.json
+
+  security-report:
+    name: Generate Security Report
+    runs-on: ubuntu-latest
+    needs: [ container-security-scan, infrastructure-security-scan, kubernetes-security-scan, dependency-security-scan, secret-scanning ]
+    if: always()
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all scan results
+        uses: actions/download-artifact@v3
+
+      - name: Generate security report
+        run: |
+          cat > security-report.md << 'EOF'
+          # Security Scan Report
+
+          **Date:** $(date)
+          **Commit:** ${{ github.sha }}
+          **Branch:** ${{ github.ref_name }}
+
+          ## Scan Summary
+
+          | Scanner | Status | Critical | High | Medium | Low |
+          |---------|--------|----------|------|--------|-----|
+          EOF
+
+          # Process Trivy results
+          if [ -f "vulnerability-scan-results/trivy-backend-results.sarif" ]; then
+            echo "| Trivy (Backend) | ✅ | - | - | - | - |" >> security-report.md
+          fi
+
+          # Process other scan results...
+
+          cat >> security-report.md << 'EOF'
+
+          ## Recommendations
+
+          1. Review and remediate CRITICAL and HIGH severity vulnerabilities
+          2. Update dependencies to latest secure versions
+          3. Implement additional security controls based on findings
+          4. Schedule regular security scans
+
+          ## Next Steps
+
+          - [ ] Address critical vulnerabilities
+          - [ ] Update security policies
+          - [ ] Enhance monitoring and detection
+          EOF
+
+      - name: Upload security report
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-report
+          path: security-report.md
+
+      - name: Comment on PR with security summary
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('security-report.md', 'utf8');
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## 🔒 Security Scan Results\n\n${report}`
+            });
+
+  fail-on-critical:
+    name: Fail on Critical Vulnerabilities
+    runs-on: ubuntu-latest
+    needs: [ container-security-scan, infrastructure-security-scan ]
+    if: always()
+    steps:
+      - name: Download scan results
+        uses: actions/download-artifact@v3
+
+      - name: Check for critical vulnerabilities
+        run: |
+          # Check Trivy results for critical vulnerabilities
+          if [ -f "vulnerability-scan-results/trivy-backend-results.sarif" ]; then
+            critical_count=$(jq '[.runs[].results[] | select(.level == "error")] | length' vulnerability-scan-results/trivy-backend-results.sarif)
+            if [ "$critical_count" -gt 0 ]; then
+              echo "❌ Found $critical_count critical vulnerabilities in backend image"
+              exit 1
+            fi
+          fi
+
+          # Check infrastructure scan results
+          if [ -f "tfsec-results.sarif" ]; then
+            critical_count=$(jq '[.runs[].results[] | select(.level == "error")] | length' tfsec-results.sarif)
+            if [ "$critical_count" -gt 0 ]; then
+              echo "❌ Found $critical_count critical security issues in infrastructure"
+              exit 1
+            fi
+          fi
+
+          echo "✅ No critical security issues found"
