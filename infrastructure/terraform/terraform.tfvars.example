@@ -1,0 +1,83 @@
+# Example Terraform Variables File
+# Copy this file to terraform.tfvars and update with your values
+# terraform.tfvars is gitignored for security
+
+# Environment Configuration
+environment = "dev"
+region      = "us-west-2"
+
+# Cluster Configuration
+cluster_name = "ml-platform-dev"
+cluster_version = "1.28"
+
+# Networking
+vpc_cidr = "10.0.0.0/16"
+availability_zones = ["us-west-2a", "us-west-2b", "us-west-2c"]
+
+# Node Groups
+node_groups = {
+  general = {
+    instance_types = ["t3.medium", "t3.large"]
+    min_size       = 1
+    max_size       = 5
+    desired_size   = 2
+  }
+  ml_workloads = {
+    instance_types = ["m5.large", "m5.xlarge"]
+    min_size       = 0
+    max_size       = 10
+    desired_size   = 1
+    capacity_type  = "SPOT"
+  }
+}
+
+# Database Configuration
+database_config = {
+  instance_class    = "db.t3.micro"
+  allocated_storage = 20
+  engine_version    = "15.4"
+  multi_az          = false
+  backup_retention  = 7
+}
+
+# Cache Configuration
+cache_config = {
+  node_type            = "cache.t3.micro"
+  num_cache_nodes      = 1
+  parameter_group_name = "default.redis7"
+  engine_version       = "7.0"
+}
+
+# Storage Configuration
+storage_config = {
+  versioning_enabled = true
+  encryption_enabled = true
+  lifecycle_rules = {
+    transition_ia_days      = 30
+    transition_glacier_days = 90
+    expiration_days         = 365
+  }
+}
+
+# Monitoring Configuration
+monitoring_config = {
+  retention_days = 30
+  enable_alerts  = true
+  slack_webhook  = ""  # Set your Slack webhook URL
+}
+
+# Security Configuration
+security_config = {
+  enable_pod_security_policy = true
+  enable_network_policies    = true
+  enable_falco              = true
+}
+
+# Tags
+tags = {
+  Environment = "dev"
+  Project     = "ml-platform"
+  Team        = "data-science"
+  Owner       = "your-email@company.com"
+  CostCenter  = "engineering"
+}
