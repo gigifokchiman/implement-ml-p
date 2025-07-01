@@ -36,9 +36,33 @@ log() {
     esac
 }
 
-# Test execution tracking
-declare -A TEST_RESULTS
-declare -A TEST_DURATIONS
+# Test execution tracking using arrays instead of associative arrays
+TEST_SUITES="Terraform_Validation Kubernetes_Validation Custom_Provider_Tests Security_Tests Integration_Tests Performance_Tests"
+TEST_RESULTS=""
+TEST_DURATIONS=""
+
+# Helper functions for result tracking
+set_test_result() {
+    local suite="$1"
+    local result="$2"
+    TEST_RESULTS="$TEST_RESULTS $suite:$result"
+}
+
+get_test_result() {
+    local suite="$1"
+    echo "$TEST_RESULTS" | tr ' ' '\n' | grep "^$suite:" | cut -d: -f2
+}
+
+set_test_duration() {
+    local suite="$1" 
+    local duration="$2"
+    TEST_DURATIONS="$TEST_DURATIONS $suite:$duration"
+}
+
+get_test_duration() {
+    local suite="$1"
+    echo "$TEST_DURATIONS" | tr ' ' '\n' | grep "^$suite:" | cut -d: -f2 || echo "0"
+}
 
 run_test_suite() {
     local suite_name="$1"
@@ -47,7 +71,7 @@ run_test_suite() {
     
     if [[ "$skip_condition" == "true" ]]; then
         log "INFO" "Skipping $suite_name (disabled)"
-        TEST_RESULTS["$suite_name"]="SKIPPED"
+        set_test_result "$suite_name" "SKIPPED"
         return 0
     fi
     
@@ -59,16 +83,16 @@ run_test_suite() {
         local duration=$((end_time - start_time))
         
         log "SUCCESS" "$suite_name completed successfully (${duration}s)"
-        TEST_RESULTS["$suite_name"]="PASSED"
-        TEST_DURATIONS["$suite_name"]="$duration"
+        set_test_result "$suite_name" "PASSED"
+        set_test_duration "$suite_name" "$duration"
         return 0
     else
         local end_time=$(date +%s)
         local duration=$((end_time - start_time))
         
         log "ERROR" "$suite_name failed (${duration}s)"
-        TEST_RESULTS["$suite_name"]="FAILED"
-        TEST_DURATIONS["$suite_name"]="$duration"
+        set_test_result "$suite_name" "FAILED"
+        set_test_duration "$suite_name" "$duration"
         return 1
     fi
 }
@@ -93,6 +117,18 @@ run_tests_parallel() {
         echo $? > /tmp/kubernetes_result
     ) &
     pids+=($!)
+    
+    # Custom provider tests (only if Go version is compatible)
+    if go version | grep -q "go1\.(1[6-9]|[2-9][0-9])" 2>/dev/null; then
+        (
+            run_test_suite "Custom Provider Tests" "$INFRA_DIR/terraform-provider-mlplatform/test-e2e.sh" "false"
+            echo $? > /tmp/provider_result
+        ) &
+        pids+=($!)
+    else
+        log "WARN" "Skipping custom provider tests (requires Go 1.16+)"
+        TEST_RESULTS["Custom Provider Tests"]="SKIPPED"
+    fi
     
     # Security tests (if not skipped)
     if [[ "$SKIP_SECURITY" == "false" ]]; then
@@ -121,6 +157,13 @@ run_tests_parallel() {
             TEST_RESULTS["Kubernetes Validation"]="FAILED"
         fi
         rm -f /tmp/kubernetes_result
+    fi
+    
+    if [[ -f /tmp/provider_result ]]; then
+        if [[ "$(cat /tmp/provider_result)" != "0" ]]; then
+            TEST_RESULTS["Custom Provider Tests"]="FAILED"
+        fi
+        rm -f /tmp/provider_result
     fi
     
     if [[ -f /tmp/security_result ]]; then
@@ -161,6 +204,13 @@ run_tests_sequential() {
     # Core validation tests
     run_test_suite "Terraform Validation" "$SCRIPT_DIR/terraform/validate.sh" "false" || ((failed_tests++))
     run_test_suite "Kubernetes Validation" "$SCRIPT_DIR/kubernetes/validate.sh" "false" || ((failed_tests++))
+    # Skip custom provider tests if Go version is too old
+    if go version | grep -q "go1\.(1[6-9]|[2-9][0-9])" 2>/dev/null; then
+        run_test_suite "Custom Provider Tests" "$INFRA_DIR/terraform-provider-mlplatform/test-e2e.sh" "false" || ((failed_tests++))
+    else
+        log "WARN" "Skipping custom provider tests (requires Go 1.16+)"
+        TEST_RESULTS["Custom Provider Tests"]="SKIPPED"
+    fi
     
     # Security tests
     run_test_suite "Security Tests" "$SCRIPT_DIR/security/scan.sh" "$SKIP_SECURITY" || ((failed_tests++))
@@ -227,7 +277,7 @@ $(
 | Test Suite | Status | Duration | Notes |
 |------------|--------|----------|-------|
 $(
-    for suite in "Terraform Validation" "Kubernetes Validation" "Security Tests" "Integration Tests" "Performance Tests"; do
+    for suite in "Terraform Validation" "Kubernetes Validation" "Custom Provider Tests" "Security Tests" "Integration Tests" "Performance Tests"; do
         local status="${TEST_RESULTS[$suite]:-"NOT RUN"}"
         local duration="${TEST_DURATIONS[$suite]:-"N/A"}"
         local icon
@@ -243,6 +293,7 @@ $(
         case "$suite" in
             "Terraform Validation") notes="Infrastructure as Code validation" ;;
             "Kubernetes Validation") notes="Kubernetes manifest validation" ;;
+            "Custom Provider Tests") notes="Custom Terraform provider testing" ;;
             "Security Tests") notes="Security scanning and compliance" ;;
             "Integration Tests") notes="End-to-end deployment testing" ;;
             "Performance Tests") notes="Load testing and performance analysis" ;;
@@ -265,6 +316,12 @@ $(
 - **Scope:** All overlays (local, dev, staging, prod)
 - **Tools:** kustomize, kubectl, kubesec, kube-score
 - **Status:** ${TEST_RESULTS["Kubernetes Validation"]:-"NOT RUN"}
+
+### Custom Provider Tests
+- **Purpose:** Test custom Terraform provider for Kind clusters
+- **Scope:** Unit tests, acceptance tests, and end-to-end validation
+- **Tools:** go test, terraform, kind
+- **Status:** ${TEST_RESULTS["Custom Provider Tests"]:-"NOT RUN"}
 
 ### Security Tests
 - **Purpose:** Security scanning and compliance checking
@@ -359,7 +416,7 @@ print_summary() {
     echo "=========================================="
     
     local total_duration=0
-    for suite in "Terraform Validation" "Kubernetes Validation" "Security Tests" "Integration Tests" "Performance Tests"; do
+    for suite in "Terraform Validation" "Kubernetes Validation" "Custom Provider Tests" "Security Tests" "Integration Tests" "Performance Tests"; do
         local status="${TEST_RESULTS[$suite]:-"NOT RUN"}"
         local duration="${TEST_DURATIONS[$suite]:-"0"}"
         total_duration=$((total_duration + duration))

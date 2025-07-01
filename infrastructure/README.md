@@ -179,10 +179,44 @@ kubectl get ingress -n ml-platform
 3. **"ingress not working"**: Check ingress controller is running
 4. **"pods pending"**: Check node resources and taints
 
+## Simplified Deployment
+
+The infrastructure uses a simple, startup-friendly approach with 3 core tools:
+
+**Stack:**
+
+- **Terraform**: Cloud infrastructure (S3, RDS, EKS, etc.)
+- **Kustomize**: Environment-specific Kubernetes configurations
+- **GitHub Actions**: CI/CD pipeline for automated deployments
+
+**Quick Deployment:**
+
+```bash
+# Deploy everything locally (Kind cluster)
+./scripts/deploy.sh -e local
+
+# Deploy to development
+make deploy-dev
+
+# Deploy to production (with confirmation)
+make deploy-prod
+```
+
+**Manual Deployment:**
+
+```bash
+# Deploy infrastructure
+cd infrastructure/terraform/environments/prod
+terraform apply
+
+# Deploy applications
+kubectl apply -k infrastructure/kubernetes/overlays/prod
+```
+
 ## Next Steps
 
 1. Add monitoring with Prometheus/Grafana
-2. Implement GitOps with ArgoCD
-3. Add secret management with External Secrets Operator
-4. Set up backup strategies for persistent data
-5. Implement disaster recovery procedures
+2. Add secret management with External Secrets Operator
+3. Set up backup strategies for persistent data
+4. Implement disaster recovery procedures
+5. Consider ArgoCD when team grows (5+ people)

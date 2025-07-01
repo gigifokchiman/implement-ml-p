@@ -3,6 +3,7 @@ kind: Kustomization
 
 resources:
   - rbac.yaml
+  - network-policies.yaml
 
 labels:
   - includeSelectors: true

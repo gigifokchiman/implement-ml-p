@@ -1,115 +1,34 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-namespace: ml-platform
+metadata:
+  name: ml-platform-local
 
 resources:
   - ../../base
-  - minio.yaml
 
-    # Use local-path storage class for Kind
+namespace: ml-platform
 
-    # Configure backend to use MinIO for local development
-
-    # Configure applications to use local registry instead of ECR
-
-
-    # Use NodePort for local development
-
-  # Disable SSL redirect for local development
-patches:
-  - patch: |-
-      - op: replace
-        path: /spec/storageClassName
-        value: standard
-    target:
-      kind: PersistentVolumeClaim
-      name: minio-data
-  - patch: |-
-      - op: replace
-        path: /spec/template/spec/containers/0/env/2
-        value:
-          name: MINIO_ENDPOINT
-          value: "minio:9000"
-      - op: replace
-        path: /spec/template/spec/containers/0/env/3
-        value:
-          name: MINIO_ACCESS_KEY
-          valueFrom:
-            secretKeyRef:
-              name: minio-credentials
-              key: root-user
-      - op: replace
-        path: /spec/template/spec/containers/0/env/4
-        value:
-          name: MINIO_SECRET_KEY
-          valueFrom:
-            secretKeyRef:
-              name: minio-credentials
-              key: root-password
-    target:
-      kind: Deployment
-      name: backend
-  - patch: |-
-      - op: replace
-        path: /spec/template/spec/containers/0/image
-        value: host.docker.internal:5001/ml-platform/backend:latest
-    target:
-      kind: Deployment
-      name: backend
-  - patch: |-
-      - op: replace
-        path: /spec/template/spec/containers/0/image
-        value: host.docker.internal:5001/ml-platform/frontend:latest
-    target:
-      kind: Deployment
-      name: frontend
-  - patch: |-
-      - op: replace
-        path: /spec/type
-        value: NodePort
-      - op: add
-        path: /spec/ports/0/nodePort
-        value: 30080
-    target:
-      kind: Service
-      name: frontend
-  - patch: |-
-      - op: remove
-        path: /metadata/annotations/nginx.ingress.kubernetes.io~1ssl-redirect
-      - op: remove
-        path: /spec/tls
-    target:
-      kind: Ingress
-      name: ml-platform
-  - patch: |-
-      - op: replace
-        path: /spec/template/spec/containers/0/securityContext/readOnlyRootFilesystem
-        value: false
-      - op: remove
-        path: /spec/template/spec/containers/0/volumeMounts/1
-      - op: remove
-        path: /spec/template/spec/volumes/1
-      - op: replace
-        path: /spec/template/spec/containers/0/imagePullPolicy
-        value: Always
-    target:
-      kind: Deployment
-      name: frontend
+configMapGenerator:
+  - name: ml-platform-config
+    behavior: merge
+    literals:
+      - LOG_LEVEL=DEBUG
+      - ENVIRONMENT=local
 
 secretGenerator:
-  - literals:
-      - url=postgresql://postgres:postgres@localhost:5432/ml_platform
-      - username=postgres
-      - password=postgres
-    name: database-credentials
-  - literals:
-      - url=redis://localhost:6379
-      - password=""
-    name: redis-credentials
+  - name: database-connection
+    behavior: replace
+    literals:
+      - url=postgresql://admin:changeme123@postgresql.ml-platform.svc.cluster.local:5432/metadata
+  - name: s3-connection
+    behavior: replace
+    literals:
+      - endpoint=http://minio.ml-platform.svc.cluster.local:9000
+      - access_key=minioadmin
+      - secret_key=changeme123
 
 labels:
-  - includeSelectors: true
-    pairs:
-      deployment-method: kind
+  - pairs:
       environment: local
+    includeSelectors: false

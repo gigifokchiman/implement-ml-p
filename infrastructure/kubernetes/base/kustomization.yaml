@@ -4,9 +4,11 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - apps/
+  - app-ml-platform/
   - network/
   - security/
   - storage/
+  - monitoring/
 
 labels:
   - includeSelectors: true

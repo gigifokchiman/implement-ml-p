@@ -238,8 +238,9 @@ help:
 	@echo ""
 	@echo "Direct Deployment:"
 	@echo "  deploy-dev       - Deploy to dev environment"
-	@echo "  deploy-staging   - Deploy to staging environment"
-	@echo "  deploy-prod      - Deploy to prod environment"
+	@echo "  deploy-dev       - Deploy to dev environment using Kustomize"
+	@echo "  deploy-staging   - Deploy to staging environment using Kustomize"
+	@echo "  deploy-prod      - Deploy to prod environment using Kustomize"
 	@echo ""
 	@echo "Configuration:"
 	@echo "  PROJECT_ROOT:    $(PROJECT_ROOT)"
@@ -656,19 +657,40 @@ dev-status:
 	@kubectl get nodes
 
 # =============================================================================
-# DIRECT DEPLOYMENT
+# DIRECT DEPLOYMENT (Kustomize)
 # =============================================================================
 deploy-dev:
-	@echo "Deploying to dev environment..."
-	cd $(TERRAFORM_DEV) && terraform apply
+	@echo "🚀 Deploying to development environment..."
+	@echo "Using Kustomize overlay: $(K8S_DEV)"
+	kubectl apply -k $(K8S_DEV)
+	@echo "⏳ Waiting for rollout to complete..."
+	kubectl rollout status deployment/backend -n $(NAMESPACE) --timeout=300s
+	kubectl rollout status deployment/frontend -n $(NAMESPACE) --timeout=300s
+	@echo "✅ Development deployment completed"
+	@$(MAKE) service-status
 
 deploy-staging:
-	@echo "Deploying to staging environment..."
-	cd $(TERRAFORM_STAGING) && terraform apply
+	@echo "🚀 Deploying to staging environment..."
+	@echo "Using Kustomize overlay: $(K8S_STAGING)"
+	kubectl apply -k $(K8S_STAGING)
+	@echo "⏳ Waiting for rollout to complete..."
+	kubectl rollout status deployment/backend -n $(NAMESPACE) --timeout=300s
+	kubectl rollout status deployment/frontend -n $(NAMESPACE) --timeout=300s
+	@echo "✅ Staging deployment completed"
+	@$(MAKE) service-status
 
 deploy-prod:
-	@echo "Deploying to prod environment..."
-	cd $(TERRAFORM_PROD) && terraform apply
+	@echo "🚀 Deploying to production environment..."
+	@echo "⚠️  This will deploy to production!"
+	@read -p "Are you sure? (yes/no): " confirm && [[ $$confirm == "yes" ]]
+	@echo "Using Kustomize overlay: $(K8S_PROD)"
+	kubectl apply -k $(K8S_PROD)
+	@echo "⏳ Waiting for rollout to complete..."
+	kubectl rollout status deployment/backend -n $(NAMESPACE) --timeout=600s
+	kubectl rollout status deployment/frontend -n $(NAMESPACE) --timeout=600s
+	@echo "✅ Production deployment completed"
+	@$(MAKE) service-status
+
 
 # =============================================================================
 # DEBUG INFORMATION
