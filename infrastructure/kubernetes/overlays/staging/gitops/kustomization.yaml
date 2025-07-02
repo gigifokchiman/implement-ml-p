@@ -1,0 +1,20 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: argocd-staging
+
+resources:
+  - ../../../base/gitops
+
+patches:
+  - path: argocd-staging-patches.yaml
+    target:
+      kind: ArgoCD
+      name: argocd
+
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: gitops
+      app.kubernetes.io/environment: staging
+      app.kubernetes.io/managed-by: kustomize

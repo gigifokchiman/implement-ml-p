@@ -1,0 +1,58 @@
+apiVersion: argoproj.io/v1beta1
+kind: ArgoCD
+metadata:
+  name: argocd
+  namespace: argocd
+spec:
+  # Local development settings
+  server:
+    service:
+      type: NodePort
+      nodePortService:
+        port: 30080
+    ingress:
+      enabled: true
+      ingressClassName: nginx
+      hosts:
+        - argocd.ml-platform.local
+      tls: false  # No TLS for local development
+    extraArgs:
+      - --insecure
+    config:
+      url: http://argocd.ml-platform.local:30080
+
+  # Minimal resources for local
+  controller:
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "256Mi"
+      limits:
+        cpu: "500m"
+        memory: "512Mi"
+
+  repo:
+    resources:
+      requests:
+        cpu: "50m"
+        memory: "128Mi"
+      limits:
+        cpu: "200m"
+        memory: "256Mi"
+
+  redis:
+    resources:
+      requests:
+        cpu: "50m"
+        memory: "64Mi"
+      limits:
+        cpu: "200m"
+        memory: "128Mi"
+
+  # Disable high availability
+  ha:
+    enabled: false
+
+  # Local SSO (optional)
+  sso:
+    provider: ""  # Disable SSO for local development

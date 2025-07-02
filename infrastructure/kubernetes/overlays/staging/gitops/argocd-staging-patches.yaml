@@ -1,0 +1,91 @@
+apiVersion: argoproj.io/v1beta1
+kind: ArgoCD
+metadata:
+  name: argocd
+  namespace: argocd
+spec:
+  # Staging-specific ArgoCD configuration  
+  server:
+    service:
+      type: LoadBalancer
+    # Use TLS for staging (production-like)
+    insecure: false
+    
+    # Staging ingress
+    ingress:
+      enabled: true
+      annotations:
+        kubernetes.io/ingress.class: nginx
+        cert-manager.io/cluster-issuer: letsencrypt-staging
+      hosts:
+        - argocd-staging.aws.com
+      tls:
+        - secretName: argocd-server-staging-tls
+          hosts:
+            - argocd-staging.aws.com
+    
+    # Production-like resources for staging
+    resources:
+      limits:
+        cpu: 1500m
+        memory: 1.5Gi
+      requests:
+        cpu: 750m
+        memory: 768Mi
+  
+  controller:
+    # Staging controller resources
+    resources:
+      limits:
+        cpu: 3000m
+        memory: 3Gi
+      requests:
+        cpu: 1500m
+        memory: 1.5Gi
+    
+    # Enable metrics for staging monitoring
+    metrics:
+      enabled: true
+      serviceMonitor:
+        enabled: true
+  
+  repo:
+    # Repository server resources
+    resources:
+      limits:
+        cpu: 750m
+        memory: 1.5Gi
+      requests:
+        cpu: 375m
+        memory: 768Mi
+    
+    # Enable metrics
+    metrics:
+      enabled: true
+  
+  # Staging RBAC - balanced between dev and prod
+  rbac:
+    defaultPolicy: 'role:staging-user'
+    policy: |
+      # Staging admin with full access
+      p, role:staging-admin, applications, *, */*, allow
+      p, role:staging-admin, clusters, *, *, allow
+      p, role:staging-admin, repositories, *, *, allow
+      
+      # Staging users with limited access
+      p, role:staging-user, applications, get, */*, allow
+      p, role:staging-user, applications, sync, ml-platform/staging, allow
+      
+      # Development team can view staging
+      p, role:dev-team, applications, get, ml-platform/staging, allow
+      
+      # Group mappings
+      g, ml-platform:staging-admins, role:staging-admin
+      g, ml-platform:developers, role:dev-team
+      g, ml-platform:qa-team, role:staging-user
+  
+  # Production-like configuration for staging
+  extraConfig:
+    # Sync policies
+    application.instanceLabelKey: argocd.argoproj.io/instance
+    timeout.reconciliation: 180s

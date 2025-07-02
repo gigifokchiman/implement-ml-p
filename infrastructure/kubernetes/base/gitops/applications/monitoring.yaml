@@ -1,0 +1,63 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monitoring-stack
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: monitoring-stack
+    app.kubernetes.io/part-of: gitops
+    component: infrastructure
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"  # Deploy before applications
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: ml-platform-infrastructure
+
+  source:
+    repoURL: https://github.com/your-org/ml-platform  # Update with actual repo
+    targetRevision: HEAD
+    path: infrastructure/kubernetes/base/monitoring
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - ServerSideApply=true  # For CRDs
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 5m
+
+  revisionHistoryLimit: 10
+
+  # Monitoring components often have dynamic fields
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas
+    - group: ""
+      kind: ConfigMap
+      jsonPointers:
+        - /data
+    - group: monitoring.coreos.com
+      kind: Prometheus
+      jsonPointers:
+        - /spec/retention
+
+  info:
+    - name: 'Component'
+      value: 'Monitoring Infrastructure'
+    - name: 'Includes'
+      value: 'Prometheus, Grafana, Jaeger, AlertManager'

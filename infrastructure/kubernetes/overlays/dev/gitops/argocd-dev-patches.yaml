@@ -1,0 +1,71 @@
+apiVersion: argoproj.io/v1beta1
+kind: ArgoCD
+metadata:
+  name: argocd
+  namespace: argocd
+spec:
+  # Development-specific ArgoCD configuration
+  server:
+    service:
+      type: LoadBalancer
+    # Allow insecure for development
+    insecure: true
+    
+    # Development ingress
+    ingress:
+      enabled: true
+      annotations:
+        kubernetes.io/ingress.class: nginx
+      hosts:
+        - argocd-dev.aws.com
+    
+    # Moderate resources for development
+    resources:
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+      requests:
+        cpu: 500m
+        memory: 512Mi
+  
+  controller:
+    # Development controller resources
+    resources:
+      limits:
+        cpu: 2000m
+        memory: 2Gi
+      requests:
+        cpu: 1000m
+        memory: 1Gi
+    
+    # Enable metrics for development monitoring
+    metrics:
+      enabled: true
+  
+  repo:
+    # Repository server resources
+    resources:
+      limits:
+        cpu: 500m
+        memory: 1Gi
+      requests:
+        cpu: 250m
+        memory: 512Mi
+  
+  # Development RBAC - more permissive
+  rbac:
+    defaultPolicy: 'role:dev-user'
+    policy: |
+      # Development admin with full access
+      p, role:dev-admin, applications, *, */*, allow
+      p, role:dev-admin, clusters, *, *, allow
+      p, role:dev-admin, repositories, *, *, allow
+      
+      # Development users with app management
+      p, role:dev-user, applications, *, ml-platform/dev, allow
+      p, role:dev-user, applications, get, */*, allow
+      p, role:dev-user, clusters, get, *, allow
+      
+      # Group mappings
+      g, ml-platform:dev-admins, role:dev-admin
+      g, ml-platform:developers, role:dev-user

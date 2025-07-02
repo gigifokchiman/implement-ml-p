@@ -1,0 +1,125 @@
+apiVersion: argoproj.io/v1beta1
+kind: ArgoCD
+metadata:
+  name: argocd
+  namespace: argocd
+spec:
+  # Production-specific ArgoCD configuration
+  server:
+    service:
+      type: LoadBalancer
+    # Enable TLS
+    insecure: false
+    # Ingress configuration for production
+    ingress:
+      enabled: true
+      annotations:
+        kubernetes.io/ingress.class: nginx
+        cert-manager.io/cluster-issuer: letsencrypt-prod
+        nginx.ingress.kubernetes.io/ssl-redirect: "true"
+        nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+      hosts:
+        - argocd.company.com
+      tls:
+        - secretName: argocd-server-tls
+          hosts:
+            - argocd.company.com
+    
+    # Production resource limits
+    resources:
+      limits:
+        cpu: 2000m
+        memory: 2Gi
+      requests:
+        cpu: 1000m
+        memory: 1Gi
+  
+  controller:
+    # Enhanced controller resources for production
+    resources:
+      limits:
+        cpu: 4000m
+        memory: 4Gi
+      requests:
+        cpu: 2000m
+        memory: 2Gi
+    
+    # Production metrics
+    metrics:
+      enabled: true
+      serviceMonitor:
+        enabled: true
+        selector:
+          matchLabels:
+            app.kubernetes.io/name: argocd-application-controller-metrics
+  
+  repo:
+    # Repository server resources
+    resources:
+      limits:
+        cpu: 1000m
+        memory: 2Gi
+      requests:
+        cpu: 500m
+        memory: 1Gi
+    
+    # Production metrics
+    metrics:
+      enabled: true
+      serviceMonitor:
+        enabled: true
+  
+  redis:
+    # Redis configuration for production
+    resources:
+      limits:
+        cpu: 500m
+        memory: 512Mi
+      requests:
+        cpu: 250m
+        memory: 256Mi
+  
+  # Production-specific RBAC
+  rbac:
+    defaultPolicy: 'role:readonly'
+    policy: |
+      # Production team with full access
+      p, role:prod-admin, applications, *, */*, allow
+      p, role:prod-admin, clusters, *, *, allow
+      p, role:prod-admin, repositories, *, *, allow
+      
+      # Development team with limited access
+      p, role:dev-team, applications, get, */*, allow
+      p, role:dev-team, applications, sync, ml-platform/dev, allow
+      p, role:dev-team, applications, sync, ml-platform/staging, allow
+      
+      # Read-only access for monitoring
+      p, role:readonly, applications, get, */*, allow
+      p, role:readonly, clusters, get, *, allow
+      
+      # Group mappings (configure with your SSO)
+      g, ml-platform:prod-admins, role:prod-admin
+      g, ml-platform:developers, role:dev-team
+      g, ml-platform:viewers, role:readonly
+    
+    scopes: '[groups]'
+  
+  # Notifications for production
+  notifications:
+    enabled: true
+  
+  # Production configuration
+  extraConfig:
+    # Stricter sync policies
+    application.instanceLabelKey: argocd.argoproj.io/instance
+    # Timeout configurations
+    timeout.hard.reconciliation: 5m
+    timeout.reconciliation: 180s
+    # Resource exclusions for production stability
+    resource.exclusions: |
+      - apiGroups:
+        - cilium.io
+        kinds:
+        - CiliumIdentity
+        clusters:
+        - "*"

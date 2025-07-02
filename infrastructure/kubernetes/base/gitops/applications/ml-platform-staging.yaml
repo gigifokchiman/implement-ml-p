@@ -1,0 +1,60 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ml-platform-staging
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: ml-platform-staging
+    app.kubernetes.io/part-of: gitops
+    environment: staging
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: ml-platform
+
+  source:
+    repoURL: https://github.com/your-org/ml-platform  # Update with actual repo
+    targetRevision: HEAD
+    path: infrastructure/kubernetes/overlays/staging
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ml-platform
+
+  syncPolicy:
+    automated:
+      prune: false  # Manual approval for staging
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 5m
+
+  revisionHistoryLimit: 20  # Keep more history for staging
+
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas
+    - group: ""
+      kind: Secret
+      jsonPointers:
+        - /data
+
+  info:
+    - name: 'Environment'
+      value: 'Staging'
+    - name: 'URL'
+      value: 'https://ml-platform-staging.aws.com'
+    - name: 'Manual Approval'
+      value: 'Required for sync'

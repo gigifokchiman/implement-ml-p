@@ -1,0 +1,58 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ml-platform-local
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: ml-platform-local
+    app.kubernetes.io/part-of: gitops
+    environment: local
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"  # Deploy after infrastructure
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: ml-platform
+
+  source:
+    repoURL: https://github.com/your-org/ml-platform  # Update with actual repo
+    targetRevision: HEAD
+    path: infrastructure/kubernetes/overlays/local
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ml-platform
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+
+  revisionHistoryLimit: 10
+
+  # Ignore certain fields that might change
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas
+    - group: ""
+      kind: Secret
+      jsonPointers:
+        - /data
+
+  # Health checks
+  info:
+    - name: 'Example'
+      value: 'https://ml-platform.local'

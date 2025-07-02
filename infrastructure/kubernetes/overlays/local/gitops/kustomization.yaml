@@ -1,0 +1,47 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: argocd-local
+
+resources:
+  - ../../../base/gitops
+  - ../../../base/gitops/applications
+
+namespace: argocd
+
+# Local environment customizations
+patchesStrategicMerge:
+  - argocd-local-patches.yaml
+
+# Local ingress configuration
+patches:
+  - target:
+      group: argoproj.io
+      version: v1beta1
+      kind: ArgoCD
+      name: argocd
+    patch: |-
+      - op: replace
+        path: /spec/server/ingress/enabled
+        value: true
+      - op: replace
+        path: /spec/server/config/url
+        value: https://argocd.ml-platform.local
+      - op: replace
+        path: /spec/ha/enabled
+        value: false
+
+# Configure for local development
+configMapGenerator:
+  - name: argocd-cmd-params-cm
+    behavior: merge
+    literals:
+      - server.insecure=true
+      - server.disable.auth=false
+      - application.instanceLabelKey=argocd.argoproj.io/instance
+
+labels:
+  - pairs:
+      environment: local
+      deployment-method: argocd

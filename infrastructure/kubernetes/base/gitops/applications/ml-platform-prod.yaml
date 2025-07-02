@@ -1,0 +1,71 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ml-platform-prod
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: ml-platform-prod
+    app.kubernetes.io/part-of: gitops
+    environment: prod
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    notifications.argoproj.io/subscribe.on-deployed.slack: ml-platform-alerts
+    notifications.argoproj.io/subscribe.on-health-degraded.slack: ml-platform-alerts
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: ml-platform
+
+  source:
+    repoURL: https://github.com/your-org/ml-platform  # Update with actual repo
+    targetRevision: HEAD  # In production, consider using tags
+    path: infrastructure/kubernetes/overlays/prod
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ml-platform
+
+  syncPolicy:
+    automated:
+      prune: false  # Never auto-prune in production
+      selfHeal: false  # Never auto-heal in production
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+      - Replace=false  # Use strategic merge
+    retry:
+      limit: 2  # Limited retries in production
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 10m
+
+  revisionHistoryLimit: 50  # Keep extensive history for production
+
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas  # Allow HPA to manage replicas
+    - group: ""
+      kind: Secret
+      jsonPointers:
+        - /data
+    - group: autoscaling
+      kind: HorizontalPodAutoscaler
+      jsonPointers:
+        - /spec/minReplicas
+        - /spec/maxReplicas
+
+  # Production-specific health checks
+  info:
+    - name: 'Environment'
+      value: 'Production'
+    - name: 'URL'
+      value: 'https://ml-platform.com'
+    - name: 'SLA'
+      value: '99.9%'
+    - name: 'Support'
+      value: 'ml-platform-support@company.com'

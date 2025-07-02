@@ -1,0 +1,142 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: ml-platform
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: ml-platform-project
+    app.kubernetes.io/part-of: gitops
+spec:
+  description: ML Platform Project
+
+  # Source repositories that applications within this project can pull from
+  sourceRepos:
+    - '*'  # Allow all repositories - restrict in production
+
+  # Destination clusters and namespaces where applications may be deployed
+  destinations:
+    - namespace: ml-platform
+      server: https://kubernetes.default.svc
+    - namespace: ml-platform-*
+      server: https://kubernetes.default.svc
+    - namespace: monitoring
+      server: https://kubernetes.default.svc
+    - namespace: kube-system
+      server: https://kubernetes.default.svc
+
+  # Cluster-scoped resources allowed to be managed
+  clusterResourceWhitelist:
+    - group: ''
+      kind: Namespace
+    - group: ''
+      kind: PersistentVolume
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRole
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRoleBinding
+    - group: storage.k8s.io
+      kind: StorageClass
+    - group: networking.k8s.io
+      kind: IngressClass
+    - group: policy
+      kind: PodSecurityPolicy
+    - group: admissionregistration.k8s.io
+      kind: ValidatingAdmissionWebhook
+    - group: admissionregistration.k8s.io
+      kind: MutatingAdmissionWebhook
+    - group: monitoring.coreos.com
+      kind: ServiceMonitor
+    - group: monitoring.coreos.com
+      kind: PrometheusRule
+
+  # Namespace-scoped resources allowed to be managed
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+
+  # Roles which provide API access
+  roles:
+    - name: ml-platform-admin
+      description: Admin access to ML Platform project
+      policies:
+        - p, proj:ml-platform:ml-platform-admin, applications, *, ml-platform/*, allow
+        - p, proj:ml-platform:ml-platform-admin, repositories, *, *, allow
+        - p, proj:ml-platform:ml-platform-admin, clusters, *, *, allow
+      groups:
+        - ml-platform-admins
+
+    - name: ml-platform-developer
+      description: Developer access to ML Platform project
+      policies:
+        - p, proj:ml-platform:ml-platform-developer, applications, get, ml-platform/*, allow
+        - p, proj:ml-platform:ml-platform-developer, applications, sync, ml-platform/*, allow
+        - p, proj:ml-platform:ml-platform-developer, applications, override, ml-platform/*, allow
+        - p, proj:ml-platform:ml-platform-developer, repositories, get, *, allow
+      groups:
+        - ml-platform-developers
+
+    - name: ml-platform-readonly
+      description: Read-only access to ML Platform project
+      policies:
+        - p, proj:ml-platform:ml-platform-readonly, applications, get, ml-platform/*, allow
+        - p, proj:ml-platform:ml-platform-readonly, repositories, get, *, allow
+      groups:
+        - ml-platform-viewers
+
+  # Sync windows define windows in which syncs can be run
+  syncWindows:
+    - kind: allow
+      schedule: '* * * * *'
+      duration: 24h
+      applications:
+        - '*'
+      manualSync: true
+    - kind: deny
+      schedule: '0 2 * * 1'  # Deny automatic syncs during Monday 2 AM maintenance window
+      duration: 2h
+      applications:
+        - '*'
+      manualSync: false
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: ml-platform-infrastructure
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: ml-platform-infrastructure-project
+    app.kubernetes.io/part-of: gitops
+spec:
+  description: ML Platform Infrastructure Project (monitoring, security, etc.)
+
+  sourceRepos:
+    - '*'
+
+  destinations:
+    - namespace: monitoring
+      server: https://kubernetes.default.svc
+    - namespace: security
+      server: https://kubernetes.default.svc
+    - namespace: kube-system
+      server: https://kubernetes.default.svc
+    - namespace: istio-system
+      server: https://kubernetes.default.svc
+
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+
+  roles:
+    - name: infrastructure-admin
+      description: Admin access to infrastructure components
+      policies:
+        - p, proj:ml-platform-infrastructure:infrastructure-admin, applications, *, ml-platform-infrastructure/*, allow
+      groups:
+        - ml-platform-admins
+        - infrastructure-admins

@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: argocd-base
+
+resources:
+  - argocd-namespace.yaml
+  - argocd-install.yaml
+  - argocd-rbac.yaml
+  - argocd-projects.yaml
+  - applicationset.yaml
+  - applications/
+
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: gitops
+      app.kubernetes.io/managed-by: kustomize

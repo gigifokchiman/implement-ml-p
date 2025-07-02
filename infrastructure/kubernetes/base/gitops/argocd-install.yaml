@@ -1,0 +1,107 @@
+apiVersion: argoproj.io/v1beta1
+kind: ArgoCD
+metadata:
+  name: argocd
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd
+    app.kubernetes.io/part-of: gitops
+spec:
+  # Server configuration
+  server:
+    service:
+      type: ClusterIP
+    ingress:
+      enabled: false  # Will be enabled per environment
+    extraArgs:
+      - --insecure  # For local development
+    config:
+      url: https://argocd.ml-platform.local  # Override per environment
+      application.instanceLabelKey: argocd.argoproj.io/instance
+
+  # Repository server
+  repo:
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "256Mi"
+      limits:
+        cpu: "500m"
+        memory: "512Mi"
+
+  # Controller
+  controller:
+    resources:
+      requests:
+        cpu: "250m"
+        memory: "512Mi"
+      limits:
+        cpu: "1000m"
+        memory: "1Gi"
+
+  # Application controller
+  applicationSet:
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "128Mi"
+      limits:
+        cpu: "500m"
+        memory: "256Mi"
+
+  # High availability for production
+  ha:
+    enabled: false  # Override in production
+
+  # RBAC configuration
+  rbac:
+    defaultPolicy: 'role:readonly'
+    policy: |
+      g, ml-platform-admins, role:admin
+      g, ml-platform-developers, role:developer
+
+    scopes: '[groups]'
+
+  # SSO configuration (optional)
+  sso:
+    provider: oidc
+    oidc:
+      name: OIDC
+      issuer: https://auth.ml-platform.local
+      clientId: argocd
+      clientSecret:
+        name: argocd-oidc-secret
+        key: clientSecret
+      requestedScopes: [ "openid", "profile", "email", "groups" ]
+      requestedIDTokenClaims: { "groups": { "essential": true } }
+
+  # Image configuration
+  image: quay.io/argoproj/argocd:v2.9.3
+
+  # Resource quotas
+  resourceQuotas:
+    enabled: true
+    requests:
+      storage: 10Gi
+
+  # Monitoring
+  monitoring:
+    enabled: true
+
+  # Notifications
+  notifications:
+    enabled: true
+
+  # Security
+  extraArgs:
+    - --enable-proxy-extension
+
+  # Redis configuration
+  redis:
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "128Mi"
+      limits:
+        cpu: "500m"
+        memory: "256Mi"
