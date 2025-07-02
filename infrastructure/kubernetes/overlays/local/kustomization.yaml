@@ -5,30 +5,29 @@ metadata:
   name: ml-platform-local
 
 resources:
-  - ../../base
+- ../../base
 
 namespace: ml-platform
 
 configMapGenerator:
-  - name: ml-platform-config
-    behavior: merge
-    literals:
-      - LOG_LEVEL=DEBUG
-      - ENVIRONMENT=local
+- behavior: merge
+  literals:
+  - LOG_LEVEL=DEBUG
+  - ENVIRONMENT=local
+  name: ml-platform-config
 
 secretGenerator:
-  - name: database-connection
-    behavior: replace
-    literals:
-      - url=postgresql://admin:changeme123@postgresql.ml-platform.svc.cluster.local:5432/metadata
-  - name: s3-connection
-    behavior: replace
-    literals:
-      - endpoint=http://minio.ml-platform.svc.cluster.local:9000
-      - access_key=minioadmin
-      - secret_key=changeme123
+- behavior: replace
+  literals:
+  - url=postgresql://admin:changeme123@postgresql.ml-platform.svc.cluster.local:5432/metadata
+  name: database-connection
+- behavior: replace
+  literals:
+  - endpoint=http://minio.ml-platform.svc.cluster.local:9000
+  - access_key=minioadmin
+  - secret_key=changeme123
+  name: s3-connection
 
 labels:
-  - pairs:
-      environment: local
-    includeSelectors: false
+- pairs:
+    environment: local

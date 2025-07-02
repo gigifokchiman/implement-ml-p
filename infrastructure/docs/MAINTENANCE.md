@@ -314,7 +314,7 @@ make docker-health
 ## Resource Links
 
 - [Infrastructure Documentation](../README.md)
-- [Docker Setup Guide](DOCKER-SETUP.md)
+- [Docker Setup Guide](archive/DOCKER-SETUP.md)
 - [Troubleshooting Guide](../tests/TROUBLESHOOTING.md)
 - [Security Guidelines](./SECURITY.md)
 - [Architecture Overview](./ARCHITECTURE.md)

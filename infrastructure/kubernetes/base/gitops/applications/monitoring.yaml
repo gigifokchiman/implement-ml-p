@@ -15,7 +15,7 @@ spec:
   project: ml-platform-infrastructure
 
   source:
-    repoURL: https://github.com/your-org/ml-platform  # Update with actual repo
+    repoURL: https://github.com/gigifokchiman/implement-ml-p  # Update with actual repo
     targetRevision: HEAD
     path: infrastructure/kubernetes/base/monitoring
 

@@ -10,7 +10,7 @@ spec:
   generators:
     # Git directory generator - discovers environments automatically
     - git:
-        repoURL: https://github.com/your-org/ml-platform  # Update with actual repo
+        repoURL: https://github.com/gigifokchiman/implement-ml-p  # Update with actual repo
         revision: HEAD
         directories:
           - path: infrastructure/kubernetes/overlays/*
@@ -32,7 +32,7 @@ spec:
     spec:
       project: ml-platform
       source:
-        repoURL: https://github.com/your-org/ml-platform  # Update with actual repo
+        repoURL: https://github.com/gigifokchiman/implement-ml-p  # Update with actual repo
         targetRevision: HEAD
         path: '{{path}}'
       destination:
@@ -40,8 +40,8 @@ spec:
         namespace: ml-platform
       syncPolicy:
         automated:
-          prune: '{{path.basename != "prod"}}'  # Auto-prune for non-prod
-          selfHeal: '{{path.basename != "prod"}}'  # Self-heal for non-prod
+          prune: true  # Simplified for now
+          selfHeal: true  # Simplified for now
           allowEmpty: false
         syncOptions:
           - CreateNamespace=true
@@ -53,7 +53,7 @@ spec:
             duration: 5s
             factor: 2
             maxDuration: 3m
-      revisionHistoryLimit: '{{path.basename == "prod" | ternary 50 10}}'
+      revisionHistoryLimit: 10
 
       # Environment-specific ignore differences
       ignoreDifferences:
@@ -105,7 +105,7 @@ spec:
     spec:
       project: ml-platform-infrastructure
       source:
-        repoURL: https://github.com/your-org/ml-platform  # Update with actual repo
+        repoURL: https://github.com/gigifokchiman/implement-ml-p  # Update with actual repo
         targetRevision: HEAD
         path: '{{path}}'
       destination:
@@ -174,7 +174,7 @@ spec:
     spec:
       project: ml-platform
       source:
-        repoURL: https://github.com/your-org/ml-platform  # Update with actual repo
+        repoURL: https://github.com/gigifokchiman/implement-ml-p  # Update with actual repo
         targetRevision: '{{head_sha}}'
         path: infrastructure/kubernetes/overlays/local  # Use local config for previews
         kustomize:

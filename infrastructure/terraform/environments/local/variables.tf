@@ -199,3 +199,35 @@ variable "development_mode" {
   })
   default = {}
 }
+
+variable "performance_monitoring_config" {
+  description = "Performance monitoring configuration"
+  type = object({
+    enable_apm                 = optional(bool, false)
+    enable_custom_metrics      = optional(bool, false)
+    enable_distributed_tracing = optional(bool, false)
+  })
+  default = {
+    enable_apm                 = false
+    enable_custom_metrics      = false
+    enable_distributed_tracing = false
+  }
+}
+
+variable "backup_config" {
+  description = "Backup configuration"
+  type = object({
+    enabled             = optional(bool, false)
+    backup_schedule     = optional(string, "0 2 * * *")
+    retention_days      = optional(number, 1)
+    enable_cross_region = optional(bool, false)
+    enable_encryption   = optional(bool, false)
+  })
+  default = {
+    enabled             = false
+    backup_schedule     = "0 2 * * *"
+    retention_days      = 1
+    enable_cross_region = false
+    enable_encryption   = false
+  }
+}

@@ -1,5 +1,38 @@
 # Infrastructure Implementation Summary
 
+## Overview
+
+This infrastructure uses a **two-layer architecture** with clear separation of concerns:
+
+### Layer 1: Infrastructure (Terraform)
+
+Manages the foundational cloud and k8s resources.
+
+### Layer 2: Applications (Kustomize + ArgoCD)
+
+Manages application deployments and configurations.
+
+## Architecture Principles
+
+### 🎯 **Separation of Concerns**
+
+- **Terraform**: Infrastructure provisioning (clusters, databases, networks)
+- **Kustomize**: Application deployment and configuration management
+- **ArgoCD**: Deploy the application
+
+### 🌍 **Cloud Agnostic Design**
+
+- Local development mimics production AWS services
+- Same application code works across all environments
+- Environment-specific configuration via overlays
+
+### 🔄 **Environment Parity**
+
+- **Local**: Kind + Docker containers simulating AWS services
+- **AWS**: Real managed services (EKS, RDS, S3, etc.)
+- **Application Layer**: Identical across all environments
+
+
 ## ✅ Completed Implementations
 
 ### 1. Security Improvements - NetworkPolicy Definitions
@@ -152,6 +185,31 @@ cd terraform/environments/prod
 terraform apply -var-file="../_shared/common.tfvars" -var-file="terraform.tfvars"
 ```
 
+### Kustomize Patches
+
+Environment-specific customizations:
+
+```yaml
+# overlays/local/kustomization.yaml
+patchesStrategicMerge:
+  - |-
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: backend
+    spec:
+      template:
+        spec:
+          containers:
+          - name: app
+            env:
+            - name: S3_ENDPOINT
+              value: "http://minio:9000"
+            - name: S3_FORCE_PATH_STYLE  # MinIO requires this
+              value: "true"
+```
+
+
 ## 🛡️ Security Improvements
 
 1. **Network Segmentation**: All services have dedicated NetworkPolicies
@@ -164,11 +222,14 @@ terraform apply -var-file="../_shared/common.tfvars" -var-file="terraform.tfvars
 
 | Feature        | Local              | Cloud                             |
 |----------------|--------------------|-----------------------------------|
+| **Cluster**    | Kind                  | EKS                     |
 | **Database**   | PostgreSQL in K8s  | AWS RDS                           |
 | **Cache**      | Redis in K8s       | AWS ElastiCache                   |
 | **Storage**    | MinIO in K8s       | AWS S3                            |
 | **Secrets**    | K8s Secrets        | AWS Secrets Manager               |
+| **Registry**   | Local Docker registry | ECR                     |
 | **Monitoring** | Prometheus/Grafana | Prometheus/Grafana                |
+| **Ingress**    | NGINX Ingress         | ALB + ACM               |
 | **Networking** | NetworkPolicies    | NetworkPolicies + Security Groups |
 
 ## 📊 Test Results
