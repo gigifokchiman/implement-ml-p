@@ -376,7 +376,7 @@ kubectl get events -n ml-platform --sort-by=.metadata.creationTimestamp
 
 - [TROUBLESHOOTING.md](./docs/TROUBLESHOOTING.md) - Detailed troubleshooting guide
 - [MAINTENANCE.md](./docs/MAINTENANCE.md) - Operational procedures
-- [INCIDENT-RESPONSE.md](./docs/INCIDENT-RESPONSE.md) - Incident response runbooks
+- [INCIDENT-RESPONSE.md](docs/archive/INCIDENT-RESPONSE.md) - Incident response runbooks
 
 ## 📈 Next Steps
 

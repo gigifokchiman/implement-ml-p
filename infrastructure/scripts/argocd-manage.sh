@@ -85,7 +85,7 @@ detect_argocd_server() {
     
     case $ENVIRONMENT in
         "local")
-            ARGOCD_SERVER="argocd.ml-platform.local:30080"
+            ARGOCD_SERVER="localhost:30080"
             ;;
         "dev")
             ARGOCD_SERVER="argocd-dev.aws.com"
@@ -181,14 +181,16 @@ sync_application() {
     
     log_info "Syncing application: $app_name"
     
-    if check_argocd_cli; then
-        argocd app sync "$app_name"
-    else
-        # Fallback to kubectl patch
-        kubectl patch application -n $ARGOCD_NAMESPACE "$app_name" --type merge -p '{"operation":{"sync":{}}}'
-    fi
+    # Use kubectl instead of argocd CLI for reliability
+    kubectl patch application -n $ARGOCD_NAMESPACE "$app_name" --type merge -p '{"operation":{"initiatedBy":{"username":"admin"},"sync":{"syncStrategy":{"hook":{}}}}}'
     
     log_success "Sync initiated for $app_name"
+    
+    # Show sync status
+    log_info "Checking sync status..."
+    sleep 3
+    kubectl get application -n $ARGOCD_NAMESPACE "$app_name" -o jsonpath='{.status.sync.status}'
+    echo
 }
 
 # Refresh application
@@ -197,11 +199,8 @@ refresh_application() {
     
     log_info "Refreshing application: $app_name"
     
-    if check_argocd_cli; then
-        argocd app refresh "$app_name"
-    else
-        kubectl patch application -n $ARGOCD_NAMESPACE "$app_name" --type merge -p '{"operation":{"refresh":{}}}'
-    fi
+    # Use kubectl to trigger refresh
+    kubectl patch application -n $ARGOCD_NAMESPACE "$app_name" --type merge -p '{"metadata":{"annotations":{"argocd.argoproj.io/refresh":"'$(date +%s)'"}}}'
     
     log_success "Refresh initiated for $app_name"
 }
@@ -263,11 +262,26 @@ open_dashboard() {
     
     case $ENVIRONMENT in
         "local")
-            echo "Dashboard URL: http://$ARGOCD_SERVER"
+            # Check if port forward is already running
+            if pgrep -f "kubectl port-forward.*argocd.*8080" > /dev/null; then
+                log_info "Port forward already running"
+            else
+                log_info "Starting background port forward to ArgoCD..."
+                kubectl port-forward -n argocd svc/argocd-server 8080:80 > /dev/null 2>&1 &
+                sleep 2  # Give it a moment to start
+            fi
+            
+            echo "Dashboard URL: http://localhost:8080"
+            echo "Username: admin"
+            echo "Password: $(get_admin_password 2>/dev/null || echo 'Run: $0 password')"
+            echo ""
+            echo "To stop port forwarding: pkill -f 'kubectl port-forward.*argocd'"
+            
+            # Open browser
             if command -v open &> /dev/null; then
-                open "http://$ARGOCD_SERVER"
+                open "http://localhost:8080"
             elif command -v xdg-open &> /dev/null; then
-                xdg-open "http://$ARGOCD_SERVER"
+                xdg-open "http://localhost:8080"
             fi
             ;;
         *)
@@ -277,11 +291,10 @@ open_dashboard() {
             elif command -v xdg-open &> /dev/null; then
                 xdg-open "https://$ARGOCD_SERVER"
             fi
+            echo "Username: admin"
+            echo "Password: $(get_admin_password 2>/dev/null || echo 'Run: $0 password')"
             ;;
     esac
-    
-    echo "Username: admin"
-    echo "Password: $(get_admin_password 2>/dev/null || echo 'Run: $0 password')"
 }
 
 # Show all apps status

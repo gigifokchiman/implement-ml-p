@@ -15,7 +15,7 @@ NC='\033[0m' # No Color
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INFRA_DIR="$(dirname "$SCRIPT_DIR")"
-ARGOCD_VERSION="${ARGOCD_VERSION:-v2.9.3}"
+ARGOCD_VERSION="${ARGOCD_VERSION:-2.9.3}"
 ENVIRONMENT="${1:-local}"
 REPO_URL="${REPO_URL:-https://github.com/your-org/ml-platform}"
 WAIT_TIMEOUT="${WAIT_TIMEOUT:-600}"
@@ -91,39 +91,42 @@ check_prerequisites() {
     log_success "Prerequisites satisfied"
 }
 
-# Install ArgoCD operator
-install_argocd_operator() {
-    log_info "Installing ArgoCD Operator..."
+# Install ArgoCD
+install_argocd() {
+    log_info "Installing ArgoCD..."
     
-    # Install ArgoCD Operator
+    # Create namespace
     kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
     
-    # Apply ArgoCD Operator
-    kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj-labs/argocd-operator/master/deploy/install.yaml
-    
-    # Wait for operator to be ready
-    log_info "Waiting for ArgoCD Operator to be ready..."
-    kubectl wait --for=condition=available --timeout=${WAIT_TIMEOUT}s -n argocd deployment/argocd-operator-controller-manager
-    
-    log_success "ArgoCD Operator installed"
-}
-
-# Deploy ArgoCD instance
-deploy_argocd() {
-    log_info "Deploying ArgoCD for environment: $ENVIRONMENT"
-    
-    cd "$INFRA_DIR/kubernetes/overlays/$ENVIRONMENT/gitops"
-    
-    # Apply ArgoCD configuration
-    kustomize build . | kubectl apply -f -
+    # Install ArgoCD using the official installation method
+    kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v${ARGOCD_VERSION}/manifests/install.yaml
     
     # Wait for ArgoCD to be ready
     log_info "Waiting for ArgoCD to be ready..."
     kubectl wait --for=condition=available --timeout=${WAIT_TIMEOUT}s -n argocd deployment/argocd-server
     kubectl wait --for=condition=available --timeout=${WAIT_TIMEOUT}s -n argocd deployment/argocd-repo-server
-    kubectl wait --for=condition=ready --timeout=${WAIT_TIMEOUT}s -n argocd pod -l app.kubernetes.io/name=argocd-application-controller
     
-    log_success "ArgoCD deployed successfully"
+    # Wait for application controller (it's a StatefulSet in newer versions)
+    kubectl wait --for=jsonpath='{.status.readyReplicas}'=1 --timeout=${WAIT_TIMEOUT}s -n argocd statefulset/argocd-application-controller
+    
+    log_success "ArgoCD installed"
+}
+
+# Configure ArgoCD for local access
+configure_argocd_local() {
+    log_info "Configuring ArgoCD for local access..."
+    
+    # Patch ArgoCD server service to use NodePort for local access
+    kubectl patch svc argocd-server -n argocd -p '{"spec":{"type":"NodePort","ports":[{"port":443,"targetPort":8080,"nodePort":30080}]}}'
+    
+    # Disable TLS for local development
+    kubectl patch configmap argocd-cmd-params-cm -n argocd --type merge -p '{"data":{"server.insecure":"true"}}'
+    
+    # Restart ArgoCD server to apply changes
+    kubectl rollout restart deployment/argocd-server -n argocd
+    kubectl wait --for=condition=available --timeout=${WAIT_TIMEOUT}s -n argocd deployment/argocd-server
+    
+    log_success "ArgoCD configured for local access"
 }
 
 # Configure repository
@@ -271,8 +274,13 @@ main() {
     fi
     
     check_prerequisites
-    install_argocd_operator
-    deploy_argocd
+    install_argocd
+    
+    # Configure for local environment
+    if [[ "$ENVIRONMENT" == "local" ]]; then
+        configure_argocd_local
+    fi
+    
     configure_repository
     deploy_applications
     get_admin_password
