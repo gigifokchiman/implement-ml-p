@@ -51,10 +51,23 @@ Organized automation scripts for ML platform infrastructure management.
 
 **Specialized helper scripts**
 
-| Script                       | Purpose                 | Usage                                  |
-|------------------------------|-------------------------|----------------------------------------|
-| `fix-kind-storage.sh`        | Fix Kind storage issues | `./helpers/fix-kind-storage.sh`        |
-| `install-prometheus-crds.sh` | Install Prometheus CRDs | `./helpers/install-prometheus-crds.sh` |
+| Script                       | Purpose                            | Usage                                  |
+|------------------------------|------------------------------------|----------------------------------------|
+| `fix-kind-storage.sh`        | Fix Kind storage issues            | `./helpers/fix-kind-storage.sh`        |
+| `install-prometheus-crds.sh` | Install Prometheus CRDs            | `./helpers/install-prometheus-crds.sh` |
+| `install-graphviz.sh`        | Install Graphviz for visualization | `./helpers/install-graphviz.sh`        |
+
+### `visualization/`
+
+**Infrastructure visualization suite**
+
+| Script                        | Purpose                           | Usage                                         |
+|-------------------------------|-----------------------------------|-----------------------------------------------|
+| `visualize-infrastructure.sh` | Complete visualization suite      | `./visualization/visualize-infrastructure.sh` |
+| `terraform-visualize.sh`      | Terraform infrastructure diagrams | `./visualization/terraform-visualize.sh`      |
+| `kubernetes-visualize.sh`     | Kubernetes application diagrams   | `./visualization/kubernetes-visualize.sh`     |
+| `argocd-visualize.sh`         | ArgoCD GitOps workflow diagrams   | `./visualization/argocd-visualize.sh`         |
+| `mcp-wrapper.py`              | AI-assisted visualization via MCP | Used by AI assistants                         |
 
 ## 🛠️ Common Workflows
 
@@ -99,6 +112,25 @@ cd ../../../scripts
 
 # Use Docker container for tools
 ./utilities/docker-infra.sh shell
+```
+
+### **Infrastructure Visualization**
+
+```bash
+# Generate complete visualization suite
+./visualization/visualize-infrastructure.sh -o
+
+# Terraform infrastructure only
+./visualization/terraform-visualize.sh -e prod --use-rover
+
+# Kubernetes applications only
+./visualization/kubernetes-visualize.sh --live-cluster
+
+# ArgoCD GitOps workflows
+./visualization/argocd-visualize.sh -e staging -f svg
+
+# Install Graphviz dependency
+./helpers/install-graphviz.sh
 ```
 
 ## 🔧 Script Features
