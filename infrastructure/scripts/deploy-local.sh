@@ -1,77 +1,48 @@
 #!/bin/bash
 # Comprehensive local ML Platform deployment script
-# Handles both provider issues and deployment problems
+# Handles both provider issues and deployment problems with storage fixes
 
 set -e
 
 echo "🚀 ML Platform Local Deployment Script"
 echo "======================================"
 
-# Get script directory and terraform directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TERRAFORM_DIR="$SCRIPT_DIR/../terraform/environments/local"
-
-cd "$TERRAFORM_DIR"
-echo "📍 Working in: $(pwd)"
-
-# Step 1: Fix terraform-provider-kind issues
-echo ""
-echo "🔧 Step 1: Checking Terraform provider setup..."
-
-# Check if we can run terraform init
-if ! terraform init --upgrade 2>/dev/null; then
-    echo "⚠️  Terraform init failed. Fixing provider checksum issues..."
+# Function to clean up existing resources
+cleanup_existing() {
+    echo "🧹 Cleaning up existing resources..."
     
-    # Clean up existing terraform state
-    rm -f .terraform.lock.hcl
-    rm -rf .terraform
-    
-    # Check if custom provider needs to be built
-    PROVIDER_DIR="$SCRIPT_DIR/../terraform-provider-kind"
-    if [ -d "$PROVIDER_DIR" ]; then
-        echo "🔨 Building custom terraform-provider-kind..."
-        cd "$PROVIDER_DIR"
-        
-        go mod tidy
-        go build -o terraform-provider-kind
-        
-        # Create plugin directory for current platform
-        PLUGIN_DIR="$HOME/.terraform.d/plugins/registry.terraform.io/gigifokchiman/kind/0.1.0/$(go env GOOS)_$(go env GOARCH)"
-        mkdir -p "$PLUGIN_DIR"
-        cp terraform-provider-kind "$PLUGIN_DIR/"
-        
-        echo "✅ Custom provider built and installed"
-        cd "$TERRAFORM_DIR"
+    # Delete existing Kind cluster if it exists
+    if kind get clusters | grep -q ml-platform-local; then
+        echo "🗑️  Deleting existing Kind cluster..."
+        kind delete cluster --name ml-platform-local
     fi
     
-    # Try terraform init again
-    echo "🔄 Re-initializing Terraform..."
-    terraform init --upgrade
-fi
+    # Clean up Terraform state completely
+    echo "🧹 Cleaning Terraform state..."
+    rm -rf .terraform terraform.tfstate* .terraform.lock.hcl
+    
+    echo "✅ Cleanup complete"
+}
 
-echo "✅ Terraform provider setup complete"
-
-# Step 2: Handle Kind cluster and storage setup
-echo ""
-echo "🐳 Step 2: Checking Kind cluster setup..."
-
-# Check if Kind cluster exists
-if ! kind get clusters | grep -q ml-platform-local; then
-    echo "📦 Creating Kind cluster..."
-    terraform apply -target=kind_cluster.default -auto-approve
-else
-    echo "✅ Kind cluster exists"
-fi
-
-# Set kubectl context
-kubectl config use-context kind-ml-platform-local
-
-# Step 3: Handle storage class
-echo ""
-echo "💾 Step 3: Setting up storage..."
-
-if ! kubectl get storageclass standard 2>/dev/null; then
-    echo "📂 Creating default storage class..."
+# Function to install and configure storage provisioner
+setup_storage_provisioner() {
+    echo "💾 Setting up storage provisioner..."
+    
+    # Install local-path-provisioner if not present
+    if ! kubectl get deployment -n local-path-storage local-path-provisioner 2>/dev/null; then
+        echo "📦 Installing local-path-provisioner..."
+        kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.24/deploy/local-path-storage.yaml
+    fi
+    
+    # Wait for provisioner to be ready
+    echo "⏳ Waiting for provisioner to be ready..."
+    kubectl wait --for=condition=ready pod -n local-path-storage -l app=local-path-provisioner --timeout=120s
+    
+    # Remove any conflicting storage classes
+    kubectl delete storageclass standard --ignore-not-found=true
+    
+    # Create proper storage class
+    echo "💾 Creating storage class..."
     kubectl apply -f - <<EOF
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
@@ -84,65 +55,71 @@ reclaimPolicy: Delete
 volumeBindingMode: WaitForFirstConsumer
 allowVolumeExpansion: true
 EOF
-else
-    echo "✅ Storage class exists"
+    
+    echo "✅ Storage provisioner configured!"
+}
+
+# Parse command line arguments
+CLEANUP_FIRST=false
+for arg in "$@"; do
+    case $arg in
+        --clean-first|--cleanup-first)
+            CLEANUP_FIRST=true
+            shift
+            ;;
+        *)
+            # Unknown option
+            ;;
+    esac
+done
+
+# Get script directory and terraform directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TERRAFORM_DIR="$SCRIPT_DIR/../terraform/environments/local"
+
+cd "$TERRAFORM_DIR"
+echo "📍 Working in: $(pwd)"
+
+# Run cleanup if requested
+if [ "$CLEANUP_FIRST" = true ]; then
+    cleanup_existing
 fi
+
+# Step 1: Initialize Terraform (standard providers)
+echo ""
+echo "🔧 Step 1: Setting up Terraform..."
+
+# Clean up any existing terraform state to ensure fresh start
+echo "🧹 Cleaning Terraform state..."
+rm -f .terraform.lock.hcl
+rm -rf .terraform
+
+# Initialize Terraform (it will download providers automatically)
+echo "🔄 Initializing Terraform..."
+terraform init --upgrade
+
+echo "✅ Terraform provider setup complete"
+
+# Step 2: Create Kind cluster first
+echo ""
+echo "🐳 Step 2: Creating Kind cluster..."
+terraform apply -target=kind_cluster.default -auto-approve
+
+# Set kubectl context
+echo "🔧 Configuring kubectl context..."
+kubectl config use-context kind-ml-platform-local
+
+# Step 3: No storage setup needed (using emptyDir volumes)
+echo ""
+echo "💾 Step 3: Using emptyDir volumes (no persistent storage needed for local dev)"
 
 # Step 4: Deploy the platform
 echo ""
 echo "🏗️  Step 4: Deploying ML Platform..."
 
-# Check for any existing resource conflicts and handle PVCs
-echo "🔍 Checking for pending PVCs..."
-PENDING_PVCS=$(kubectl get pvc --all-namespaces --no-headers 2>/dev/null | grep -i pending || true)
-if [ ! -z "$PENDING_PVCS" ]; then
-    echo "⚠️  Found pending PVCs - will be resolved during deployment"
-fi
-
-# Run terraform apply with error handling
+# Run terraform apply - should work now with proper storage setup
 echo "🚀 Running terraform apply..."
-if ! terraform apply -auto-approve -parallelism=3; then
-    echo "⚠️  Terraform apply had issues. Checking for common problems..."
-    
-    # Handle PVC binding issues
-    echo "🔄 Attempting to bind pending PVCs..."
-    for namespace in database cache storage security-scanning; do
-        if kubectl get namespace "$namespace" 2>/dev/null; then
-            # Get PVCs in this namespace
-            PVCS=$(kubectl get pvc -n "$namespace" --no-headers 2>/dev/null | grep Pending | awk '{print $1}' || true)
-            for pvc in $PVCS; do
-                echo "🔗 Binding PVC: $namespace/$pvc"
-                kubectl apply -f - <<EOF
-apiVersion: v1
-kind: Pod
-metadata:
-  name: pvc-binder-$pvc
-  namespace: $namespace
-spec:
-  containers:
-  - name: busybox
-    image: busybox:latest
-    command: ["sleep", "10"]
-    volumeMounts:
-    - name: data
-      mountPath: /data
-  volumes:
-  - name: data
-    persistentVolumeClaim:
-      claimName: $pvc
-  restartPolicy: Never
-EOF
-                # Wait briefly for binding
-                sleep 2
-                kubectl delete pod "pvc-binder-$pvc" -n "$namespace" --ignore-not-found
-            done
-        fi
-    done
-    
-    # Try terraform apply again
-    echo "🔄 Retrying terraform apply..."
-    terraform apply -auto-approve -parallelism=3
-fi
+terraform apply -auto-approve
 
 # Step 5: Verify deployment
 echo ""
@@ -170,3 +147,6 @@ echo "  Storage: http://localhost:9001 (minioadmin/minioadmin)"
 echo "  Grafana: http://localhost:3000 (admin/admin)"
 echo ""
 echo "📚 Next: Follow APPLICATION-TRANSITION.md for app development"
+echo ""
+echo "💡 Usage: $0 [--clean-first]"
+echo "   --clean-first: Delete existing cluster and clean terraform state before deployment"

@@ -17,7 +17,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INFRA_DIR="$(dirname "$SCRIPT_DIR")"
 ARGOCD_VERSION="${ARGOCD_VERSION:-2.9.3}"
 ENVIRONMENT="${1:-local}"
-REPO_URL="${REPO_URL:-https://github.com/your-org/ml-platform}"
+REPO_URL="${REPO_URL:-https://github.com/gigifokchiman/implement-ml-p}"
 WAIT_TIMEOUT="${WAIT_TIMEOUT:-600}"
 
 # Logging functions
@@ -98,6 +98,14 @@ install_argocd() {
     # Create namespace
     kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
     
+    # Install Prometheus Operator CRDs first (required for monitoring)
+    log_info "Installing Prometheus Operator CRDs..."
+    if [ -f "${SCRIPT_DIR}/install-prometheus-crds.sh" ]; then
+        "${SCRIPT_DIR}/install-prometheus-crds.sh" || log_warn "Failed to install Prometheus CRDs"
+    else
+        log_warn "Prometheus CRDs installation script not found"
+    fi
+    
     # Install ArgoCD using the official installation method
     kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v${ARGOCD_VERSION}/manifests/install.yaml
     
@@ -155,15 +163,29 @@ deploy_applications() {
     # Update application manifests with correct repo URL
     cd "$INFRA_DIR/kubernetes/base/gitops/applications"
     
-    # Create temporary files with updated repo URLs
-    for app in *.yaml; do
-        if [[ "$app" == "kustomization.yaml" ]]; then
-            continue
-        fi
-        
-        log_info "Configuring application: $app"
-        sed "s|https://github.com/your-org/ml-platform|$REPO_URL|g" "$app" | kubectl apply -f -
-    done
+    # Deploy application manifests based on environment
+    if [ "$ENVIRONMENT" = "local" ]; then
+        # For local environment, only deploy local-specific applications
+        local_apps="ml-platform-local.yaml monitoring.yaml"
+        for app in $local_apps; do
+            if [ -f "$app" ]; then
+                log_info "Configuring application: $app"
+                sed "s|https://github.com/gigifokchiman/implement-ml-p|$REPO_URL|g" "$app" | kubectl apply -f -
+            else
+                log_warn "Application file not found: $app"
+            fi
+        done
+    else
+        # Deploy all applications for other environments
+        for app in *.yaml; do
+            if [[ "$app" == "kustomization.yaml" ]]; then
+                continue
+            fi
+            
+            log_info "Configuring application: $app"
+            sed "s|https://github.com/gigifokchiman/implement-ml-p|$REPO_URL|g" "$app" | kubectl apply -f -
+        done
+    fi
     
     log_success "Applications deployed"
 }

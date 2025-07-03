@@ -1,0 +1,112 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stream-processor
+  labels:
+    app.kubernetes.io/name: stream-processor
+    app.kubernetes.io/component: streaming
+    app.kubernetes.io/part-of: data-platform
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: stream-processor
+      app.kubernetes.io/component: streaming
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: stream-processor
+        app.kubernetes.io/component: streaming
+        app.kubernetes.io/part-of: data-platform
+    spec:
+      containers:
+        - name: stream-processor
+          image: data-platform/stream-processor:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: data-platform-config
+                  key: LOG_LEVEL
+            - name: STREAM_BUFFER_SIZE
+              valueFrom:
+                configMapKeyRef:
+                  name: data-platform-config
+                  key: STREAM_BUFFER_SIZE
+            - name: METRICS_ENABLED
+              valueFrom:
+                configMapKeyRef:
+                  name: data-platform-config
+                  key: METRICS_ENABLED
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: database-connection
+                  key: url
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: redis-connection
+                  key: url
+            - name: S3_ENDPOINT
+              valueFrom:
+                secretKeyRef:
+                  name: s3-connection
+                  key: endpoint
+            - name: S3_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: s3-connection
+                  key: access_key
+            - name: S3_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: s3-connection
+                  key: secret_key
+            - name: RAW_DATA_BUCKET
+              valueFrom:
+                secretKeyRef:
+                  name: s3-connection
+                  key: raw_data_bucket
+            - name: PROCESSED_DATA_BUCKET
+              valueFrom:
+                secretKeyRef:
+                  name: s3-connection
+                  key: processed_data_bucket
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: stream-processor
+  labels:
+    app.kubernetes.io/name: stream-processor
+    app.kubernetes.io/component: streaming
+    app.kubernetes.io/part-of: data-platform
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: stream-processor
+  minReplicas: 2
+  maxReplicas: 15
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 60
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 70

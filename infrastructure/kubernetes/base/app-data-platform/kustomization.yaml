@@ -1,0 +1,51 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: data-platform-base
+  annotations:
+    description: "Base Data Platform application stack"
+
+resources:
+  - data-api.yaml
+  - data-processor.yaml
+  - stream-processor.yaml
+  - data-quality-job.yaml
+
+labels:
+  - pairs:
+      app.kubernetes.io/version: v1.0.0
+      app.kubernetes.io/managed-by: kustomize
+    includeSelectors: false
+
+namespace: data-platform
+
+# Generate ConfigMap for app configuration
+configMapGenerator:
+  - name: data-platform-config
+    literals:
+      - LOG_LEVEL=INFO
+      - METRICS_ENABLED=true
+      - TRACING_ENABLED=false
+      - BATCH_SIZE=1000
+      - PROCESSING_INTERVAL=60
+      - DATA_QUALITY_ENABLED=true
+      - STREAM_BUFFER_SIZE=10000
+
+# Generate Secret placeholders (override in overlays)
+secretGenerator:
+  - name: database-connection
+    literals:
+      - url=postgresql://admin:changeme@postgresql:5432/metadata
+  - name: redis-connection
+    literals:
+      - url=redis://redis-master:6379
+  - name: s3-connection
+    literals:
+      - endpoint=http://minio:9000
+      - access_key=minioadmin
+      - secret_key=changeme123
+      - region=us-east-1
+      - raw_data_bucket=raw-data
+      - processed_data_bucket=processed-data
+      - temp_data_bucket=temp-data

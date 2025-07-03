@@ -9,6 +9,8 @@ resources:
 
 namespace: ml-platform
 
+# No monitoring resources for local development
+
 configMapGenerator:
 - behavior: merge
   literals:

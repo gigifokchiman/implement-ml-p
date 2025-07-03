@@ -1,0 +1,29 @@
+{
+  "name": "ml-platform-k6-tests",
+  "version": "1.0.0",
+  "description": "K6 load testing suite for ML Platform and Data Platform",
+  "private": true,
+  "scripts": {
+    "test": "k6 run basic-load-test.js",
+    "test:stress": "k6 run stress-test.js",
+    "test:ml-platform": "k6 run basic-load-test.js --env BASE_URL=http://localhost:8080 --env TARGET_HOST=ml-platform.local",
+    "test:data-platform": "k6 run basic-load-test.js --env BASE_URL=http://localhost:8081 --env TARGET_HOST=data-platform.local",
+    "test:infrastructure": "k6 run basic-load-test.js --env BASE_URL=http://localhost:9000 --env TARGET_HOST=minio.local",
+    "test:monitoring": "k6 run basic-load-test.js --env BASE_URL=http://localhost:3000 --env TARGET_HOST=grafana.local",
+    "test:all": "npm run test:ml-platform && npm run test:data-platform",
+    "test:report": "k6 run basic-load-test.js --out json=performance-results.json"
+  },
+  "devDependencies": {
+    "k6": "^0.47.0"
+  },
+  "dependencies": {},
+  "keywords": [
+    "k6",
+    "load-testing",
+    "performance",
+    "ml-platform",
+    "data-platform"
+  ],
+  "author": "ML Platform Team",
+  "license": "MIT"
+}

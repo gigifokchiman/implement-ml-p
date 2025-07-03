@@ -38,6 +38,11 @@ RUN apt-get update && apt-get install -y \
     rsync \
     && rm -rf /var/lib/apt/lists/*
 
+# Install Node.js and npm for k6 and other JS tooling
+RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
+    apt-get install -y nodejs && \
+    node --version && npm --version
+
 # Install Go 1.21 for building terraform-provider-kind
 RUN ARCH=$(dpkg --print-architecture) && \
     if [ "$ARCH" = "arm64" ]; then GO_ARCH="arm64"; else GO_ARCH="amd64"; fi && \
@@ -174,14 +179,19 @@ RUN ARCH=$(dpkg --print-architecture) && \
     rm -rf prometheus-*
 
 # Install performance testing tools
-# K6 (Load testing) - simplified installation
+# K6 (Load testing) - binary installation
 RUN ARCH=$(dpkg --print-architecture) && \
     if [ "$ARCH" = "arm64" ]; then K6_ARCH="arm64"; else K6_ARCH="amd64"; fi && \
     K6_VERSION=$(curl -s https://api.github.com/repos/grafana/k6/releases/latest | grep tag_name | cut -d '"' -f 4) && \
     wget https://github.com/grafana/k6/releases/download/${K6_VERSION}/k6-${K6_VERSION}-linux-${K6_ARCH}.tar.gz && \
     tar -xzf k6-${K6_VERSION}-linux-${K6_ARCH}.tar.gz && \
     mv k6-${K6_VERSION}-linux-${K6_ARCH}/k6 /usr/local/bin/ && \
-    rm -rf k6-*
+    rm -rf k6-* && \
+    k6 version
+
+# Install k6 via npm for package management and additional modules
+RUN npm install -g k6@latest && \
+    npm list -g k6
 
 # Install chaos engineering tools
 # Chaos Toolkit - remove to simplify build
@@ -215,6 +225,10 @@ RUN ARCH=$(dpkg --print-architecture) && \
 
 # Create working directory
 WORKDIR /workspace
+
+# Copy package.json and install npm dependencies
+COPY package.json* /workspace/
+RUN if [ -f package.json ]; then npm install --only=dev; fi
 
 # Create non-root user for security and add to docker group
 RUN groupadd -r infrauser && useradd -r -g infrauser infrauser && \
@@ -261,7 +275,10 @@ echo "Terrascan: $(terrascan version)"
 echo "OPA: $(opa version)"
 echo "Conftest: $(conftest --version)"
 echo "Kustomize: $(kustomize version)"
-echo "K6: $(k6 version)"
+echo "Node.js: $(node --version)"
+echo "npm: $(npm --version)"
+echo "K6 Binary: $(k6 version)"
+echo "K6 npm: $(npm list -g k6 2>/dev/null || echo 'Not installed via npm')"
 echo "Custom Kind Provider: $(ls -la ~/.terraform.d/plugins/registry.terraform.io/gigifokchiman/kind/0.1.0/*/terraform-provider-kind* 2>/dev/null || echo 'Not found')"
 echo "=== All tools are ready! ==="
 EOF

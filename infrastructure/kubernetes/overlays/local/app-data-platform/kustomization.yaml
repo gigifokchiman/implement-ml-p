@@ -1,0 +1,134 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: data-platform-local
+  annotations:
+    description: "Local environment overlay for Data Platform"
+
+resources:
+  - ../../../base/app-data-platform
+
+labels:
+  - pairs:
+      app.kubernetes.io/environment: local
+    includeSelectors: false
+
+namespace: data-platform
+
+# Exclude monitoring resources for local development
+patches:
+  - target:
+      group: monitoring.coreos.com
+      version: v1
+      kind: ServiceMonitor
+    patch: |
+      $patch: delete
+  - target:
+      group: monitoring.coreos.com
+      version: v1
+      kind: PodMonitor
+    patch: |
+      $patch: delete
+
+# Override configurations for local environment
+configMapGenerator:
+  - name: data-platform-config
+    behavior: merge
+    literals:
+      - LOG_LEVEL=DEBUG
+      - BATCH_SIZE=100
+      - PROCESSING_INTERVAL=30
+      - STREAM_BUFFER_SIZE=1000
+
+# Override secrets for local environment
+secretGenerator:
+  - name: database-connection
+    behavior: replace
+    literals:
+      - url=postgresql://admin:localpassword@postgresql.database:5432/metadata
+  - name: redis-connection
+    behavior: replace
+    literals:
+      - url=redis://redis-master.cache:6379
+  - name: s3-connection
+    behavior: replace
+    literals:
+      - endpoint=http://minio.storage:9000
+      - access_key=minioadmin
+      - secret_key=minioadmin
+      - region=us-east-1
+      - raw_data_bucket=raw-data
+      - processed_data_bucket=processed-data
+      - temp_data_bucket=temp-data
+
+# Patch for local development
+patches:
+  - target:
+      kind: Deployment
+      name: data-api
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Never
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: "128Mi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: "256Mi"
+  - target:
+      kind: Deployment
+      name: data-processor
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Never
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: "256Mi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: "512Mi"
+  - target:
+      kind: Deployment
+      name: stream-processor
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Never
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: "256Mi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: "512Mi"
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: data-processor
+    patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 1
+      - op: replace
+        path: /spec/maxReplicas
+        value: 3
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: stream-processor
+    patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 1
+      - op: replace
+        path: /spec/maxReplicas
+        value: 3

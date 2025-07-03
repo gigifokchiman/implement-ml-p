@@ -1,0 +1,117 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: data-processor
+  labels:
+    app.kubernetes.io/name: data-processor
+    app.kubernetes.io/component: processor
+    app.kubernetes.io/part-of: data-platform
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: data-processor
+      app.kubernetes.io/component: processor
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: data-processor
+        app.kubernetes.io/component: processor
+        app.kubernetes.io/part-of: data-platform
+    spec:
+      containers:
+        - name: data-processor
+          image: data-platform/data-processor:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: data-platform-config
+                  key: LOG_LEVEL
+            - name: BATCH_SIZE
+              valueFrom:
+                configMapKeyRef:
+                  name: data-platform-config
+                  key: BATCH_SIZE
+            - name: PROCESSING_INTERVAL
+              valueFrom:
+                configMapKeyRef:
+                  name: data-platform-config
+                  key: PROCESSING_INTERVAL
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: database-connection
+                  key: url
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: redis-connection
+                  key: url
+            - name: S3_ENDPOINT
+              valueFrom:
+                secretKeyRef:
+                  name: s3-connection
+                  key: endpoint
+            - name: S3_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: s3-connection
+                  key: access_key
+            - name: S3_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: s3-connection
+                  key: secret_key
+            - name: RAW_DATA_BUCKET
+              valueFrom:
+                secretKeyRef:
+                  name: s3-connection
+                  key: raw_data_bucket
+            - name: PROCESSED_DATA_BUCKET
+              valueFrom:
+                secretKeyRef:
+                  name: s3-connection
+                  key: processed_data_bucket
+            - name: TEMP_DATA_BUCKET
+              valueFrom:
+                secretKeyRef:
+                  name: s3-connection
+                  key: temp_data_bucket
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "200m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: data-processor
+  labels:
+    app.kubernetes.io/name: data-processor
+    app.kubernetes.io/component: processor
+    app.kubernetes.io/part-of: data-platform
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: data-processor
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80

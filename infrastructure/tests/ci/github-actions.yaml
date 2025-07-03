@@ -87,6 +87,10 @@ jobs:
         with:
           cluster_name: test
 
+      - name: Setup Kind provider
+        working-directory: infrastructure/scripts
+        run: ./download-kind-provider.sh
+
       - name: Run integration tests
         working-directory: infrastructure/tests
         run: make test-integration
