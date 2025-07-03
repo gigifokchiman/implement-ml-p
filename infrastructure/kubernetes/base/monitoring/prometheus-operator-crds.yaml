@@ -1,0 +1,25 @@
+# Prometheus Operator CRDs for monitoring resources
+# These are required for ServiceMonitor and PodMonitor resources
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: prometheus-operator-crds
+  labels:
+    name: prometheus-operator-crds
+---
+# This is a placeholder - actual CRDs are installed via script
+# because they are too large for inline YAML
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-crds-info
+  namespace: prometheus-operator-crds
+data:
+  info: |
+    Prometheus Operator CRDs are installed via install-prometheus-crds.sh script
+    This includes:
+    - ServiceMonitor CRD
+    - PodMonitor CRD  
+    - PrometheusRule CRD
+    - Prometheus CRD
+    - Alertmanager CRD
