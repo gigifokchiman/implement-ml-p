@@ -187,14 +187,31 @@ RUN ARCH=$(dpkg --print-architecture) && \
 # Chaos Toolkit - remove to simplify build
 # RUN pip3 install chaostoolkit chaostoolkit-kubernetes
 
-# Build and install custom terraform-provider-kind
-COPY terraform-provider-kind /tmp/terraform-provider-kind
-RUN cd /tmp/terraform-provider-kind && \
-    go mod tidy && \
-    go build -o terraform-provider-kind && \
-    mkdir -p /workspace/.terraform.d/plugins/registry.terraform.io/gigifokchiman/kind/0.1.0/linux_$(dpkg --print-architecture) && \
-    cp terraform-provider-kind /workspace/.terraform.d/plugins/registry.terraform.io/gigifokchiman/kind/0.1.0/linux_$(dpkg --print-architecture)/ && \
-    rm -rf /tmp/terraform-provider-kind
+# Install custom terraform-provider-kind
+# Option 1: Copy pre-built binary if available (for cross-platform builds)
+COPY terraform-provider-mlplatform* /tmp/ 2>/dev/null || true
+
+# Option 2: Build from source if source code is available
+COPY terraform-provider-kind /tmp/terraform-provider-kind 2>/dev/null || true
+
+RUN ARCH=$(dpkg --print-architecture) && \
+    mkdir -p /workspace/.terraform.d/plugins/registry.terraform.io/gigifokchiman/kind/0.1.0/linux_${ARCH} && \
+    # Try to use pre-built binary first
+    if [ -f /tmp/terraform-provider-mlplatform ]; then \
+        echo "Using pre-built terraform provider binary" && \
+        cp /tmp/terraform-provider-mlplatform /workspace/.terraform.d/plugins/registry.terraform.io/gigifokchiman/kind/0.1.0/linux_${ARCH}/terraform-provider-kind_v0.1.0 && \
+        chmod +x /workspace/.terraform.d/plugins/registry.terraform.io/gigifokchiman/kind/0.1.0/linux_${ARCH}/terraform-provider-kind_v0.1.0; \
+    elif [ -d /tmp/terraform-provider-kind ]; then \
+        echo "Building terraform provider from source" && \
+        cd /tmp/terraform-provider-kind && \
+        go mod tidy && \
+        CGO_ENABLED=0 GOOS=linux GOARCH=${ARCH} go build -o terraform-provider-kind && \
+        cp terraform-provider-kind /workspace/.terraform.d/plugins/registry.terraform.io/gigifokchiman/kind/0.1.0/linux_${ARCH}/terraform-provider-kind_v0.1.0 && \
+        chmod +x /workspace/.terraform.d/plugins/registry.terraform.io/gigifokchiman/kind/0.1.0/linux_${ARCH}/terraform-provider-kind_v0.1.0; \
+    else \
+        echo "No terraform provider source found, will need to install manually or mount from host"; \
+    fi && \
+    rm -rf /tmp/terraform-provider-kind /tmp/terraform-provider-mlplatform*
 
 # Create working directory
 WORKDIR /workspace
@@ -203,11 +220,13 @@ WORKDIR /workspace
 RUN groupadd -r infrauser && useradd -r -g infrauser infrauser && \
     groupadd -f docker && usermod -aG docker infrauser && \
     chown -R infrauser:infrauser /workspace && \
-    mkdir -p /home/infrauser/.terraform.d && \
-    cp -r /workspace/.terraform.d/* /home/infrauser/.terraform.d/ && \
-    chown -R infrauser:infrauser /home/infrauser/.terraform.d && \
-    mkdir -p /root/.terraform.d && \
-    cp -r /workspace/.terraform.d/* /root/.terraform.d/
+    # Copy terraform plugins to both user and root directories
+    mkdir -p /home/infrauser/.terraform.d /root/.terraform.d && \
+    if [ -d /workspace/.terraform.d/plugins ]; then \
+        cp -r /workspace/.terraform.d/* /home/infrauser/.terraform.d/ && \
+        cp -r /workspace/.terraform.d/* /root/.terraform.d/ && \
+        chown -R infrauser:infrauser /home/infrauser/.terraform.d; \
+    fi
 
 # Set up shell aliases and useful functions
 RUN echo 'alias k=kubectl' >> /etc/bash.bashrc && \
@@ -243,7 +262,7 @@ echo "OPA: $(opa version)"
 echo "Conftest: $(conftest --version)"
 echo "Kustomize: $(kustomize version)"
 echo "K6: $(k6 version)"
-echo "Custom Kind Provider: $(ls -la ~/.terraform.d/plugins/registry.terraform.io/gigifokchiman/kind/0.1.0/*/terraform-provider-kind 2>/dev/null || echo 'Not found')"
+echo "Custom Kind Provider: $(ls -la ~/.terraform.d/plugins/registry.terraform.io/gigifokchiman/kind/0.1.0/*/terraform-provider-kind* 2>/dev/null || echo 'Not found')"
 echo "=== All tools are ready! ==="
 EOF
 
