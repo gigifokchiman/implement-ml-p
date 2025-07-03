@@ -315,6 +315,6 @@ make docker-health
 
 - [Infrastructure Documentation](../README.md)
 - [Docker Setup Guide](archive/DOCKER-SETUP.md)
-- [Troubleshooting Guide](../tests/TROUBLESHOOTING.md)
+- [Troubleshooting Guide](TROUBLESHOOTING.md)
 - [Security Guidelines](./SECURITY.md)
 - [Architecture Overview](./ARCHITECTURE.md)

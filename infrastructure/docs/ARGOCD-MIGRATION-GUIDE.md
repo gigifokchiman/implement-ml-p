@@ -2,6 +2,10 @@
 
 This guide explains how to migrate from manual Kustomize deployments to ArgoCD GitOps workflow.
 
+**Last Updated:** January 2025  
+**ArgoCD Version:** v2.8+ (tested with latest)  
+**Repository:** https://github.com/gigifokchiman/implement-ml-p
+
 ## 🎯 Overview
 
 **Before (Manual)**: `kubectl apply -k overlays/local/`
@@ -13,12 +17,14 @@ This guide explains how to migrate from manual Kustomize deployments to ArgoCD G
 
 ```bash
 # Install ArgoCD for local development
-./scripts/bootstrap-argocd.sh local
+../scripts/bootstrap-argocd.sh
 
-# For other environments
-./scripts/bootstrap-argocd.sh dev
-./scripts/bootstrap-argocd.sh staging
-./scripts/bootstrap-argocd.sh prod
+# The script automatically detects the environment based on kubectl context
+# Or specify environment explicitly:
+../scripts/bootstrap-argocd.sh --env local
+../scripts/bootstrap-argocd.sh --env dev
+../scripts/bootstrap-argocd.sh --env staging
+../scripts/bootstrap-argocd.sh --env prod
 ```
 
 ### 2. **Update Repository URL**
@@ -27,20 +33,20 @@ Edit the application manifests to point to your actual repository:
 
 ```bash
 # Update all applications with your repo URL
-export REPO_URL="https://github.com/your-org/ml-platform"
+export REPO_URL="https://github.com/gigifokchiman/implement-ml-p"
 
 find infrastructure/kubernetes/base/gitops/applications/ -name "*.yaml" -not -name "kustomization.yaml" -exec \
-  sed -i "s|https://github.com/your-org/ml-platform|$REPO_URL|g" {} \;
+  sed -i "s|https://github.com/gigifokchiman/implement-ml-p|$REPO_URL|g" {} \;
 ```
 
 ### 3. **Access ArgoCD Dashboard**
 
 ```bash
 # Get admin password
-./scripts/argocd-manage.sh password
+../scripts/bootstrap-argocd.sh password
 
 # Open dashboard
-./scripts/argocd-manage.sh dashboard
+../scripts/bootstrap-argocd.sh dashboard
 
 # Or port-forward (alternative)
 kubectl port-forward -n argocd svc/argocd-server 8080:80
@@ -51,20 +57,20 @@ kubectl port-forward -n argocd svc/argocd-server 8080:80
 
 ```bash
 # List all applications
-./scripts/argocd-manage.sh list
+../scripts/bootstrap-argocd.sh list
 
 # Check specific application
-./scripts/argocd-manage.sh status ml-platform-local
+../scripts/bootstrap-argocd.sh status ml-platform-local
 
 # View all apps status
-./scripts/argocd-manage.sh apps
+../scripts/bootstrap-argocd.sh apps
 ```
 
 ### 5. **Sync Applications**
 
 ```bash
 # Manual sync (first time)
-./scripts/argocd-manage.sh sync ml-platform-local
+../scripts/bootstrap-argocd.sh sync ml-platform-local
 
 # Auto-sync is enabled, so future changes will sync automatically
 ```
@@ -95,7 +101,7 @@ git add . && git commit -m "Update local config" && git push
 
 # ArgoCD automatically syncs changes
 # Check status in ArgoCD UI or:
-./scripts/argocd-manage.sh status ml-platform-local
+../scripts/bootstrap-argocd.sh status ml-platform-local
 ```
 
 ### Production Workflow
@@ -112,10 +118,10 @@ kubectl apply -k kubernetes/overlays/prod/
 git push  # Push changes
 
 # Review in ArgoCD UI
-./scripts/argocd-manage.sh dashboard
+../scripts/bootstrap-argocd.sh dashboard
 
 # Manual approval in UI or:
-./scripts/argocd-manage.sh sync ml-platform-prod
+../scripts/bootstrap-argocd.sh sync ml-platform-prod
 ```
 
 ## 📊 Key Differences
@@ -135,34 +141,34 @@ git push  # Push changes
 ### Application Management
 ```bash
 # List applications
-./scripts/argocd-manage.sh list
+../scripts/bootstrap-argocd.sh list
 
 # Sync application  
-./scripts/argocd-manage.sh sync <app-name>
+../scripts/bootstrap-argocd.sh sync <app-name>
 
 # Check status
-./scripts/argocd-manage.sh status <app-name>
+../scripts/bootstrap-argocd.sh status <app-name>
 
 # View logs
-./scripts/argocd-manage.sh logs <app-name>
+../scripts/bootstrap-argocd.sh logs <app-name>
 
 # Rollback
-./scripts/argocd-manage.sh rollback <app-name> <revision>
+../scripts/bootstrap-argocd.sh rollback <app-name> <revision>
 ```
 
 ### Troubleshooting
 ```bash
 # Debug application
-./scripts/argocd-manage.sh debug <app-name>
+../scripts/bootstrap-argocd.sh debug <app-name>
 
 # View events
-./scripts/argocd-manage.sh events <app-name>
+../scripts/bootstrap-argocd.sh events <app-name>
 
 # Check ArgoCD health
-./scripts/argocd-manage.sh health
+../scripts/bootstrap-argocd.sh health
 
 # ArgoCD CLI login
-./scripts/argocd-manage.sh login
+../scripts/bootstrap-argocd.sh login
 ```
 
 ## 🔧 Configuration Changes
@@ -240,7 +246,7 @@ ArgoCD needs access to your Git repository:
 # For private repos, configure SSH key or token
 kubectl create secret generic git-creds \
   --from-literal=type=git \
-  --from-literal=url=https://github.com/your-org/ml-platform \
+  --from-literal=url=https://github.com/gigifokchiman/implement-ml-p \
   --from-literal=password=your-token \
   -n argocd
 ```
@@ -292,13 +298,13 @@ kubectl rollout undo deployment/backend -n ml-platform
 ### With ArgoCD
 ```bash
 # List revisions
-./scripts/argocd-manage.sh describe ml-platform-local
+../scripts/bootstrap-argocd.sh describe ml-platform-local
 
 # Rollback to specific revision
-./scripts/argocd-manage.sh rollback ml-platform-local 5
+../scripts/bootstrap-argocd.sh rollback ml-platform-local 5
 
 # Or use UI for visual rollback
-./scripts/argocd-manage.sh dashboard
+../scripts/bootstrap-argocd.sh dashboard
 ```
 
 ## 📊 Monitoring and Alerts
@@ -375,8 +381,8 @@ The following scripts are now primarily for reference:
 
 **Application Stuck in Progressing**:
 ```bash
-./scripts/argocd-manage.sh debug ml-platform-local
-./scripts/argocd-manage.sh events ml-platform-local
+../scripts/bootstrap-argocd.sh debug ml-platform-local
+../scripts/bootstrap-argocd.sh events ml-platform-local
 ```
 
 **Sync Failures**:
@@ -397,7 +403,7 @@ kubectl auth can-i create deployments --as=system:serviceaccount:argocd:argocd-a
 **Repository Access**:
 ```bash
 # Test repository access
-kubectl exec -n argocd deployment/argocd-repo-server -- git ls-remote https://github.com/your-org/ml-platform
+kubectl exec -n argocd deployment/argocd-repo-server -- git ls-remote https://github.com/gigifokchiman/implement-ml-p
 ```
 
 ## 🚀 Next Steps

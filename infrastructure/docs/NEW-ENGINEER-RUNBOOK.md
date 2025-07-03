@@ -280,7 +280,7 @@ kubectl get ingress -n ml-platform
 # 5. Try "App Diff" to see any configuration changes
 
 # CLI commands to explore
-./scripts/argocd-manage.sh manifests ml-platform-local  # View rendered YAML
+./scripts/argocd-manage.sh describe ml-platform-local  # View rendered YAML
 ./scripts/argocd-manage.sh diff ml-platform-local       # Show any diffs
 ./scripts/argocd-manage.sh history ml-platform-local    # View revision history
 ```
@@ -299,9 +299,6 @@ echo "ArgoCD available at: https://localhost:8080"
 
 # Test database connection
 psql postgresql://admin:password@localhost:5432/metadata -c "SELECT version();"
-
-# Test Redis connection
-redis-cli -h localhost -p 6379 ping
 
 # Test MinIO (open browser)
 echo "Open http://localhost:9000 in browser"

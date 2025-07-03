@@ -2,6 +2,10 @@
 
 This guide demonstrates how ArgoCD solves common Kustomize pain points through its powerful command-line interface and web UI.
 
+**Last Updated:** January 2025  
+**Repository:** https://github.com/gigifokchiman/implement-ml-p  
+**ArgoCD Access:** http://argocd.ml-platform.local:30080 (local) or via port-forward
+
 ## 🎯 Overview
 
 ArgoCD transforms the challenging aspects of Kustomize management by providing:

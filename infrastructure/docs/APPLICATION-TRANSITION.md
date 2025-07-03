@@ -4,6 +4,11 @@
 
 This guide helps you transition from infrastructure setup to application development and deployment. The infrastructure foundation is now complete and ready to support ML platform applications.
 
+> **💡 Quick Start**: For adding new applications quickly, see [ADD-NEW-APPLICATION.md](./ADD-NEW-APPLICATION.md) for a
+> simplified 4-step process.
+
+> **🔧 Scripts**: Use `../scripts/new-app.sh <app-name> [type]` to automatically generate application scaffolding.
+
 ### 1. Application Architecture Setup
 
 **Recommended Application Structure:**

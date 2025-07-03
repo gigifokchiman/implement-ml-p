@@ -86,7 +86,7 @@ Minimum Requirements:
 - 20GB free disk space
 
 Terraform Providers:
-- tehcyx/kind (Kind cluster management)
+- gigifokchiman/kind (Kind cluster management)
 - kreuzwerker/docker (Docker registry)
 - hashicorp/kubernetes (K8s resources)
 ```

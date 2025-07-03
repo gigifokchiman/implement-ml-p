@@ -2,12 +2,16 @@
 
 This directory contains comprehensive documentation for the ML platform infrastructure.
 
+**Last Updated:** January 2025  
+**Total Documentation:** 39 Markdown files across infrastructure
+
 ## 📚 Core Documentation
 
 ### Essential Reading
 - [**NEW-ENGINEER-RUNBOOK.md**](./NEW-ENGINEER-RUNBOOK.md) - 🎓 **Complete hands-on guide for new engineers**
+- [**ADD-NEW-APPLICATION.md**](./ADD-NEW-APPLICATION.md) - ⚡ **Quick guide to add new applications in 4 steps**
+- [**APPLICATION-TRANSITION.md**](./APPLICATION-TRANSITION.md) - 🚀 **Comprehensive guide to application development**
 - [**IMPLEMENTATION-SUMMARY.md**](./IMPLEMENTATION-SUMMARY.md) - Current implementation status and completed features
-- [**APPLICATION-TRANSITION.md**](./APPLICATION-TRANSITION.md) - 🚀 **Guide to transition from infrastructure to application development**
 
 ### Configuration & Setup
 - [**BEST-PRACTICES.md**](./BEST-PRACTICES.md) - Terraform coding standards and practices
@@ -39,15 +43,26 @@ This directory contains comprehensive documentation for the ML platform infrastr
 The infrastructure follows a **two-layer architecture**:
 
 1. **Layer 1: Infrastructure (Terraform)** - Manages foundational cloud and compute resources
-2. **Layer 2: Applications (Kustomize)** - Manages application deployments and configurations
+    - Custom Kind provider (`gigifokchiman/kind`) for local development
+    - Modular design with platform abstractions and provider implementations
+2. **Layer 2: Applications (Kustomize + ArgoCD)** - GitOps-based application deployments
+    - ArgoCD for continuous deployment from Git
+    - Environment-specific overlays for local, dev, staging, and prod
 
 ## 🚀 Quick Start
 
 1. **New to the project?** Start with [NEW-ENGINEER-RUNBOOK.md](./NEW-ENGINEER-RUNBOOK.md)
-2. **Setting up locally?** Follow [KIND-CLUSTER-CONFIGURATION.md](./KIND-CLUSTER-CONFIGURATION.md) and [DOCKER-SETUP.md](archive/DOCKER-SETUP.md)
-3. **Deploying to AWS?** Review [EKS-USAGE.md](./EKS-USAGE.md) and [BEST-PRACTICES.md](./BEST-PRACTICES.md)
-4. **Need monitoring?** Check [MONITORING-GUIDE.md](./MONITORING-GUIDE.md)
-5. **Security concerns?** See [SECURITY.md](./SECURITY.md) and [SECURITY-SCANNING-GUIDE.md](./SECURITY-SCANNING-GUIDE.md)
+2. **Adding a new application?** Use [ADD-NEW-APPLICATION.md](./ADD-NEW-APPLICATION.md) for the 4-step process
+3. **Setting up locally?**
+    - Kubernetes: Use [`../scripts/deploy-local.sh`](../scripts/deploy-local.sh) or
+      follow [KIND-CLUSTER-CONFIGURATION.md](./KIND-CLUSTER-CONFIGURATION.md)
+    - Docker Compose: Simply run `docker-compose up -d` from project root
+4. **GitOps Setup?** Follow [ARGOCD-MIGRATION-GUIDE.md](./ARGOCD-MIGRATION-GUIDE.md) and use [
+   `../scripts/bootstrap-argocd.sh`](../scripts/bootstrap-argocd.sh)
+5. **Deploying to AWS?** Review [EKS-USAGE.md](./EKS-USAGE.md) and [BEST-PRACTICES.md](./BEST-PRACTICES.md)
+6. **Need monitoring?** Check [MONITORING-GUIDE.md](./MONITORING-GUIDE.md)
+7. **Security concerns?** See [SECURITY.md](./SECURITY.md)
+   and [SECURITY-SCANNING-GUIDE.md](./SECURITY-SCANNING-GUIDE.md)
 
 ## 📦 Archived Documentation
 
@@ -67,6 +82,29 @@ The infrastructure follows a **two-layer architecture**:
 - [**archive/MIGRATION_GUIDE_MODULAR.md**](./archive/MIGRATION_GUIDE_MODULAR.md) - Modular migration guide
 - [**archive/MIGRATION_GUIDE_TESTING.md**](./archive/MIGRATION_GUIDE_TESTING.md) - Testing migration procedures
 
+## 📂 Additional Infrastructure Documentation
+
+### Scripts Documentation
+
+See [`../scripts/`](../scripts/) directory for deployment automation:
+
+- `deploy-local.sh` - Complete local deployment with Kind and ArgoCD
+- `bootstrap-argocd.sh` - ArgoCD installation and configuration
+- `install-terraform-provider-kind.sh` - Custom Kind provider installation
+- `download-kind-provider.sh` - Provider binary download
+
+### Terraform Documentation
+
+- [`../terraform/environments/dev/README.md`](../terraform/environments/dev/README.md) - Development environment setup
+- [`../terraform/tests/README.md`](../terraform/tests/README.md) - Terraform testing framework
+
+### Test Documentation
+
+- [`../tests/README.md`](../tests/README.md) - Test suite overview
+- [`../tests/TROUBLESHOOTING.md`](TROUBLESHOOTING.md) - Common issues and solutions
+- [`../tests/WORKFLOWS.md`](WORKFLOWS.md) - Test workflow documentation
+- [`../tests/terraform/compliance/README.md`](../tests/terraform/compliance/README.md) - Compliance testing
+
 ## 📋 Document Status
 
 | Category | Documents | Status |
@@ -79,9 +117,10 @@ The infrastructure follows a **two-layer architecture**:
 | **GitOps & Deployment** | 2 docs | ✅ Current |
 | **Archived Documentation** | 14 docs | 📦 Archived |
 
-**Total Active Documents:** 18  
-**Total Archived Documents:** 14  
-**Total Documentation:** 32 files
+**Total Active Documents:** 19 (this directory)  
+**Total Archived Documents:** 14 (archive subdirectory)  
+**Additional Documentation:** 6 (other infrastructure directories)  
+**Total Infrastructure Documentation:** 39 Markdown files
 
 ## 🎯 Document Maintenance
 
@@ -95,5 +134,6 @@ This documentation is actively maintained and updated. For questions or improvem
 
 ---
 
-**Last Updated:** July 2025  
-**Maintained By:** Infrastructure Team
+**Last Updated:** January 2025  
+**Repository:** https://github.com/gigifokchiman/implement-ml-p  
+**GitOps:** Managed by ArgoCD

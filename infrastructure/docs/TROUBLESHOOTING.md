@@ -73,6 +73,10 @@ make test-unit    # No security scans
 cd ../terraform/environments/local
 terraform validate
 
+# For local environment Kind provider setup
+cd ../../scripts
+./download-kind-provider.sh
+
 # Or check specific overlay
 cd ../kubernetes/overlays/local
 kustomize build .
@@ -111,7 +115,7 @@ make test            # ✅ static + unit
 ### ✅ **Reliable Tests**
 
 - **Terraform Format**: `terraform fmt -check`
-- **Terraform Validate**: `terraform validate`
+- **Terraform Validate**: `terraform validate` (requires gigifokchiman/kind provider for local env)
 - **Kubernetes Validate**: `kustomize build` + `kubeconform`
 - **OPA Policy Tests**: `opa test`
 
@@ -165,6 +169,10 @@ make test-kubernetes-validate
 ```bash
 # Essential (for basic testing)
 brew install terraform kubectl kustomize
+
+# Kind provider setup (required for local environment)
+cd ../scripts
+./download-kind-provider.sh
 
 # Optional (for full testing)  
 brew install k6 trivy

@@ -39,7 +39,7 @@ This document provides step-by-step procedures for common operational tasks.
 **Recovery (15+ minutes):**
 1. If infrastructure is down:
    ```bash
-   cd environments/<environment>
+   cd infrastructure/terraform/environments/<environment>
    terraform plan
    terraform apply
    ```
@@ -47,6 +47,42 @@ This document provides step-by-step procedures for common operational tasks.
 2. If application is down:
    ```bash
    kubectl rollout restart deployment/<deployment-name> -n <namespace>
+   ```
+
+### 🔄 ArgoCD/GitOps Outage
+
+**Immediate Actions:**
+
+1. Check ArgoCD status:
+   ```bash
+   kubectl get pods -n argocd
+   kubectl get applications -n argocd
+   ../scripts/argocd-manage.sh status <critical-app>
+   ```
+
+2. Check for failed applications:
+   ```bash
+   kubectl get applications -n argocd -o wide
+   kubectl describe application <app-name> -n argocd
+   ```
+
+**Recovery:**
+
+1. Restart ArgoCD if needed:
+   ```bash
+   kubectl rollout restart deployment/argocd-server -n argocd
+   kubectl rollout restart deployment/argocd-application-controller -n argocd
+   ```
+
+2. Re-bootstrap ArgoCD if completely broken:
+   ```bash
+   cd infrastructure
+   ../scripts/bootstrap-argocd.sh <environment>
+   ```
+
+3. Manually apply critical applications:
+   ```bash
+   kubectl apply -k infrastructure/kubernetes/overlays/<environment>
    ```
 
 ### 🔥 Database Outage
@@ -101,28 +137,32 @@ This document provides step-by-step procedures for common operational tasks.
 **Deployment Steps:**
 1. **Local Environment:**
    ```bash
-   cd environments/local
+   cd infrastructure/terraform/environments/local
    terraform plan -var-file="terraform.tfvars"
    terraform apply -var-file="terraform.tfvars"
+   
+   # Or use the automated script
+   cd infrastructure
+   ../scripts/deploy-local.sh
    ```
 
 2. **Development Environment:**
    ```bash
-   cd environments/dev
+   cd infrastructure/terraform/environments/dev
    terraform plan -var-file="terraform.tfvars"
    terraform apply -var-file="terraform.tfvars"
    ```
 
 3. **Staging Environment:**
    ```bash
-   cd environments/staging
+   cd infrastructure/terraform/environments/staging
    terraform plan -var-file="terraform.tfvars"
    terraform apply -var-file="terraform.tfvars"
    ```
 
 4. **Production Environment:**
    ```bash
-   cd environments/prod
+   cd infrastructure/terraform/environments/prod
    terraform plan -var-file="terraform.tfvars"
    # Get approval from team leads
    terraform apply -var-file="terraform.tfvars"
@@ -193,7 +233,7 @@ aws s3 sync s3://<source-bucket> s3://<backup-bucket> --delete
 **Full Environment Recovery:**
 ```bash
 # 1. Recreate infrastructure
-cd environments/<environment>
+cd infrastructure/terraform/environments/<environment>
 terraform destroy  # Only if necessary
 terraform apply
 
@@ -203,6 +243,10 @@ velero restore create --from-backup <backup-name>
 
 # Cloud
 aws rds restore-db-instance-from-db-snapshot --db-instance-identifier <new-id> --db-snapshot-identifier <snapshot-id>
+
+# 3. Bootstrap ArgoCD if needed
+cd infrastructure
+../scripts/bootstrap-argocd.sh <environment>
 ```
 
 **Partial Recovery (Database Only):**
@@ -237,6 +281,16 @@ kubectl port-forward -n monitoring svc/prometheus-alertmanager 9093:9093
 # Access: http://localhost:9093
 ```
 
+**ArgoCD:**
+
+```bash
+kubectl port-forward -n argocd svc/argocd-server 8080:443
+# Access: https://localhost:8080
+# Username: admin
+# Password: Get with: kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
+# Or use: ../scripts/argocd-manage.sh password
+```
+
 ### 🔔 Alert Investigation
 
 **Database Alerts:**
@@ -260,6 +314,22 @@ kubectl logs -n storage deployment/minio --tail=100
 
 # Check storage usage
 kubectl exec -n storage deployment/minio -- df -h /data
+```
+
+**ArgoCD Alerts:**
+
+```bash
+# Check ArgoCD status
+kubectl get pods -n argocd
+kubectl get applications -n argocd
+
+# Check specific application
+../scripts/argocd-manage.sh status <app-name>
+../scripts/argocd-manage.sh diff <app-name>
+
+# Force refresh and sync
+../scripts/argocd-manage.sh refresh <app-name>
+../scripts/argocd-manage.sh sync <app-name>
 ```
 
 ## Troubleshooting
@@ -299,6 +369,25 @@ kubectl top nodes
 
 # Check metrics in Grafana
 kubectl port-forward -n monitoring svc/prometheus-grafana 3000:80
+```
+
+**ArgoCD Application Issues:**
+
+```bash
+# Check application status
+kubectl get applications -n argocd
+../scripts/argocd-manage.sh status <app-name>
+
+# Check sync status and errors
+../scripts/argocd-manage.sh diff <app-name>
+kubectl describe application <app-name> -n argocd
+
+# Force sync if needed
+../scripts/argocd-manage.sh refresh <app-name>
+../scripts/argocd-manage.sh sync <app-name>
+
+# Check ArgoCD server logs
+kubectl logs -n argocd deployment/argocd-server --tail=100
 ```
 
 ### 🐛 Debug Commands
@@ -430,7 +519,9 @@ kubectl get networkpolicies --all-namespaces
 
 ## Additional Resources
 
-- [Monitoring Dashboards](docs/MONITORING.md)
-- [Security Policies](docs/SECURITY.md)
-- [Architecture Documentation](docs/ARCHITECTURE.md)
-- [Troubleshooting Guide](docs/TROUBLESHOOTING.md)
+- [Repository: https://github.com/gigifokchiman/implement-ml-p](https://github.com/gigifokchiman/implement-ml-p)
+- [ArgoCD Dashboard: https://localhost:8080 (after port-forward)](https://localhost:8080)
+- [Grafana Dashboard: http://localhost:3000 (after port-forward)](http://localhost:3000)
+- [MinIO Console: http://localhost:9000 (after port-forward)](http://localhost:9000)
+- [New Engineer Runbook](NEW-ENGINEER-RUNBOOK.md)
+- [Troubleshooting Guide](TROUBLESHOOTING.md)

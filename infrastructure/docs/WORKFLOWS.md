@@ -148,10 +148,15 @@ cd ../terraform/environments/dev
 terraform init
 terraform validate
 
+# For local environment Kind provider issues:
+cd ../../scripts
+./download-kind-provider.sh
+
 # Common issues:
 # - Missing variables in terraform.tfvars
 # - Incorrect module source paths
 # - Provider version conflicts
+# - gigifokchiman/kind provider not installed (for local env)
 ```
 
 #### Security Scan Fails
