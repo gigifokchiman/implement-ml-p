@@ -1,3 +1,0 @@
-[submodule "infrastructure/terraform-provider-kind"]
-	path = infrastructure/terraform-provider-kind
-	url = https://github.com/gigifokchiman/kind
