@@ -5,7 +5,7 @@ framework:
   - terraform
   - terraform_plan
 
-# Target only local environment
+# Target only local environment (relative to infrastructure/tests/terraform/compliance/)
 directory:
   - "../../../terraform/environments/local"
 

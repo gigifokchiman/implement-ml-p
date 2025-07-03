@@ -36,18 +36,27 @@ output "storage_credentials" {
 
 output "monitoring" {
   description = "Monitoring endpoints"
-  value       = module.monitoring.endpoints
-  sensitive   = true
+  value = length(module.monitoring) > 0 ? module.monitoring[0].endpoints : {
+    enabled = false
+    message = "Monitoring disabled for local environment"
+  }
+  sensitive = true
 }
 
 output "monitoring_dashboards" {
   description = "Available monitoring dashboards"
-  value       = module.monitoring.dashboards
+  value = length(module.monitoring) > 0 ? module.monitoring[0].dashboards : {
+    enabled = false
+    message = "Monitoring disabled for local environment"
+  }
 }
 
 output "security" {
   description = "Security policies status"
-  value       = module.security.security_policies
+  value = length(module.security) > 0 ? module.security[0].security_policies : {
+    enabled = false
+    message = "Security disabled for local environment"
+  }
 }
 
 output "backup" {

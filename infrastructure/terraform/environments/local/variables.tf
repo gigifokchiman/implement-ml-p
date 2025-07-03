@@ -143,7 +143,11 @@ variable "registry_config" {
       "ml-platform/backend",
       "ml-platform/frontend",
       "ml-platform/data-processor",
-      "ml-platform/ml-trainer"
+      "ml-platform/ml-trainer",
+      "data-platform/data-api",
+      "data-platform/data-processor",
+      "data-platform/stream-processor",
+      "data-platform/data-quality"
     ])
   })
   default = {}

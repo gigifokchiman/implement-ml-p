@@ -1,45 +1,51 @@
-# Unified Development Environment
+# Development Environment
 
 This directory provides a unified Terraform configuration that can deploy either:
 
 1. **Kind Cluster** (local development)
 2. **AWS EKS** (cloud development)
 
+**Last Updated:** January 2025  
+**Repository:** https://github.com/gigifokchiman/implement-ml-p
+
 ## Quick Start
 
 ### Option 1: Local Development with Kind
 
 ```bash
-# Start Kind cluster with local registry
-make dev-kind-up
+# Deploy using script (recommended)
+cd infrastructure
+./scripts/deploy-local.sh
 
-# Build and push your images  
-make dev-build-push
+# Or use terraform directly
+cd infrastructure/terraform/environments/local
+terraform init
+terraform apply
+
+# Bootstrap ArgoCD
+cd ../../../
+./scripts/bootstrap-argocd.sh
 
 # Check status
-make dev-status
-
-# View logs
-make dev-logs
-
-# Stop when done
-make dev-kind-down
+kubectl get pods -n ml-platform
+kubectl get apps -n argocd
 ```
 
 ### Option 2: AWS Cloud Development
 
 ```bash
-# Start AWS EKS cluster
-make dev-aws-up
+# Deploy to AWS
+cd infrastructure/terraform/environments/dev
+terraform init
+terraform apply
 
-# Build and push to ECR
-make dev-build-push
+# Bootstrap ArgoCD
+cd ../../../
+./scripts/bootstrap-argocd.sh
 
 # Check status
-make dev-status
-
-# Stop when done
-make dev-aws-down
+kubectl get pods -n ml-platform
+kubectl get apps -n argocd
 ```
 
 ## Architecture
@@ -99,18 +105,20 @@ make dev-aws-down
 
 ## Usage Examples
 
-### Deploy Kind Cluster
+### Deploy Local Kind Cluster
 
 ```bash
-cd infrastructure/terraform/environments/dev
-terraform apply -var="use_kind_cluster=true"
+# Use the local environment
+cd infrastructure/terraform/environments/local
+terraform apply
 ```
 
 ### Deploy AWS EKS
 
 ```bash
+# Use the dev environment for AWS
 cd infrastructure/terraform/environments/dev
-terraform apply -var="use_kind_cluster=false"
+terraform apply
 ```
 
 ### Use Custom Cluster Name
@@ -162,10 +170,10 @@ terraform output development_urls
 
 ## Kubernetes Manifests
 
-The Terraform configuration automatically applies the appropriate Kubernetes manifests:
+The Terraform configuration automatically applies the appropriate Kubernetes manifests via ArgoCD:
 
-- **Kind Mode**: Uses `infrastructure/kubernetes/overlays/dev-kind`
-- **AWS Mode**: Uses `infrastructure/kubernetes/overlays/dev` (if exists) or base configuration
+- **Local Mode**: Uses `infrastructure/kubernetes/overlays/local` with ArgoCD application `ml-platform-local`
+- **Dev Mode**: Uses `infrastructure/kubernetes/overlays/dev` with ArgoCD application `ml-platform-dev`
 
 ### Manifest Differences
 
@@ -183,13 +191,16 @@ The Terraform configuration automatically applies the appropriate Kubernetes man
 **Local/Offline Development:**
 
 ```bash
-make dev-kind-up
+cd infrastructure
+./scripts/deploy-local.sh
 ```
 
 **Cloud Development:**
 
 ```bash  
-make dev-aws-up
+cd infrastructure/terraform/environments/dev
+terraform apply
+../../../scripts/bootstrap-argocd.sh
 ```
 
 ### 2. Build and Deploy

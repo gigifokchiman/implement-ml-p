@@ -5,7 +5,7 @@ terraform {
   required_version = ">= 1.0"
   required_providers {
     kind = {
-      source  = "gigifokchiman/kind"
+      source  = "kind.local/gigifokchiman/kind"
       version = "0.1.0"
     }
     kubernetes = {
@@ -46,20 +46,26 @@ resource "kind_cluster" "default" {
     kind        = "Cluster"
     api_version = "kind.x-k8s.io/v1alpha4"
 
-    nodes {
+    node {
       role = "control-plane"
+
+      kubeadm_config_patches = [
+        "kind: InitConfiguration\nnodeRegistration:\n  kubeletExtraArgs:\n    node-labels: \"ingress-ready=true\""
+      ]
 
       extra_port_mappings {
         container_port = 80
         host_port      = 8080
+        protocol       = "TCP"
       }
       extra_port_mappings {
         container_port = 443
         host_port      = 8443
+        protocol       = "TCP"
       }
     }
 
-    nodes {
+    node {
       role = "worker"
     }
   }
@@ -76,9 +82,9 @@ provider "kubernetes" {
 provider "helm" {
   kubernetes {
     host                   = kind_cluster.default.endpoint
-    cluster_ca_certificate = base64decode(kind_cluster.default.cluster_ca_certificate)
-    client_certificate     = base64decode(kind_cluster.default.client_certificate)
-    client_key             = base64decode(kind_cluster.default.client_key)
+    cluster_ca_certificate = kind_cluster.default.cluster_ca_certificate
+    client_certificate     = kind_cluster.default.client_certificate
+    client_key             = kind_cluster.default.client_key
   }
 }
 
@@ -94,22 +100,7 @@ provider "aws" {
   secret_key                  = "dummy"
 }
 
-# Default storage class for Kind
-resource "kubernetes_storage_class" "standard" {
-  metadata {
-    name = "standard"
-    annotations = {
-      "storageclass.kubernetes.io/is-default-class" = "true"
-    }
-  }
-
-  storage_provisioner    = "rancher.io/local-path"
-  reclaim_policy         = "Delete"
-  volume_binding_mode    = "WaitForFirstConsumer"
-  allow_volume_expansion = true
-
-  depends_on = [kind_cluster.default]
-}
+# No storage class needed - using emptyDir volumes for local dev
 
 # ML Platform Composition
 module "ml_platform" {
@@ -124,7 +115,7 @@ module "ml_platform" {
 
   tags = local.shared_config.common_tags
 
-  depends_on = [kind_cluster.default, kubernetes_storage_class.standard]
+  depends_on = [kind_cluster.default]
 }
 
 # OUTPUTS

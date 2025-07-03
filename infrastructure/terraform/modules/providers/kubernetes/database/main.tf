@@ -17,21 +17,7 @@ resource "kubernetes_namespace" "database" {
   }
 }
 
-resource "kubernetes_persistent_volume_claim" "postgres" {
-  metadata {
-    name      = "postgres-pvc"
-    namespace = kubernetes_namespace.database.metadata[0].name
-  }
-
-  spec {
-    access_modes = ["ReadWriteOnce"]
-    resources {
-      requests = {
-        storage = "${var.config.storage_size}Gi"
-      }
-    }
-  }
-}
+# No PVC for local dev - using emptyDir
 
 resource "kubernetes_secret" "postgres" {
   metadata {
@@ -130,9 +116,7 @@ resource "kubernetes_deployment" "postgres" {
 
         volume {
           name = "postgres-storage"
-          persistent_volume_claim {
-            claim_name = kubernetes_persistent_volume_claim.postgres.metadata[0].name
-          }
+          empty_dir {}
         }
       }
     }

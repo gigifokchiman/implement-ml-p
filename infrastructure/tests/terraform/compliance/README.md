@@ -136,18 +136,20 @@ exclude:
 exclude:
   - rule-that-breaks-kind-cluster
   - rule-incompatible-with-local-dev
+  - rules-requiring-aws-features-not-in-kind
 ```
 
 ## Security Rule Justification
 
 Every skipped check must be justified:
 
-| Check            | Local | Dev | Prod | Justification                   |
-|------------------|-------|-----|------|---------------------------------|
-| S3 Encryption    | ❌     | ✅   | ✅    | Local uses MinIO simulation     |
-| Image Tags       | ❌     | ⚠️  | ✅    | Local/dev need flexibility      |
-| Resource Limits  | ❌     | ⚠️  | ✅    | Local has different constraints |
-| Network Policies | ❌     | ✅   | ✅    | Kind cluster networking         |
+| Check            | Local | Dev | Prod | Justification                       |
+|------------------|-------|-----|------|-------------------------------------|
+| S3 Encryption    | ❌     | ✅   | ✅    | Local uses MinIO simulation         |
+| Image Tags       | ❌     | ⚠️  | ✅    | Local/dev need flexibility          |
+| Resource Limits  | ❌     | ⚠️  | ✅    | Local has different constraints     |
+| Network Policies | ❌     | ✅   | ✅    | Kind cluster networking limitations |
+| Kind Provider    | ✅     | ❌   | ❌    | Only local uses gigifokchiman/kind  |
 
 ## Best Practices
 

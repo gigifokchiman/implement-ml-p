@@ -44,6 +44,7 @@ module "storage" {
 }
 
 module "monitoring" {
+  count  = var.environment != "local" ? 1 : 0
   source = "../../platform/monitoring"
 
   name        = "${var.name}-monitoring"
@@ -59,6 +60,7 @@ module "monitoring" {
 }
 
 module "security" {
+  count  = var.environment != "local" ? 1 : 0
   source = "../../platform/security"
 
   name        = "${var.name}-security"

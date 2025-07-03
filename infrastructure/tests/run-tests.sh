@@ -150,9 +150,12 @@ REQUIREMENTS:
     - kubeconform
     - OPA
     - tfsec/checkov (for security scans)
+    - gigifokchiman/kind provider (for local environment)
 
 Install all tools:
     make -C $SCRIPT_DIR install
+    # For Kind provider (local development):
+    cd ../scripts && ./download-kind-provider.sh
 EOF
 }
 

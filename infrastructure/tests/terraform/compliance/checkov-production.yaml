@@ -5,7 +5,7 @@ framework:
   - terraform
   - terraform_plan
 
-# Target production environments
+# Target production environments (relative to infrastructure/tests/terraform/compliance/)
 directory:
   - "../../../terraform/environments/prod"
   - "../../../terraform/environments/staging"

@@ -5,7 +5,7 @@ framework:
   - terraform
   - terraform_plan
 
-# Target development environment
+# Target development environment (relative to infrastructure/tests/terraform/compliance/)
 directory:
   - "../../../terraform/environments/dev"
 

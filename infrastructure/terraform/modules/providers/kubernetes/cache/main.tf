@@ -17,21 +17,7 @@ resource "kubernetes_namespace" "cache" {
   }
 }
 
-resource "kubernetes_persistent_volume_claim" "redis" {
-  metadata {
-    name      = "redis-pvc"
-    namespace = kubernetes_namespace.cache.metadata[0].name
-  }
-
-  spec {
-    access_modes = ["ReadWriteOnce"]
-    resources {
-      requests = {
-        storage = "8Gi"
-      }
-    }
-  }
-}
+# No PVC for local dev - using emptyDir
 
 resource "kubernetes_deployment" "redis" {
   metadata {
@@ -87,9 +73,7 @@ resource "kubernetes_deployment" "redis" {
 
         volume {
           name = "redis-storage"
-          persistent_volume_claim {
-            claim_name = kubernetes_persistent_volume_claim.redis.metadata[0].name
-          }
+          empty_dir {}
         }
       }
     }

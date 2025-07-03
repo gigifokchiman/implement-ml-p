@@ -62,6 +62,10 @@ We follow a **pyramid testing approach** for infrastructure:
 # Install required tools (one-time setup)
 cd infrastructure/tests
 make install
+
+# For Kind cluster setup with gigifokchiman provider
+cd ../scripts
+./download-kind-provider.sh
 ```
 
 ### For Developers (Daily Use)
@@ -137,10 +141,15 @@ cd ../terraform/environments/dev
 terraform init
 terraform validate
 
+# For local environment with Kind provider issues:
+cd ../../../scripts
+./download-kind-provider.sh
+
 # Common fixes:
 # - Missing required variables
 # - Module source paths incorrect
 # - Provider version conflicts
+# - Kind provider not installed (gigifokchiman/kind)
 ```
 
 ### Scenario 2: "Security scan is failing"
@@ -162,6 +171,9 @@ tfsec ../terraform --format json | jq '.results[]'
 # Test specific overlay
 cd kubernetes/validation
 ./validate.sh local
+
+# Or run from tests directory
+make test-kubernetes-validate
 
 # Common issues:
 # - Invalid YAML syntax

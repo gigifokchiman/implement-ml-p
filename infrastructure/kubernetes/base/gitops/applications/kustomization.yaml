@@ -9,6 +9,7 @@ resources:
   - ml-platform-dev.yaml
   - ml-platform-staging.yaml
   - ml-platform-prod.yaml
+  - data-platform-local.yaml
   - monitoring.yaml
 
 labels:
