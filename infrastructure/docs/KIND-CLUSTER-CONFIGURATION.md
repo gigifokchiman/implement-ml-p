@@ -2,6 +2,10 @@
 
 This document explains all configurations used in the Kind cluster setup for the ML Platform sandbox environment.
 
+**Last Updated:** January 2025  
+**Kind Provider:** gigifokchiman/kind (v0.1.0)  
+**Repository:** https://github.com/gigifokchiman/implement-ml-p
+
 ## Overview
 
 The Kind cluster configuration (`kind-sandbox-shared-config.yaml`) defines a multi-node Kubernetes cluster with specialized node types and comprehensive security settings.
@@ -95,11 +99,11 @@ The Kind cluster configuration (`kind-sandbox-shared-config.yaml`) defines a mul
 ```yaml
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
-name: ml-platform-sandbox
+name: ml-platform-local
 ```
 - **kind**: Specifies this is a Kind cluster configuration
 - **apiVersion**: Kind API version for configuration compatibility
-- **name**: Cluster identifier (should match CLUSTER_NAME in Makefile)
+- **name**: Cluster identifier (matches the name in terraform configuration)
 
 ## Node Configuration
 
@@ -257,26 +261,102 @@ featureGates:
 - **EphemeralContainers**: Enables debugging containers in running pods
 - **GracefulNodeShutdown**: Ensures pods are properly terminated during node shutdown
 
+## Terraform Integration
+
+The Kind cluster is managed by Terraform using the custom provider:
+
+### Provider Configuration
+
+```hcl
+terraform {
+  required_providers {
+    kind = {
+      source  = "gigifokchiman/kind"
+      version = "0.1.0"
+    }
+  }
+}
+
+resource "kind_cluster" "ml_platform" {
+  name = "ml-platform-local"
+  config = file("${path.module}/kind-config.yaml")
+}
+```
+
+### Provider Installation
+
+```bash
+# Install the custom Kind provider
+cd infrastructure
+./scripts/install-terraform-provider-kind.sh
+
+# Or download manually
+./scripts/download-kind-provider.sh
+```
+
 ## Usage
 
 ### Creating the Cluster
+
+**Option 1: Using Deployment Script (Recommended)**
+
 ```bash
-make create-cluster
+cd infrastructure
+./scripts/deploy-local.sh
+```
+
+**Option 2: Using Terraform Directly**
+
+```bash
+cd infrastructure/terraform/environments/local
+terraform init
+terraform apply
+```
+
+**Option 3: Using Kind CLI Directly**
+```bash
+kind create cluster --config infrastructure/terraform/environments/local/kind-config.yaml
 ```
 
 ### Applying Configuration Changes
 Configuration changes require cluster recreation:
 ```bash
-make clean-cluster
-make create-cluster
+# Using Terraform
+cd infrastructure/terraform/environments/local
+terraform destroy
+terraform apply
+
+# Or using Kind directly
+kind delete cluster --name ml-platform-local
+kind create cluster --config kind-config.yaml
+```
+
+### Accessing the Cluster
+
+```bash
+# Kubectl is automatically configured
+kubectl get nodes
+
+# Access services
+kubectl port-forward svc/postgresql 5432:5432 -n ml-platform
+kubectl port-forward svc/redis 6379:6379 -n ml-platform
+kubectl port-forward svc/minio 9000:9000 -n ml-platform
+
+# Access ArgoCD (if deployed)
+echo "URL: http://argocd.ml-platform.local:30080"
+echo "Username: admin"
+echo "Password: $(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d)"
 ```
 
 ### Important Notes
 
-1. **Cluster Name Mismatch**: The configuration uses `ml-platform-sandbox` but the Makefile uses `ml-sandbox`. Ensure these match.
+1. **Cluster Name**: The cluster is named `ml-platform-local` consistently across all configurations.
 
 2. **Resource Reservations**: The reserved resources ensure system stability under load. Adjust based on your host machine capabilities.
 
 3. **Security**: This configuration includes audit logging and TLS bootstrapping for production-like security in development.
 
-4. **Persistence**: Data and logs are mounted from host directories. Ensure these directories exist before creating the cluster.
+4. **Persistence**: Data and logs are mounted from host directories. These are created automatically by the deployment
+   scripts.
+
+5. **Port Mappings**: The cluster exposes ports 8080 (HTTP) and 8443 (HTTPS) for ingress traffic.

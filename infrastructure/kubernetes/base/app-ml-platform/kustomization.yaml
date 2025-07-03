@@ -9,7 +9,6 @@ metadata:
 resources:
   - backend.yaml
   - ml-training-job.yaml
-  - data-processing-cronjob.yaml
 
 labels:
   - pairs:

@@ -30,15 +30,15 @@ This runbook guides you through every aspect of the ML platform infrastructure, 
 
 ### Required Tools
 
-| Tool       | Version   | Purpose                   | Installation                                                                                                   |
-|------------|-----------|---------------------------|----------------------------------------------------------------------------------------------------------------|
-| Docker     | 20.10+    | Container runtime         | [Docker Desktop](https://www.docker.com/products/docker-desktop)                                               |
-| Kubernetes | 1.27+     | Container orchestration   | Included with Docker Desktop                                                                                   |
-| Kind       | 0.20+     | Local Kubernetes clusters | `brew install kind` or [Kind Releases](https://kind.sigs.k8s.io/docs/user/quick-start/#installation)           |
-| Terraform  | 1.0+      | Infrastructure as Code    | `brew install terraform` or [Terraform Downloads](https://www.terraform.io/downloads)                          |
-| kubectl    | 1.27+     | Kubernetes CLI            | `brew install kubectl` or [kubectl Install](https://kubernetes.io/docs/tasks/tools/)                           |
-| Kustomize  | 5.0+      | Kubernetes configuration  | `brew install kustomize` or [Kustomize Install](https://kubectl.docs.kubernetes.io/installation/kustomize/)    |
-| Helm       | v3.18.3+  | Deploy to k8s             | `brew install helm`                                                                                            |
+| Tool       | Version  | Purpose                   | Installation                                                                                            |
+|------------|----------|---------------------------|---------------------------------------------------------------------------------------------------------|
+| Docker     | 20.10+   | Container runtime         | [Docker Desktop](https://www.docker.com/products/docker-desktop)                                        |
+| Kubernetes | 1.27+    | Container orchestration   | Included with Docker Desktop                                                                            |
+| Kind       | 0.20+    | Local Kubernetes clusters | `brew install kind` or [Kind Releases](https://kind.sigs.k8s.io/docs/user/quick-start/#installation)    |
+| Terraform  | 1.0+     | Infrastructure as Code    | `brew install terraform` or [Terraform Downloads](https://www.terraform.io/downloads)                   |
+| kubectl    | 1.27+    | Kubernetes CLI            | `brew install kubectl` or [kubectl Install](https://kubernetes.io/docs/tasks/tools/)                    |
+| Kustomize  | 5.0+     | Kubernetes configuration  | `brew install kustomize` or [Kustomize Install](https://kubectl.docs\rnetes.io/installation/kustomize/) |
+| Helm       | v3.18.3+ | Deploy to k8s             | `brew install helm`                                                                                     |
 
 
 ### Optional Tools
@@ -121,10 +121,10 @@ EOF
 
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/gigifokchiman/implement-ml-p.git
 cd implement-ml-p
 
-git submodule update --init --recursive
+# git submodule update --init --recursive
 
 # Verify structure
 ls -la infrastructure/
@@ -137,12 +137,7 @@ ls -la infrastructure/
 ```bash
 # Read the main docs
 cat infrastructure/README.md
-cat infrastructure/docs/ARCHITECTURE.md
-cat infrastructure/docs/APPLICATION-TRANSITION.md
-
-# Explore the documentation structure
-ls infrastructure/docs/
-cat infrastructure/docs/README.md
+cat infrastructure/docs/_CATALOG.md
 ```
 
 ### Step 1.2: Local Infrastructure Deployment (20 minutes)
@@ -153,36 +148,15 @@ cat infrastructure/docs/README.md
 # Use the comprehensive deployment script that handles all common issues
 cd infrastructure
 ./scripts/deploy-local.sh
+
+# If you need to clean up existing resources first (e.g., to fix "standard" storage class conflicts):
+./scripts/deploy-local.sh --clean-first
+
+kubectl get pods --all-namespaces
+
 ```
 
-**Option B: Manual Step-by-Step**
-
-```bash
-# Navigate to local environment
-cd infrastructure/terraform/environments/local
-
-# Initialize Terraform
-terraform init
-
-# If you get Kind provider checksum errors, run the fix script:
-# ../../scripts/fix-kind-provider.sh
-
-# Review the plan
-terraform plan
-
-# Apply infrastructure (creates Kind cluster)
-terraform apply
-# Type 'yes' when prompted
-
-# Verify Kind cluster
-kind get clusters
-kubectl cluster-info
-
-# Check nodes
-kubectl get nodes
-```
-
-**Option C: Using Docker Container (No Local Tool Installation Required)**
+**Option B: Using Docker Container (No Local Tool Installation Required)**
 
 If you prefer not to install tools locally, use the provided Docker container:
 
@@ -203,15 +177,8 @@ docker run -it --rm --user root \
   ml-platform-tools
 
 # Inside container - use the comprehensive deployment script
-./scripts/deploy-local.sh
+./scripts/deploy-local.sh --clean-first
 
-# OR manual deployment:
-# cd terraform/environments/local
-# terraform init --upgrade
-# terraform plan
-# terraform apply
-
-# Verify deployment
 kubectl get pods --all-namespaces
 
 # Exit container when done
@@ -255,7 +222,6 @@ kubectl get pods -n argocd
 ./scripts/argocd-manage.sh password
 
 
-
 # Apply only local environment GitOps components (not all environments)
 kubectl apply -f infrastructure/kubernetes/base/gitops/argocd-projects.yaml
 kubectl apply -f infrastructure/kubernetes/base/gitops/applications/ml-platform-local.yaml
@@ -274,6 +240,8 @@ kubectl get appprojects -n argocd
 
 # Check application status
 ./scripts/argocd-manage.sh status ml-platform-local
+
+kubectl patch application data-platform-local -n argocd --type=merge
 
 # Wait for pods to start
 kubectl get pods -n ml-platform --watch
@@ -302,7 +270,7 @@ kubectl get ingress -n ml-platform
 
 # Login with:
 # Username: admin
-# Password: (from ./scripts/argocd-manage.sh password)
+# Password: (from ../scripts/argocd-manage.sh password)
 
 # In the ArgoCD UI, explore:
 # 1. Application overview - see ml-platform-local application
@@ -323,7 +291,11 @@ kubectl get ingress -n ml-platform
 # Port forward to access services
 kubectl port-forward svc/postgresql 5432:5432 -n ml-platform &
 kubectl port-forward svc/redis 6379:6379 -n ml-platform &
-kubectl port-forward svc/minio 9000:9000 -n ml-platform 
+kubectl port-forward svc/minio 9000:9000 -n ml-platform &
+
+# Access ArgoCD dashboard
+kubectl port-forward svc/argocd-server 8080:443 -n argocd &
+echo "ArgoCD available at: https://localhost:8080" 
 
 # Test database connection
 psql postgresql://admin:password@localhost:5432/metadata -c "SELECT version();"
@@ -353,15 +325,15 @@ echo "    demo: gitops-workflow" >> kustomization.yaml
 # git add . && git commit -m "Demo GitOps workflow" && git push
 
 # Manually trigger sync to see the change
-./scripts/argocd-manage.sh refresh ml-platform-local
-./scripts/argocd-manage.sh sync ml-platform-local
+../scripts/argocd-manage.sh refresh ml-platform-local
+../scripts/argocd-manage.sh sync ml-platform-local
 
 # View the diff that was applied
-./scripts/argocd-manage.sh diff ml-platform-local
+../scripts/argocd-manage.sh diff ml-platform-local
 
 # Revert the change
 git checkout -- kustomization.yaml
-./scripts/argocd-manage.sh sync ml-platform-local
+../scripts/argocd-manage.sh sync ml-platform-local
 ```
 
 ## 🧪 Phase 2: Testing & Validation Experience (45 minutes)
@@ -418,7 +390,7 @@ checkov -f checkov-local.yaml
 
 ```bash
 # Run basic load tests
-cd ../performance/k6
+cd infrastructure/tests/performance/k6
 k6 run basic-load-test.js
 
 # Check resource usage
@@ -532,35 +504,35 @@ diff <(kustomize build overlays/local) <(kustomize build overlays/dev)
 # Simulate ArgoCD troubleshooting scenarios
 
 # 1. Check application health
-./scripts/argocd-manage.sh status ml-platform-local
+../scripts/argocd-manage.sh status ml-platform-local
 
 # 2. Simulate application issues by making invalid YAML
 cd infrastructure/kubernetes/overlays/local
 echo "invalid: yaml: syntax" >> kustomization.yaml
 
 # 3. Refresh ArgoCD to detect the issue
-./scripts/argocd-manage.sh refresh ml-platform-local
+../scripts/argocd-manage.sh refresh ml-platform-local
 
 # 4. Check sync status (should show error)
-./scripts/argocd-manage.sh status ml-platform-local
+../scripts/argocd-manage.sh status ml-platform-local
 
 # 5. Debug the application
-./scripts/argocd-manage.sh debug ml-platform-local
+../scripts/argocd-manage.sh debug ml-platform-local
 
 # 6. View ArgoCD events
-./scripts/argocd-manage.sh events ml-platform-local
+../scripts/argocd-manage.sh events ml-platform-local
 
 # 7. Fix the issue
 git checkout -- kustomization.yaml
 
 # 8. Sync and verify fix
-./scripts/argocd-manage.sh sync ml-platform-local
-./scripts/argocd-manage.sh status ml-platform-local
+../scripts/argocd-manage.sh sync ml-platform-local
+../scripts/argocd-manage.sh status ml-platform-local
 
 # 9. Demonstrate rollback capability
-./scripts/argocd-manage.sh history ml-platform-local
+../scripts/argocd-manage.sh history ml-platform-local
 # Note a good revision number and practice rollback
-./scripts/argocd-manage.sh rollback ml-platform-local <revision-number>
+../scripts/argocd-manage.sh rollback ml-platform-local <revision-number>
 
 
 
@@ -588,7 +560,39 @@ kubectl get configmap app-config -n ml-platform
 
 ## 📱 Phase 5: Application Development Preparation (45 minutes)
 
-### Step 5.1: Development Environment Setup (20 minutes)
+> **⚡ Quick App Addition**: For adding new applications, see [ADD-NEW-APPLICATION.md](./ADD-NEW-APPLICATION.md) for a
+> simplified 4-step process, or use the automated script: `../scripts/new-app.sh <app-name> [type]`
+
+### Step 5.1: Quick Application Addition Demo (10 minutes)
+
+```bash
+# Demonstrate the simplified app addition process
+cd infrastructure
+
+# Create a sample application using the automated script
+../scripts/new-app.sh sample-app api
+
+# This creates:
+# - src/sample-app/ (with FastAPI code and Dockerfile)
+# - infrastructure/kubernetes/base/apps/sample-app.yaml (K8s manifests)
+# - Updates kustomization.yaml automatically
+
+# Deploy the new app via GitOps
+git add .
+git commit -m "Add sample-app for demo"
+# git push  # (Uncomment to actually deploy)
+
+# Check the generated files
+ls -la src/sample-app/
+cat infrastructure/kubernetes/base/apps/sample-app.yaml
+
+# Clean up demo files
+git reset --hard HEAD~1
+rm -rf src/sample-app
+git checkout -- infrastructure/kubernetes/base/apps/kustomization.yaml
+```
+
+### Step 5.2: Development Environment Setup (20 minutes)
 
 ```bash
 # Create application directory structure
@@ -803,17 +807,16 @@ kubectl delete namespace ml-platform
 docker system prune -af
 
 # Clean up AWS dev environment (optional - costs money)
-cd terraform/environments/local
+cd infrastructure/terraform/environments/local
 terraform destroy
 # Type 'yes' when prompted
 
-cd terraform/environments/dev
+cd ../dev
 terraform destroy
 
 # Clean up terraform state
 rm -rf infrastructure/terraform/environments/local/.terraform*
 rm -rf infrastructure/terraform/environments/local/terraform.tfstate*
-
 
 ```
 
@@ -929,7 +932,7 @@ terraform init
 ```bash
 # Use the comprehensive deployment script - handles everything automatically
 cd infrastructure
-./scripts/deploy-local.sh
+./scripts/deploy-local.sh --clean-first
 ```
 
 **Emergency Reset** (nuclear option):
