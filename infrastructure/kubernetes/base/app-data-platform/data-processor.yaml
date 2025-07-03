@@ -42,42 +42,42 @@ spec:
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
-                  name: database-connection
+                  name: data-platform-database-connection
                   key: url
             - name: REDIS_URL
               valueFrom:
                 secretKeyRef:
-                  name: redis-connection
+                  name: data-platform-redis-connection
                   key: url
             - name: S3_ENDPOINT
               valueFrom:
                 secretKeyRef:
-                  name: s3-connection
+                  name: data-platform-s3-connection
                   key: endpoint
             - name: S3_ACCESS_KEY
               valueFrom:
                 secretKeyRef:
-                  name: s3-connection
+                  name: data-platform-s3-connection
                   key: access_key
             - name: S3_SECRET_KEY
               valueFrom:
                 secretKeyRef:
-                  name: s3-connection
+                  name: data-platform-s3-connection
                   key: secret_key
             - name: RAW_DATA_BUCKET
               valueFrom:
                 secretKeyRef:
-                  name: s3-connection
+                  name: data-platform-s3-connection
                   key: raw_data_bucket
             - name: PROCESSED_DATA_BUCKET
               valueFrom:
                 secretKeyRef:
-                  name: s3-connection
+                  name: data-platform-s3-connection
                   key: processed_data_bucket
             - name: TEMP_DATA_BUCKET
               valueFrom:
                 secretKeyRef:
-                  name: s3-connection
+                  name: data-platform-s3-connection
                   key: temp_data_bucket
           resources:
             requests:

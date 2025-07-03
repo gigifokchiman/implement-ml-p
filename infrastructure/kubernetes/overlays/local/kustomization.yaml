@@ -7,9 +7,17 @@ metadata:
 resources:
 - ../../base
 
-namespace: ml-platform
-
 # No monitoring resources for local development
+
+patches:
+  # Patch ml-platform configs to target correct namespace
+  - target:
+      kind: ConfigMap
+      name: ml-platform-config
+    patch: |-
+      - op: replace
+        path: /metadata/namespace
+        value: ml-platform
 
 configMapGenerator:
 - behavior: merge
@@ -17,18 +25,21 @@ configMapGenerator:
   - LOG_LEVEL=DEBUG
   - ENVIRONMENT=local
   name: ml-platform-config
+  namespace: ml-platform
 
 secretGenerator:
 - behavior: replace
   literals:
   - url=postgresql://admin:changeme123@postgresql.ml-platform.svc.cluster.local:5432/metadata
   name: database-connection
+  namespace: ml-platform
 - behavior: replace
   literals:
   - endpoint=http://minio.ml-platform.svc.cluster.local:9000
   - access_key=minioadmin
   - secret_key=changeme123
   name: s3-connection
+  namespace: ml-platform
 
 labels:
 - pairs:

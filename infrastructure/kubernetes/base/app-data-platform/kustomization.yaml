@@ -34,13 +34,13 @@ configMapGenerator:
 
 # Generate Secret placeholders (override in overlays)
 secretGenerator:
-  - name: database-connection
+  - name: data-platform-database-connection
     literals:
       - url=postgresql://admin:changeme@postgresql:5432/metadata
-  - name: redis-connection
+  - name: data-platform-redis-connection
     literals:
       - url=redis://redis-master:6379
-  - name: s3-connection
+  - name: data-platform-s3-connection
     literals:
       - endpoint=http://minio:9000
       - access_key=minioadmin

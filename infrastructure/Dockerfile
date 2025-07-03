@@ -140,6 +140,32 @@ RUN ARCH=$(dpkg --print-architecture) && \
     rm conftest_${CONFTEST_VERSION}_Linux_${ARCH}.tar.gz && \
     conftest --version
 
+# Install trivy (Container security scanner)
+RUN ARCH=$(dpkg --print-architecture) && \
+    if [ "$ARCH" = "arm64" ]; then ARCH="ARM64"; else ARCH="64bit"; fi && \
+    TRIVY_VERSION=$(curl -s https://api.github.com/repos/aquasecurity/trivy/releases/latest | grep tag_name | cut -d '"' -f 4 | sed 's/v//') && \
+    wget https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-${ARCH}.tar.gz && \
+    tar -xzf trivy_${TRIVY_VERSION}_Linux-${ARCH}.tar.gz && \
+    mv trivy /usr/local/bin/ && \
+    rm trivy_${TRIVY_VERSION}_Linux-${ARCH}.tar.gz && \
+    trivy --version
+
+# Install GitHub CLI (gh)
+RUN ARCH=$(dpkg --print-architecture) && \
+    if [ "$ARCH" = "arm64" ]; then ARCH="arm64"; else ARCH="amd64"; fi && \
+    GH_VERSION=$(curl -s https://api.github.com/repos/cli/cli/releases/latest | grep tag_name | cut -d '"' -f 4 | sed 's/v//') && \
+    wget https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_${ARCH}.tar.gz && \
+    tar -xzf gh_${GH_VERSION}_linux_${ARCH}.tar.gz && \
+    mv gh_${GH_VERSION}_linux_${ARCH}/bin/gh /usr/local/bin/ && \
+    rm -rf gh_${GH_VERSION}_linux_${ARCH}* && \
+    gh --version
+
+# Install graphviz for infrastructure visualization
+RUN apt-get update && apt-get install -y \
+    graphviz \
+    && rm -rf /var/lib/apt/lists/* && \
+    dot -V
+
 # Install additional tools for Kubernetes management
 # Kustomize
 RUN curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash && \
@@ -271,9 +297,12 @@ echo "AWS CLI: $(aws --version)"
 echo "yq: $(yq --version)"
 echo "Checkov: $(checkov --version)"
 echo "tfsec: $(tfsec --version)"
+echo "trivy: $(trivy --version)"
+echo "GitHub CLI: $(gh --version)"
 echo "Terrascan: $(terrascan version)"
 echo "OPA: $(opa version)"
 echo "Conftest: $(conftest --version)"
+echo "Graphviz: $(dot -V 2>&1)"
 echo "Kustomize: $(kustomize version)"
 echo "Node.js: $(node --version)"
 echo "npm: $(npm --version)"
@@ -295,4 +324,4 @@ ENTRYPOINT ["/bin/bash"]
 LABEL maintainer="ML Platform Team"
 LABEL description="Infrastructure tools container with Terraform, kubectl, Helm, and security scanners"
 LABEL version="1.0.0"
-LABEL tools="terraform,kubectl,helm,kind,docker,aws-cli,checkov,tfsec,terrascan,opa,conftest"
+LABEL tools="terraform,kubectl,helm,kind,docker,aws-cli,k6,trivy,tfsec,gh,graphviz,checkov,terrascan,opa,conftest"

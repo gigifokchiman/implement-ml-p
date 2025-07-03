@@ -4,6 +4,7 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - app-ml-platform/
+  - app-data-platform/
   - network/
   - security/
   - storage/

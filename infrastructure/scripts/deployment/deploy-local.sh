@@ -75,7 +75,7 @@ done
 
 # Get script directory and terraform directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TERRAFORM_DIR="$SCRIPT_DIR/../terraform/environments/local"
+TERRAFORM_DIR="$SCRIPT_DIR/../../terraform/environments/local"
 
 cd "$TERRAFORM_DIR"
 echo "📍 Working in: $(pwd)"

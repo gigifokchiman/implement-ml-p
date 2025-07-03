@@ -5,3 +5,11 @@ metadata:
   labels:
     name: ml-platform
     app.kubernetes.io/name: ml-platform
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: data-platform
+  labels:
+    name: data-platform
+    app.kubernetes.io/name: data-platform

@@ -43,18 +43,18 @@ configMapGenerator:
 
 # Override secrets for local environment
 secretGenerator:
-  - name: database-connection
+  - name: data-platform-database-connection
     behavior: replace
     literals:
-      - url=postgresql://admin:localpassword@postgresql.database:5432/metadata
-  - name: redis-connection
+      - url=postgresql://admin:localpassword@postgresql.ml-platform:5432/metadata
+  - name: data-platform-redis-connection
     behavior: replace
     literals:
-      - url=redis://redis-master.cache:6379
-  - name: s3-connection
+      - url=redis://redis-master.ml-platform:6379
+  - name: data-platform-s3-connection
     behavior: replace
     literals:
-      - endpoint=http://minio.storage:9000
+      - endpoint=http://minio.ml-platform:9000
       - access_key=minioadmin
       - secret_key=minioadmin
       - region=us-east-1
