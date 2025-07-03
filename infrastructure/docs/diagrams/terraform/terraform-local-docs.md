@@ -1,6 +1,6 @@
 # Terraform Infrastructure Documentation - local
 
-**Generated:** Thu Jul 3 00:02:28 PDT 2025
+**Generated:** Thu Jul 3 00:14:22 PDT 2025
 **Environment:** local
 **Terraform Version:** 1.12.1
 
@@ -11,7 +11,6 @@ This document provides an overview of the Terraform infrastructure for the **loc
 ## Resource Summary
 
 ### Providers
-
 ```
 
 Providers required by configuration:
@@ -19,19 +18,30 @@ Providers required by configuration:
 ├── provider[registry.terraform.io/hashicorp/kubernetes] ~> 2.23
 ├── provider[registry.terraform.io/hashicorp/helm] ~> 2.11
 ├── provider[registry.terraform.io/hashicorp/random] ~> 3.4
-├── provider[registry.terraform.io/hashicorp/aws]
 ├── provider[kind.local/gigifokchiman/kind] 0.1.0
+├── provider[registry.terraform.io/hashicorp/aws]
 └── module.ml_platform
+    ├── module.backup
+    │   ├── module.aws_backup
+    │   │   └── provider[registry.terraform.io/hashicorp/aws]
+    │   └── module.kubernetes_backup
+    │       ├── provider[registry.terraform.io/hashicorp/kubernetes]
+    │       └── provider[registry.terraform.io/hashicorp/helm]
+    ├── module.cache
+    │   ├── module.aws_cache
+    │       └── provider[registry.terraform.io/hashicorp/aws]
+    │   └── module.kubernetes_cache
+    │       └── provider[registry.terraform.io/hashicorp/kubernetes]
     ├── module.database
-    │   ├── module.kubernetes_database
-    │   │   └── provider[registry.terraform.io/hashicorp/kubernetes]
-    │   └── module.aws_database
-    │       ├── provider[registry.terraform.io/hashicorp/aws]
-    │       └── provider[registry.terraform.io/hashicorp/random]
+    │   ├── module.aws_database
+    │       ├── provider[registry.terraform.io/hashicorp/random]
+    │       └── provider[registry.terraform.io/hashicorp/aws]
+    │   └── module.kubernetes_database
+    │       └── provider[registry.terraform.io/hashicorp/kubernetes]
     ├── module.monitoring
     │   └── module.kubernetes_monitoring
-    │       ├── provider[registry.terraform.io/hashicorp/helm]
-    │       └── provider[registry.terraform.io/hashicorp/kubernetes]
+    │       ├── provider[registry.terraform.io/hashicorp/kubernetes]
+    │       └── provider[registry.terraform.io/hashicorp/helm]
     ├── module.performance_monitoring
     │   ├── module.aws_performance_monitoring
     │       ├── provider[registry.terraform.io/hashicorp/aws]
@@ -47,35 +57,23 @@ Providers required by configuration:
     │       └── provider[registry.terraform.io/hashicorp/archive]
     │   └── module.kubernetes_security_scanning
     │       └── provider[registry.terraform.io/hashicorp/kubernetes]
-    ├── module.storage
-    │   ├── module.aws_storage
-    │       └── provider[registry.terraform.io/hashicorp/aws]
-    │   └── module.kubernetes_storage
-    │       ├── provider[registry.terraform.io/hashicorp/kubernetes]
-    │       └── provider[registry.terraform.io/hashicorp/random]
-    ├── module.backup
-    │   ├── module.aws_backup
-    │       └── provider[registry.terraform.io/hashicorp/aws]
-    │   └── module.kubernetes_backup
-    │       ├── provider[registry.terraform.io/hashicorp/kubernetes]
-    │       └── provider[registry.terraform.io/hashicorp/helm]
-    └── module.cache
-        ├── module.aws_cache
+    └── module.storage
+        ├── module.aws_storage
             └── provider[registry.terraform.io/hashicorp/aws]
-        └── module.kubernetes_cache
-            └── provider[registry.terraform.io/hashicorp/kubernetes]
+        └── module.kubernetes_storage
+            ├── provider[registry.terraform.io/hashicorp/kubernetes]
+            └── provider[registry.terraform.io/hashicorp/random]
 
 Providers required by state:
+
+    provider[kind.local/gigifokchiman/kind]
 
     provider[registry.terraform.io/hashicorp/kubernetes]
 
     provider[registry.terraform.io/hashicorp/random]
-
-    provider[kind.local/gigifokchiman/kind]
 ```
 
 ### Outputs
-
 ```
 cluster_info = <sensitive>
 development_urls = {
@@ -105,19 +103,16 @@ The infrastructure dependencies are visualized in the accompanying diagram files
 ## Security Considerations
 
 ### Network Security
-
 - VPC with private subnets for sensitive resources
 - Security groups with principle of least privilege
 - NAT gateways for outbound internet access
 
 ### Data Security
-
 - Encryption at rest for all storage
 - Encryption in transit using TLS
 - Backup strategies for critical data
 
 ### Access Control
-
 - IAM roles with minimal required permissions
 - Regular rotation of access keys
 - Multi-factor authentication required

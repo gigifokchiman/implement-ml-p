@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <title>DR-Based Upgrade Strategies</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+            font-size: 2em;
+        }
+
+        .strategy-section {
+            margin-bottom: 60px;
+            border: 3px solid #3498db;
+            border-radius: 12px;
+            padding: 25px;
+            background: #f8fbff;
+        }
+
+        .section-title {
+            font-size: 1.4em;
+            font-weight: bold;
+            margin-bottom: 20px;
+            text-align: center;
+            color: #2c3e50;
+        }
+
+        .timeline {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+
+        .timeline-step {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            padding: 15px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            border-left: 5px solid #3498db;
+        }
+
+        .step-number {
+            background: #3498db;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+
+        .step-content {
+            flex: 1;
+        }
+
+        .step-title {
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+
+        .step-description {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .cluster-diagram {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            margin: 20px 0;
+            padding: 20px;
+            background: #ecf0f1;
+            border-radius: 10px;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .cluster {
+            border: 3px solid #34495e;
+            border-radius: 10px;
+            padding: 15px;
+            background: white;
+            text-align: center;
+            min-width: 150px;
+            position: relative;
+        }
+
+        .cluster.production {
+            border-color: #27ae60;
+            background: #d5f4e6;
+        }
+
+        .cluster.dr {
+            border-color: #e67e22;
+            background: #fdf2e9;
+        }
+
+        .cluster.upgrading {
+            border-color: #f39c12;
+            background: #fef5e7;
+            animation: pulse 2s infinite;
+        }
+
+        .cluster.failed {
+            border-color: #e74c3c;
+            background: #fadbd8;
+        }
+
+        .cluster-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        .cluster-version {
+            background: #34495e;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 0.9em;
+            margin: 5px 0;
+        }
+
+        .cluster-status {
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 0.8em;
+            margin: 5px 0;
+        }
+
+        .status-active {
+            background: #d5f4e6;
+            color: #27ae60;
+        }
+
+        .status-standby {
+            background: #fdf2e9;
+            color: #e67e22;
+        }
+
+        .status-upgrading {
+            background: #fef5e7;
+            color: #f39c12;
+        }
+
+        .status-failed {
+            background: #fadbd8;
+            color: #e74c3c;
+        }
+
+        .arrow {
+            font-size: 2em;
+            color: #3498db;
+            margin: 0 10px;
+        }
+
+        .benefits-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .benefit-box {
+            padding: 15px;
+            border-radius: 8px;
+            background: #f8f9fa;
+            border-left: 4px solid #27ae60;
+        }
+
+        .drawback-box {
+            padding: 15px;
+            border-radius: 8px;
+            background: #f8f9fa;
+            border-left: 4px solid #e74c3c;
+        }
+
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .comparison-table th {
+            background: #3498db;
+            color: white;
+            padding: 12px;
+            text-align: left;
+        }
+
+        .comparison-table td {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .comparison-table tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+
+        .highlight-box {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.05);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        .flow-arrow {
+            text-align: center;
+            margin: 10px 0;
+            font-size: 1.5em;
+            color: #3498db;
+        }
+
+        .multi-cluster-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .mini-cluster {
+            border: 2px solid #34495e;
+            border-radius: 8px;
+            padding: 10px;
+            background: white;
+            text-align: center;
+            font-size: 0.9em;
+        }
+
+        .mini-cluster.ml {
+            border-color: #e67e22;
+            background: #fdf6f0;
+        }
+
+        .mini-cluster.data {
+            border-color: #16a085;
+            background: #f0f9f7;
+        }
+
+        .mini-cluster.monitoring {
+            border-color: #9b59b6;
+            background: #f4f1f9;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>🔄 DR-Based Upgrade Strategies: Single vs Multi-Cluster</h1>
+
+    <!-- Single Cluster Blue-Green Strategy -->
+    <div class="strategy-section">
+        <div class="section-title">🎯 Single Cluster: Blue-Green Upgrade via DR</div>
+
+        <div class="timeline">
+            <div class="timeline-step">
+                <div class="step-number">1</div>
+                <div class="step-content">
+                    <div class="step-title">Current State: Production + DR Standby</div>
+                    <div class="cluster-diagram">
+                        <div class="cluster production">
+                            <div class="cluster-title">🏭 Production Cluster</div>
+                            <div class="cluster-version">Kubernetes v1.30.2</div>
+                            <div class="cluster-status status-active">ACTIVE</div>
+                            <div style="font-size: 0.8em; margin-top: 10px;">
+                                🧠 ML Workloads<br>
+                                📊 Data Workloads<br>
+                                📈 Monitoring
+                            </div>
+                        </div>
+                        <div class="arrow">→</div>
+                        <div class="cluster dr">
+                            <div class="cluster-title">🆘 DR Cluster</div>
+                            <div class="cluster-version">Kubernetes v1.30.2</div>
+                            <div class="cluster-status status-standby">STANDBY</div>
+                            <div style="font-size: 0.8em; margin-top: 10px;">
+                                💤 Ready for failover<br>
+                                📋 Regular backups<br>
+                                🔄 Sync enabled
+                            </div>
+                        </div>
+                    </div>
+                    <div class="step-description">Both clusters running same version, DR ready for emergency failover
+                    </div>
+                </div>
+            </div>
+
+            <div class="timeline-step">
+                <div class="step-number">2</div>
+                <div class="step-content">
+                    <div class="step-title">Upgrade DR Cluster First</div>
+                    <div class="cluster-diagram">
+                        <div class="cluster production">
+                            <div class="cluster-title">🏭 Production Cluster</div>
+                            <div class="cluster-version">Kubernetes v1.30.2</div>
+                            <div class="cluster-status status-active">ACTIVE</div>
+                            <div style="font-size: 0.8em; margin-top: 10px;">
+                                ✅ Serving all traffic<br>
+                                ✅ All teams working normally
+                            </div>
+                        </div>
+                        <div class="arrow">🔄</div>
+                        <div class="cluster upgrading">
+                            <div class="cluster-title">🆘 DR Cluster</div>
+                            <div class="cluster-version">Kubernetes v1.31.0</div>
+                            <div class="cluster-status status-upgrading">UPGRADING</div>
+                            <div style="font-size: 0.8em; margin-top: 10px;">
+                                ⚡ Upgrade in progress<br>
+                                🧪 Testing applications<br>
+                                🔍 Validation running
+                            </div>
+                        </div>
+                    </div>
+                    <div class="step-description">DR cluster upgraded safely while production continues - zero impact!
+                    </div>
+                </div>
+            </div>
+
+            <div class="timeline-step">
+                <div class="step-number">3</div>
+                <div class="step-content">
+                    <div class="step-title">Test & Validate on Upgraded DR</div>
+                    <div class="cluster-diagram">
+                        <div class="cluster production">
+                            <div class="cluster-title">🏭 Production Cluster</div>
+                            <div class="cluster-version">Kubernetes v1.30.2</div>
+                            <div class="cluster-status status-active">ACTIVE</div>
+                            <div style="font-size: 0.8em; margin-top: 10px;">
+                                ✅ Still serving traffic
+                            </div>
+                        </div>
+                        <div class="arrow">🧪</div>
+                        <div class="cluster dr">
+                            <div class="cluster-title">🆘 DR Cluster</div>
+                            <div class="cluster-version">Kubernetes v1.31.0</div>
+                            <div class="cluster-status status-standby">TESTING</div>
+                            <div style="font-size: 0.8em; margin-top: 10px;">
+                                ✅ All apps deployed<br>
+                                ✅ Integration tests pass<br>
+                                ✅ Performance validated<br>
+                                ✅ Ready for cutover!
+                            </div>
+                        </div>
+                    </div>
+                    <div class="step-description">Full testing on production-like infrastructure with v1.31.0</div>
+                </div>
+            </div>
+
+            <div class="timeline-step">
+                <div class="step-number">4</div>
+                <div class="step-content">
+                    <div class="step-title">DNS Cutover (2-5 minutes downtime)</div>
+                    <div class="cluster-diagram">
+                        <div class="cluster dr">
+                            <div class="cluster-title">🏭 OLD Production</div>
+                            <div class="cluster-version">Kubernetes v1.30.2</div>
+                            <div class="cluster-status status-standby">STANDBY</div>
+                            <div style="font-size: 0.8em; margin-top: 10px;">
+                                💤 Now the DR cluster
+                            </div>
+                        </div>
+                        <div class="arrow">⚡</div>
+                        <div class="cluster production">
+                            <div class="cluster-title">🏭 NEW Production</div>
+                            <div class="cluster-version">Kubernetes v1.31.0</div>
+                            <div class="cluster-status status-active">ACTIVE</div>
+                            <div style="font-size: 0.8em; margin-top: 10px;">
+                                🎉 Upgrade complete!<br>
+                                ✅ All traffic switched<br>
+                                ✅ All teams on v1.31.0
+                            </div>
+                        </div>
+                    </div>
+                    <div class="step-description">Simple DNS/load balancer switch - instant rollback available!</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="benefits-grid">
+            <div class="benefit-box">
+                <h4>✅ Benefits</h4>
+                <ul>
+                    <li>2-5 minutes downtime only</li>
+                    <li>Full testing before cutover</li>
+                    <li>Instant rollback (DNS switch back)</li>
+                    <li>No team coordination needed</li>
+                    <li>Leverages existing DR investment</li>
+                </ul>
+            </div>
+            <div class="drawback-box">
+                <h4>❌ Considerations</h4>
+                <ul>
+                    <li>All teams upgrade together</li>
+                    <li>2x cost during upgrade window</li>
+                    <li>No version coexistence</li>
+                    <li>Both clusters need same resources</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Multi-Cluster Strategy -->
+    <div class="strategy-section">
+        <div class="section-title">🎯 Multi-Cluster: Independent Blue-Green Upgrades</div>
+
+        <div class="timeline">
+            <div class="timeline-step">
+                <div class="step-number">1</div>
+                <div class="step-content">
+                    <div class="step-title">Current State: Each Cluster Has Its Own DR</div>
+                    <div class="multi-cluster-grid">
+                        <div class="mini-cluster ml">
+                            <div style="font-weight: bold;">🧠 ML Cluster</div>
+                            <div style="font-size: 0.8em;">v1.30.2 - ACTIVE</div>
+                        </div>
+                        <div class="mini-cluster data">
+                            <div style="font-weight: bold;">📊 Data Cluster</div>
+                            <div style="font-size: 0.8em;">v1.30.2 - ACTIVE</div>
+                        </div>
+                        <div class="mini-cluster monitoring">
+                            <div style="font-weight: bold;">📈 Monitor Cluster</div>
+                            <div style="font-size: 0.8em;">v1.30.2 - ACTIVE</div>
+                        </div>
+                    </div>
+                    <div class="flow-arrow">⬇️</div>
+                    <div class="multi-cluster-grid">
+                        <div class="mini-cluster ml">
+                            <div style="font-weight: bold;">🆘 ML DR</div>
+                            <div style="font-size: 0.8em;">v1.30.2 - STANDBY</div>
+                        </div>
+                        <div class="mini-cluster data">
+                            <div style="font-weight: bold;">🆘 Data DR</div>
+                            <div style="font-size: 0.8em;">v1.30.2 - STANDBY</div>
+                        </div>
+                        <div class="mini-cluster monitoring">
+                            <div style="font-weight: bold;">🆘 Monitor DR</div>
+                            <div style="font-size: 0.8em;">v1.30.2 - STANDBY</div>
+                        </div>
+                    </div>
+                    <div class="step-description">Each team has dedicated production and DR clusters</div>
+                </div>
+            </div>
+
+            <div class="timeline-step">
+                <div class="step-number">2</div>
+                <div class="step-content">
+                    <div class="step-title">Week 1: ML Team Upgrades First</div>
+                    <div class="multi-cluster-grid">
+                        <div class="mini-cluster ml" style="border-color: #f39c12; background: #fef5e7;">
+                            <div style="font-weight: bold;">🧠 ML Cluster</div>
+                            <div style="font-size: 0.8em;">v1.30.2 → v1.31.0</div>
+                            <div style="font-size: 0.8em; color: #f39c12;">UPGRADING</div>
+                        </div>
+                        <div class="mini-cluster data">
+                            <div style="font-weight: bold;">📊 Data Cluster</div>
+                            <div style="font-size: 0.8em;">v1.30.2 - ACTIVE</div>
+                            <div style="font-size: 0.8em; color: #27ae60;">UNAFFECTED</div>
+                        </div>
+                        <div class="mini-cluster monitoring">
+                            <div style="font-weight: bold;">📈 Monitor Cluster</div>
+                            <div style="font-size: 0.8em;">v1.30.2 - ACTIVE</div>
+                            <div style="font-size: 0.8em; color: #27ae60;">UNAFFECTED</div>
+                        </div>
+                    </div>
+                    <div class="step-description">ML team upgrades independently - other teams continue working
+                        normally
+                    </div>
+                </div>
+            </div>
+
+            <div class="timeline-step">
+                <div class="step-number">3</div>
+                <div class="step-content">
+                    <div class="step-title">Week 2: Data Team Learns & Upgrades</div>
+                    <div class="multi-cluster-grid">
+                        <div class="mini-cluster ml" style="border-color: #27ae60; background: #d5f4e6;">
+                            <div style="font-weight: bold;">🧠 ML Cluster</div>
+                            <div style="font-size: 0.8em;">v1.31.0 - ACTIVE</div>
+                            <div style="font-size: 0.8em; color: #27ae60;">UPGRADED ✅</div>
+                        </div>
+                        <div class="mini-cluster data" style="border-color: #f39c12; background: #fef5e7;">
+                            <div style="font-weight: bold;">📊 Data Cluster</div>
+                            <div style="font-size: 0.8em;">v1.30.2 → v1.31.0</div>
+                            <div style="font-size: 0.8em; color: #f39c12;">UPGRADING</div>
+                        </div>
+                        <div class="mini-cluster monitoring">
+                            <div style="font-weight: bold;">📈 Monitor Cluster</div>
+                            <div style="font-size: 0.8em;">v1.30.2 - ACTIVE</div>
+                            <div style="font-size: 0.8em; color: #27ae60;">UNAFFECTED</div>
+                        </div>
+                    </div>
+                    <div class="step-description">Data team benefits from ML team's experience, upgrades when ready
+                    </div>
+                </div>
+            </div>
+
+            <div class="timeline-step">
+                <div class="step-number">4</div>
+                <div class="step-content">
+                    <div class="step-title">Final State: Version Coexistence → Eventual Consistency</div>
+                    <div class="multi-cluster-grid">
+                        <div class="mini-cluster ml" style="border-color: #27ae60; background: #d5f4e6;">
+                            <div style="font-weight: bold;">🧠 ML Cluster</div>
+                            <div style="font-size: 0.8em;">v1.31.0 - ACTIVE</div>
+                            <div style="font-size: 0.8em; color: #27ae60;">UPGRADED ✅</div>
+                        </div>
+                        <div class="mini-cluster data" style="border-color: #27ae60; background: #d5f4e6;">
+                            <div style="font-weight: bold;">📊 Data Cluster</div>
+                            <div style="font-size: 0.8em;">v1.31.0 - ACTIVE</div>
+                            <div style="font-size: 0.8em; color: #27ae60;">UPGRADED ✅</div>
+                        </div>
+                        <div class="mini-cluster monitoring" style="border-color: #27ae60; background: #d5f4e6;">
+                            <div style="font-weight: bold;">📈 Monitor Cluster</div>
+                            <div style="font-size: 0.8em;">v1.31.0 - ACTIVE</div>
+                            <div style="font-size: 0.8em; color: #27ae60;">UPGRADED ✅</div>
+                        </div>
+                    </div>
+                    <div class="step-description">All clusters eventually on v1.31.0, but each team chose their own
+                        timing
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="benefits-grid">
+            <div class="benefit-box">
+                <h4>✅ Benefits</h4>
+                <ul>
+                    <li>Each team picks optimal timing</li>
+                    <li>Learn from early adopters</li>
+                    <li>Independent risk management</li>
+                    <li>Version coexistence possible</li>
+                    <li>Isolated blast radius</li>
+                </ul>
+            </div>
+            <div class="drawback-box">
+                <h4>❌ Considerations</h4>
+                <ul>
+                    <li>More DR infrastructure to manage</li>
+                    <li>Higher complexity</li>
+                    <li>Cross-version compatibility issues</li>
+                    <li>Higher costs (more clusters)</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Comparison Table -->
+    <div class="highlight-box">
+        <h3>📊 Strategy Comparison</h3>
+        <table class="comparison-table">
+            <thead>
+            <tr>
+                <th>Aspect</th>
+                <th>Single Cluster Blue-Green</th>
+                <th>Multi-Cluster Independent</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr>
+                <td><strong>Downtime</strong></td>
+                <td>2-5 minutes (DNS switch)</td>
+                <td>2-5 minutes per cluster</td>
+            </tr>
+            <tr>
+                <td><strong>Coordination</strong></td>
+                <td>All teams together</td>
+                <td>Each team independent</td>
+            </tr>
+            <tr>
+                <td><strong>Risk Isolation</strong></td>
+                <td>Shared risk</td>
+                <td>Isolated risk per cluster</td>
+            </tr>
+            <tr>
+                <td><strong>Version Coexistence</strong></td>
+                <td>No (temporary during upgrade)</td>
+                <td>Yes (weeks/months possible)</td>
+            </tr>
+            <tr>
+                <td><strong>Rollback</strong></td>
+                <td>Instant (affects everyone)</td>
+                <td>Instant (per cluster)</td>
+            </tr>
+            <tr>
+                <td><strong>Infrastructure Cost</strong></td>
+                <td>2x during upgrade window</td>
+                <td>2x per cluster (ongoing)</td>
+            </tr>
+            <tr>
+                <td><strong>Operational Complexity</strong></td>
+                <td>Medium</td>
+                <td>High</td>
+            </tr>
+            <tr>
+                <td><strong>Team Autonomy</strong></td>
+                <td>Low (coordinated)</td>
+                <td>High (independent)</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="highlight-box">
+        <h3>🎯 Bottom Line</h3>
+        <p><strong>Both strategies leverage DR for near-zero downtime upgrades!</strong></p>
+        <p><strong>Single Cluster:</strong> Perfect if teams coordinate well and want operational simplicity</p>
+        <p><strong>Multi-Cluster:</strong> Ideal if teams want independence and can handle additional complexity</p>
+        <p><em>Your existing DR infrastructure can support either approach! 🚀</em></p>
+    </div>
+</div>
+</body>
+</html>
