@@ -44,6 +44,7 @@ ArgoCD Management Commands:
 APPLICATIONS:
     list                    List all applications
     status <app>           Show application status
+    diff <app>             Show differences between live and desired state
     sync <app>             Sync application
     refresh <app>          Refresh application
     rollback <app> <rev>   Rollback to specific revision
@@ -70,6 +71,7 @@ Environment Variables:
 Examples:
     $0 list                           # List all applications
     $0 status ml-platform-local       # Show app status
+    $0 diff ml-platform-local         # Show configuration differences
     $0 sync ml-platform-local         # Sync application
     $0 dashboard                      # Open dashboard
     ENVIRONMENT=dev $0 login          # Login to dev ArgoCD
@@ -85,7 +87,7 @@ detect_argocd_server() {
     
     case $ENVIRONMENT in
         "local")
-            ARGOCD_SERVER="localhost:30080"
+            ARGOCD_SERVER="localhost:8080"
             ;;
         "dev")
             ARGOCD_SERVER="argocd-dev.aws.com"
@@ -132,6 +134,15 @@ argocd_login() {
     
     if ! check_argocd_cli; then
         return 1
+    fi
+    
+    # For local environment, ensure port forwarding is active
+    if [[ "$ENVIRONMENT" == "local" ]]; then
+        if ! pgrep -f "kubectl port-forward.*argocd.*8080" > /dev/null; then
+            log_info "Starting port forward to ArgoCD..."
+            kubectl port-forward -n argocd svc/argocd-server 8080:80 > /dev/null 2>&1 &
+            sleep 2  # Give it a moment to start
+        fi
     fi
     
     log_info "Logging into ArgoCD server: $ARGOCD_SERVER"
@@ -384,6 +395,35 @@ app_pods() {
     kubectl get pods -n "$target_namespace" -l argocd.argoproj.io/instance="$app_name"
 }
 
+# Show application diff
+app_diff() {
+    local app_name="$1"
+    
+    if [[ -z "$app_name" ]]; then
+        log_error "Application name is required"
+        return 1
+    fi
+    
+    log_info "Showing differences for application: $app_name"
+    
+    if ! check_argocd_cli; then
+        log_error "ArgoCD CLI is required for diff command"
+        return 1
+    fi
+    
+    # Ensure we're logged in
+    if ! argocd context 2>/dev/null | grep -q "$ARGOCD_SERVER"; then
+        log_warn "Not logged in to ArgoCD, attempting login..."
+        if ! argocd_login; then
+            log_error "Failed to login to ArgoCD"
+            return 1
+        fi
+    fi
+    
+    # Show the diff
+    argocd app diff "$app_name"
+}
+
 # Main command dispatcher
 main() {
     local command="${1:-help}"
@@ -394,6 +434,9 @@ main() {
             ;;
         "status")
             app_status "${2:-}"
+            ;;
+        "diff")
+            app_diff "${2:-}"
             ;;
         "sync")
             sync_application "${2:-}"
