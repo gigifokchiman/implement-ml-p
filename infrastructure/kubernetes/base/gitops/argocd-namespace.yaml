@@ -12,9 +12,39 @@ metadata:
 apiVersion: v1
 kind: Namespace
 metadata:
+  name: app-core-team
+  labels:
+    name: app-core-team
+    team: core
+    cost-center: app
+    environment: local
+    workload-type: application
+    app.kubernetes.io/part-of: gitops
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+apiVersion: v1
+kind: Namespace
+metadata:
   name: argocd-apps
   labels:
     name: argocd-apps
+    app.kubernetes.io/part-of: gitops
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: app-core-team
+  labels:
+    name: app-core-team
+    team: core
+    cost-center: app
+    environment: local
+    workload-type: application
     app.kubernetes.io/part-of: gitops
     pod-security.kubernetes.io/enforce: baseline
     pod-security.kubernetes.io/audit: restricted
@@ -27,6 +57,24 @@ metadata:
   labels:
     name: app-ml-team
     team: ml
+    cost-center: ml
+    environment: local
+    workload-type: application
+    app.kubernetes.io/part-of: gitops
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: app-core-team
+  labels:
+    name: app-core-team
+    team: core
+    cost-center: app
+    environment: local
+    workload-type: application
     app.kubernetes.io/part-of: gitops
     pod-security.kubernetes.io/enforce: baseline
     pod-security.kubernetes.io/audit: restricted
@@ -39,6 +87,24 @@ metadata:
   labels:
     name: app-data-team
     team: data
+    cost-center: data
+    environment: local
+    workload-type: application
+    app.kubernetes.io/part-of: gitops
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: app-core-team
+  labels:
+    name: app-core-team
+    team: core
+    cost-center: app
+    environment: local
+    workload-type: application
     app.kubernetes.io/part-of: gitops
     pod-security.kubernetes.io/enforce: baseline
     pod-security.kubernetes.io/audit: restricted
