@@ -549,10 +549,10 @@ output "s3_buckets" {
 
 output "ecr_repository" {
   description = "ECR repository URL for all container images"
-  value = aws_ecr_repository.main.repository_url
+  value       = aws_ecr_repository.main.repository_url
 }
 
 output "ecr_repository_name" {
   description = "ECR repository name"
-  value = aws_ecr_repository.main.name
+  value       = aws_ecr_repository.main.name
 }

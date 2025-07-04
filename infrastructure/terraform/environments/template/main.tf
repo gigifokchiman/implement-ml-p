@@ -44,7 +44,7 @@ resource "kind_cluster" "app_cluster" {
 
     node {
       role = "control-plane"
-      
+
       kubeadm_config_patches = [
         "kind: InitConfiguration\nnodeRegistration:\n  kubeletExtraArgs:\n    node-labels: \"ingress-ready=true\""
       ]
@@ -75,10 +75,10 @@ resource "kubernetes_storage_class" "local_path" {
       "storageclass.kubernetes.io/is-default-class" = "true"
     }
   }
-  
+
   storage_provisioner    = "rancher.io/local-path"
-  reclaim_policy        = "Delete"
-  volume_binding_mode   = "WaitForFirstConsumer"
+  reclaim_policy         = "Delete"
+  volume_binding_mode    = "WaitForFirstConsumer"
   allow_volume_expansion = true
 
   depends_on = [kind_cluster.app_cluster]
@@ -121,5 +121,5 @@ output "cluster_info" {
 
 output "helm_deploy_command" {
   description = "Command to deploy applications with Helm"
-  value = "helm install ${var.app_name} ./helm/charts/platform-template --namespace ${kubernetes_namespace.app_namespace.metadata[0].name} --set app.name=${var.app_name}"
+  value       = "helm install ${var.app_name} ./helm/charts/platform-template --namespace ${kubernetes_namespace.app_namespace.metadata[0].name} --set app.name=${var.app_name}"
 }

@@ -10,7 +10,7 @@ variable "http_port" {
 }
 
 variable "https_port" {
-  description = "HTTPS port for ingress"  
+  description = "HTTPS port for ingress"
   type        = number
   default     = 8443
 }

@@ -27,19 +27,19 @@ terraform {
 variable "app_name" {
   description = "Name of the application"
   type        = string
-  default     = "monitoring"  # Change this
+  default     = "monitoring" # Change this
 }
 
 variable "http_port" {
   description = "HTTP port for ingress"
   type        = number
-  default     = 9300  # Change this to avoid conflicts
+  default     = 9300 # Change this to avoid conflicts
 }
 
 variable "https_port" {
   description = "HTTPS port for ingress"
   type        = number
-  default     = 9543  # Change this to avoid conflicts
+  default     = 9543 # Change this to avoid conflicts
 }
 
 variable "database_config" {

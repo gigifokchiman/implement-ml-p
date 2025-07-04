@@ -191,9 +191,9 @@ module "secret_store" {
   environment = "local"
   tags        = local.environment_config.common_tags
 
-  argocd_admin_password    = random_password.argocd_admin.result
-  grafana_admin_password   = "admin"
-  postgres_admin_password  = "password"
+  argocd_admin_password   = random_password.argocd_admin.result
+  grafana_admin_password  = "admin"
+  postgres_admin_password = "password"
   redis_password          = ""
   minio_access_key        = "minioadmin"
   minio_secret_key        = "minioadmin"
@@ -235,10 +235,10 @@ module "security_bootstrap" {
 
   prometheus_config = {
     version                = "55.5.0"
-    enable_grafana        = true
+    enable_grafana         = true
     grafana_admin_password = "admin"
-    storage_class         = ""
-    retention_days        = "15d"
+    storage_class          = ""
+    retention_days         = "15d"
   }
 
   depends_on = [kind_cluster.data_platform]
@@ -307,7 +307,7 @@ output "useful_commands" {
     port_forward_prometheus = "kubectl --context kind-data-platform-local port-forward -n data-platform-monitoring svc/prometheus-server 9090:9090"
 
     # General info
-    list_clusters       = "kind get clusters"
-    minio_credentials   = "Access Key: admin, Secret: stored in secret 'minio-secret' in 'data-platform-storage' namespace"
+    list_clusters     = "kind get clusters"
+    minio_credentials = "Access Key: admin, Secret: stored in secret 'minio-secret' in 'data-platform-storage' namespace"
   }
 }
