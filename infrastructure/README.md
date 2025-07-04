@@ -36,7 +36,33 @@ cd implement-ml-p
 3. **Local = Production**: Same tools, same configs, different scale
 4. **Kubernetes Native**: Leverage k8s features instead of adding complexity
 
-### Platform Stack
+### Platform Stack & Environments
+
+#### Environment Strategy
+
+```
+🏠 Local Development          ☁️ Cloud Environments
+┌─────────────────────┐      ┌─────────────────────┐
+│   Kind Cluster      │      │   AWS EKS Cluster   │
+├─────────────────────┤      ├─────────────────────┤
+│ • Single Node       │      │ • Multi-AZ (2-3)    │
+│ • Docker Registry   │      │ • ECR Registry      │
+│ • MinIO Storage     │      │ • S3 Storage        │
+│ • Local PostgreSQL  │      │ • RDS PostgreSQL    │
+│ • Local Redis       │      │ • ElastiCache Redis │
+└─────────────────────┘      └─────────────────────┘
+```
+
+#### Environment Configurations
+
+| Environment | Location                          | Purpose                   | Key Differences                             |
+|-------------|-----------------------------------|---------------------------|---------------------------------------------|
+| **local**   | `terraform/environments/local/`   | Developer laptops         | Kind cluster, MinIO, containerized services |
+| **dev**     | `terraform/environments/dev/`     | Integration testing       | EKS 2-AZ, smaller instances, reduced HA     |
+| **staging** | `terraform/environments/staging/` | Pre-production validation | EKS 3-AZ, production-like, synthetic data   |
+| **prod**    | `terraform/environments/prod/`    | Production workloads      | EKS 3-AZ, full HA, backup, monitoring       |
+
+#### Platform Architecture
 
 ```
 ┌─────────────────────────────────────────────────┐
@@ -45,17 +71,77 @@ cd implement-ml-p
 │  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ │
 │  │  ML Team    │ │ Data Team   │ │  App Team   │ │
 │  │             │ │             │ │             │ │
-│  │ • Quotas    │ │ • Quotas    │ │ • Quotas    │ │
-│  │ • RBAC      │ │ • RBAC      │ │ • RBAC      │ │
-│  │ • Isolation │ │ • Isolation │ │ • Isolation │ │
+│  │ • 20 CPU    │ │ • 16 CPU    │ │ • 8 CPU     │ │
+│  │ • 64GB RAM  │ │ • 48GB RAM  │ │ • 24GB RAM  │ │
+│  │ • 4 GPUs    │ │ • 1TB Store │ │ • 200GB     │ │
+│  │ • Notebooks │ │ • Pipelines │ │ • APIs      │ │
 │  └─────────────┘ └─────────────┘ └─────────────┘ │
 │                                                 │
 │  ┌─────────────────────────────────────────────┐ │
 │  │           Shared Platform Services          │ │
-│  │  PostgreSQL • Redis • MinIO • Monitoring    │ │
+│  │                                             │ │
+│  │  📊 Database    💾 Cache     🗄️ Storage    │ │
+│  │  PostgreSQL    Redis        MinIO/S3       │ │
+│  │                                             │ │
+│  │  📈 Monitoring  🔒 Security  🚀 GitOps     │ │
+│  │  Prometheus    RBAC/TLS     ArgoCD        │ │
 │  └─────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────┘
 ```
+
+#### Service Mapping by Environment
+
+| Component      | Local (Kind)     | Dev/Staging (AWS)       | Production (AWS)      |
+|----------------|------------------|-------------------------|-----------------------|
+| **Compute**    | Kind nodes       | EKS managed nodes       | EKS with autoscaling  |
+| **Database**   | PostgreSQL pod   | RDS PostgreSQL          | RDS Multi-AZ          |
+| **Cache**      | Redis pod        | ElastiCache             | ElastiCache cluster   |
+| **Storage**    | MinIO + local PV | S3 buckets              | S3 with versioning    |
+| **Registry**   | Local registry   | ECR                     | ECR with scanning     |
+| **Ingress**    | NodePort         | ALB                     | ALB + WAF             |
+| **DNS**        | /etc/hosts       | Route53                 | Route53 + CDN         |
+| **Secrets**    | K8s secrets      | Secrets Manager         | Secrets Manager + KMS |
+| **Monitoring** | Basic Prometheus | CloudWatch + Prometheus | Full observability    |
+
+#### Environment Promotion Flow
+
+```
+Developer Laptop → Dev Cluster → Staging Cluster → Production
+     (local)         (dev)         (staging)         (prod)
+        ↓              ↓               ↓                ↓
+   Kind + MinIO    EKS + S3      EKS + S3        EKS + S3
+   Fast iteration  Integration   Load testing    Real traffic
+```
+
+#### Key Environment Features
+
+**Local Development**
+
+- **Fast feedback**: 2-minute cluster creation
+- **Offline capable**: Everything runs locally
+- **Resource efficient**: Single node cluster
+- **Cost**: $0 (runs on laptop)
+
+**Dev Environment**
+
+- **Shared by team**: Multiple developers
+- **Automated testing**: CI/CD pipelines
+- **Lower resources**: t3.medium instances
+- **Cost**: ~$200/month
+
+**Staging Environment**
+
+- **Production mirror**: Same config as prod
+- **Performance testing**: Load testing ready
+- **Security scanning**: Full security suite
+- **Cost**: ~$800/month
+
+**Production Environment**
+
+- **High availability**: Multi-AZ deployment
+- **Auto-scaling**: Based on workload
+- **Full monitoring**: Metrics, logs, traces
+- **Cost**: ~$2000-5000/month (varies)
 
 ## Getting Started
 

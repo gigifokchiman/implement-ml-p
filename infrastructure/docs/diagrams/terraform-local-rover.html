@@ -1,0 +1,1539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <title>Terraform Infrastructure - local</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f6fa;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 2.5em;
+            font-weight: 300;
+        }
+
+        .header p {
+            margin: 10px 0 0 0;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .section {
+            margin: 30px 0;
+        }
+
+        .section h2 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+
+        .graph-container {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 20px;
+            background: #fafafa;
+            overflow-x: auto;
+        }
+
+        .graph-data {
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+
+        .interactive-note {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 0 4px 4px 0;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .stat-card {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #3498db;
+        }
+
+        .stat-label {
+            color: #7f8c8d;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>🚀 Terraform Infrastructure</h1>
+        <p>Environment: local | Generated: Thu Jul 3 16:36:07 PDT 2025</p>
+    </div>
+
+    <div class="content">
+        <div class="section">
+            <h2>📊 Infrastructure Overview</h2>
+            <div class="interactive-note">
+                <strong>Note:</strong> This is a static visualization. For full interactive Rover experience,
+                run the Docker container manually with ARM64 compatibility or on an AMD64 system.
+            </div>
+
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-number">301</div>
+                    <div class="stat-label">Dependencies</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">92</div>
+                    <div class="stat-label">Resources</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">local</div>
+                    <div class="stat-label">Environment</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>🔗 Resource Dependencies (Graph Data)</h2>
+            <div class="graph-container">
+                <div class="graph-data">digraph G {
+                    rankdir = "RL";
+                    node [shape = rect, fontname = "sans-serif"];
+                    "kind_cluster.data_platform" [label="kind_cluster.data_platform"];
+                    "kind_cluster.default" [label="kind_cluster.default"];
+                    subgraph "cluster_module.data_platform.module.backup.module.aws_backup" {
+                    label = "module.data_platform.module.backup.module.aws_backup"
+                    fontname = "sans-serif"
+                    "module.data_platform.module.backup.module.aws_backup.aws_backup_plan.main"
+                    [label="aws_backup_plan.main"];
+                    "module.data_platform.module.backup.module.aws_backup.aws_backup_selection.ebs"
+                    [label="aws_backup_selection.ebs"];
+                    "module.data_platform.module.backup.module.aws_backup.aws_backup_selection.rds"
+                    [label="aws_backup_selection.rds"];
+                    "module.data_platform.module.backup.module.aws_backup.aws_backup_vault.main"
+                    [label="aws_backup_vault.main"];
+                    "module.data_platform.module.backup.module.aws_backup.aws_iam_role.backup"
+                    [label="aws_iam_role.backup"];
+                    "module.data_platform.module.backup.module.aws_backup.aws_iam_role_policy_attachment.backup"
+                    [label="aws_iam_role_policy_attachment.backup"];
+                    }
+                    subgraph "cluster_module.data_platform.module.backup.module.kubernetes_backup" {
+                    label = "module.data_platform.module.backup.module.kubernetes_backup"
+                    fontname = "sans-serif"
+                    "module.data_platform.module.backup.module.kubernetes_backup.helm_release.velero"
+                    [label="helm_release.velero"];
+                    "module.data_platform.module.backup.module.kubernetes_backup.kubernetes_namespace.velero"
+                    [label="kubernetes_namespace.velero"];
+                    "module.data_platform.module.backup.module.kubernetes_backup.kubernetes_persistent_volume_claim.backup_storage"
+                    [label="kubernetes_persistent_volume_claim.backup_storage"];
+                    }
+                    subgraph "cluster_module.data_platform.module.cache.module.aws_cache" {
+                    label = "module.data_platform.module.cache.module.aws_cache"
+                    fontname = "sans-serif"
+                    "module.data_platform.module.cache.module.aws_cache.aws_elasticache_replication_group.main"
+                    [label="aws_elasticache_replication_group.main"];
+                    "module.data_platform.module.cache.module.aws_cache.aws_elasticache_subnet_group.main"
+                    [label="aws_elasticache_subnet_group.main"];
+                    "module.data_platform.module.cache.module.aws_cache.aws_security_group.cache"
+                    [label="aws_security_group.cache"];
+                    }
+                    subgraph "cluster_module.data_platform.module.cache.module.kubernetes_cache" {
+                    label = "module.data_platform.module.cache.module.kubernetes_cache"
+                    fontname = "sans-serif"
+                    "module.data_platform.module.cache.module.kubernetes_cache.kubernetes_deployment.redis"
+                    [label="kubernetes_deployment.redis"];
+                    "module.data_platform.module.cache.module.kubernetes_cache.kubernetes_namespace.cache"
+                    [label="kubernetes_namespace.cache"];
+                    "module.data_platform.module.cache.module.kubernetes_cache.kubernetes_service.redis"
+                    [label="kubernetes_service.redis"];
+                    }
+                    subgraph "cluster_module.data_platform.module.database.module.aws_database" {
+                    label = "module.data_platform.module.database.module.aws_database"
+                    fontname = "sans-serif"
+                    "module.data_platform.module.database.module.aws_database.aws_db_instance.main"
+                    [label="aws_db_instance.main"];
+                    "module.data_platform.module.database.module.aws_database.aws_db_subnet_group.main"
+                    [label="aws_db_subnet_group.main"];
+                    "module.data_platform.module.database.module.aws_database.aws_secretsmanager_secret.database"
+                    [label="aws_secretsmanager_secret.database"];
+                    "module.data_platform.module.database.module.aws_database.aws_secretsmanager_secret_version.database"
+                    [label="aws_secretsmanager_secret_version.database"];
+                    "module.data_platform.module.database.module.aws_database.aws_security_group.database"
+                    [label="aws_security_group.database"];
+                    "module.data_platform.module.database.module.aws_database.random_password.database"
+                    [label="random_password.database"];
+                    }
+                    subgraph "cluster_module.data_platform.module.database.module.kubernetes_database" {
+                    label = "module.data_platform.module.database.module.kubernetes_database"
+                    fontname = "sans-serif"
+                    "module.data_platform.module.database.module.kubernetes_database.kubernetes_deployment.postgres"
+                    [label="kubernetes_deployment.postgres"];
+                    "module.data_platform.module.database.module.kubernetes_database.kubernetes_namespace.database"
+                    [label="kubernetes_namespace.database"];
+                    "module.data_platform.module.database.module.kubernetes_database.kubernetes_secret.postgres"
+                    [label="kubernetes_secret.postgres"];
+                    "module.data_platform.module.database.module.kubernetes_database.kubernetes_service.postgres"
+                    [label="kubernetes_service.postgres"];
+                    }
+                    subgraph "cluster_module.data_platform.module.monitoring.module.kubernetes_monitoring" {
+                    label = "module.data_platform.module.monitoring.module.kubernetes_monitoring"
+                    fontname = "sans-serif"
+                    "module.data_platform.module.monitoring.module.kubernetes_monitoring.helm_release.prometheus"
+                    [label="helm_release.prometheus"];
+                    "module.data_platform.module.monitoring.module.kubernetes_monitoring.kubernetes_namespace.monitoring"
+                    [label="kubernetes_namespace.monitoring"];
+                    }
+                    subgraph
+                    "cluster_module.data_platform.module.performance_monitoring.module.aws_performance_monitoring" {
+                    label = "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring"
+                    fontname = "sans-serif"
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.data.archive_file.metrics_processor_zip"
+                    [label="data.archive_file.metrics_processor_zip"];
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.data.aws_region.current"
+                    [label="data.aws_region.current"];
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_api_gateway_deployment.metrics_api"
+                    [label="aws_api_gateway_deployment.metrics_api"];
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_api_gateway_integration.metrics_integration"
+                    [label="aws_api_gateway_integration.metrics_integration"];
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_api_gateway_method.metrics_post"
+                    [label="aws_api_gateway_method.metrics_post"];
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_api_gateway_resource.metrics"
+                    [label="aws_api_gateway_resource.metrics"];
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_api_gateway_rest_api.metrics_api"
+                    [label="aws_api_gateway_rest_api.metrics_api"];
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_api_gateway_stage.metrics_api"
+                    [label="aws_api_gateway_stage.metrics_api"];
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_applicationinsights_application.main"
+                    [label="aws_applicationinsights_application.main"];
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_cloudwatch_composite_alarm.application_health"
+                    [label="aws_cloudwatch_composite_alarm.application_health"];
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_cloudwatch_dashboard.performance_dashboard"
+                    [label="aws_cloudwatch_dashboard.performance_dashboard"];
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_cloudwatch_log_group.application_logs"
+                    [label="aws_cloudwatch_log_group.application_logs"];
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_cloudwatch_log_group.performance_logs"
+                    [label="aws_cloudwatch_log_group.performance_logs"];
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_cloudwatch_metric_alarm.high_error_rate"
+                    [label="aws_cloudwatch_metric_alarm.high_error_rate"];
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_cloudwatch_metric_alarm.high_latency"
+                    [label="aws_cloudwatch_metric_alarm.high_latency"];
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_iam_policy.lambda_metrics_processor"
+                    [label="aws_iam_policy.lambda_metrics_processor"];
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_iam_role.lambda_metrics_processor"
+                    [label="aws_iam_role.lambda_metrics_processor"];
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_iam_role_policy_attachment.lambda_metrics_processor"
+                    [label="aws_iam_role_policy_attachment.lambda_metrics_processor"];
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_lambda_function.metrics_processor"
+                    [label="aws_lambda_function.metrics_processor"];
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_lambda_permission.allow_api_gateway"
+                    [label="aws_lambda_permission.allow_api_gateway"];
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_resourcegroups_group.main"
+                    [label="aws_resourcegroups_group.main"];
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_sns_topic.performance_alerts"
+                    [label="aws_sns_topic.performance_alerts"];
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_xray_sampling_rule.main"
+                    [label="aws_xray_sampling_rule.main"];
+                    }
+                    subgraph
+                    "cluster_module.data_platform.module.performance_monitoring.module.kubernetes_performance_monitoring"
+                    {
+                    label =
+                    "module.data_platform.module.performance_monitoring.module.kubernetes_performance_monitoring"
+                    fontname = "sans-serif"
+                    "module.data_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_cluster_role.otel_collector"
+                    [label="kubernetes_cluster_role.otel_collector"];
+                    "module.data_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_cluster_role_binding.otel_collector"
+                    [label="kubernetes_cluster_role_binding.otel_collector"];
+                    "module.data_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_config_map.otel_collector_config"
+                    [label="kubernetes_config_map.otel_collector_config"];
+                    "module.data_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_deployment.elasticsearch"
+                    [label="kubernetes_deployment.elasticsearch"];
+                    "module.data_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_deployment.jaeger"
+                    [label="kubernetes_deployment.jaeger"];
+                    "module.data_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_deployment.kibana"
+                    [label="kubernetes_deployment.kibana"];
+                    "module.data_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_deployment.otel_collector"
+                    [label="kubernetes_deployment.otel_collector"];
+                    "module.data_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_namespace.performance_monitoring"
+                    [label="kubernetes_namespace.performance_monitoring"];
+                    "module.data_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_persistent_volume_claim.elasticsearch_storage"
+                    [label="kubernetes_persistent_volume_claim.elasticsearch_storage"];
+                    "module.data_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_persistent_volume_claim.jaeger_storage"
+                    [label="kubernetes_persistent_volume_claim.jaeger_storage"];
+                    "module.data_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_service.elasticsearch"
+                    [label="kubernetes_service.elasticsearch"];
+                    "module.data_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_service.jaeger"
+                    [label="kubernetes_service.jaeger"];
+                    "module.data_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_service.kibana"
+                    [label="kubernetes_service.kibana"];
+                    "module.data_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_service.otel_collector"
+                    [label="kubernetes_service.otel_collector"];
+                    "module.data_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_service_account.otel_collector"
+                    [label="kubernetes_service_account.otel_collector"];
+                    }
+                    subgraph "cluster_module.data_platform.module.security.module.kubernetes_security" {
+                    label = "module.data_platform.module.security.module.kubernetes_security"
+                    fontname = "sans-serif"
+                    "module.data_platform.module.security.module.kubernetes_security.kubernetes_labels.namespace_security"
+                    [label="kubernetes_labels.namespace_security"];
+                    "module.data_platform.module.security.module.kubernetes_security.kubernetes_network_policy.allow_dns"
+                    [label="kubernetes_network_policy.allow_dns"];
+                    "module.data_platform.module.security.module.kubernetes_security.kubernetes_network_policy.cache_access"
+                    [label="kubernetes_network_policy.cache_access"];
+                    "module.data_platform.module.security.module.kubernetes_security.kubernetes_network_policy.database_access"
+                    [label="kubernetes_network_policy.database_access"];
+                    "module.data_platform.module.security.module.kubernetes_security.kubernetes_network_policy.deny_all"
+                    [label="kubernetes_network_policy.deny_all"];
+                    "module.data_platform.module.security.module.kubernetes_security.kubernetes_network_policy.monitoring_scrape"
+                    [label="kubernetes_network_policy.monitoring_scrape"];
+                    "module.data_platform.module.security.module.kubernetes_security.kubernetes_network_policy.storage_access"
+                    [label="kubernetes_network_policy.storage_access"];
+                    }
+                    subgraph "cluster_module.data_platform.module.security_scanning.module.aws_security_scanning" {
+                    label = "module.data_platform.module.security_scanning.module.aws_security_scanning"
+                    fontname = "sans-serif"
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.data.archive_file.security_processor_zip"
+                    [label="data.archive_file.security_processor_zip"];
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.data.aws_caller_identity.current"
+                    [label="data.aws_caller_identity.current"];
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_cloudwatch_event_rule.security_findings"
+                    [label="aws_cloudwatch_event_rule.security_findings"];
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_cloudwatch_event_target.security_findings_lambda"
+                    [label="aws_cloudwatch_event_target.security_findings_lambda"];
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_cloudwatch_event_target.security_findings_logs"
+                    [label="aws_cloudwatch_event_target.security_findings_logs"];
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_cloudwatch_event_target.security_findings_sns"
+                    [label="aws_cloudwatch_event_target.security_findings_sns"];
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_cloudwatch_log_group.security_scanning"
+                    [label="aws_cloudwatch_log_group.security_scanning"];
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_ecr_registry_scanning_configuration.main"
+                    [label="aws_ecr_registry_scanning_configuration.main"];
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_guardduty_detector.main"
+                    [label="aws_guardduty_detector.main"];
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_guardduty_detector_feature.kubernetes_audit_logs"
+                    [label="aws_guardduty_detector_feature.kubernetes_audit_logs"];
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_guardduty_detector_feature.malware_protection"
+                    [label="aws_guardduty_detector_feature.malware_protection"];
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_guardduty_detector_feature.s3_logs"
+                    [label="aws_guardduty_detector_feature.s3_logs"];
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_iam_policy.lambda_security_processor"
+                    [label="aws_iam_policy.lambda_security_processor"];
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_iam_policy.security_scanning"
+                    [label="aws_iam_policy.security_scanning"];
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_iam_role.lambda_security_processor"
+                    [label="aws_iam_role.lambda_security_processor"];
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_iam_role.security_scanning"
+                    [label="aws_iam_role.security_scanning"];
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_iam_role_policy_attachment.lambda_security_processor"
+                    [label="aws_iam_role_policy_attachment.lambda_security_processor"];
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_iam_role_policy_attachment.security_scanning"
+                    [label="aws_iam_role_policy_attachment.security_scanning"];
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_inspector2_enabler.inspector"
+                    [label="aws_inspector2_enabler.inspector"];
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_lambda_function.security_processor"
+                    [label="aws_lambda_function.security_processor"];
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_lambda_permission.allow_eventbridge"
+                    [label="aws_lambda_permission.allow_eventbridge"];
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_securityhub_account.main"
+                    [label="aws_securityhub_account.main"];
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_sns_topic.security_findings"
+                    [label="aws_sns_topic.security_findings"];
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_sns_topic_subscription.security_findings_webhook"
+                    [label="aws_sns_topic_subscription.security_findings_webhook"];
+                    }
+                    subgraph "cluster_module.data_platform.module.security_scanning.module.kubernetes_security_scanning"
+                    {
+                    label = "module.data_platform.module.security_scanning.module.kubernetes_security_scanning"
+                    fontname = "sans-serif"
+                    "module.data_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_cluster_role.falco"
+                    [label="kubernetes_cluster_role.falco"];
+                    "module.data_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_cluster_role_binding.falco"
+                    [label="kubernetes_cluster_role_binding.falco"];
+                    "module.data_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_cron_job_v1.image_scanner"
+                    [label="kubernetes_cron_job_v1.image_scanner"];
+                    "module.data_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_deployment.falco"
+                    [label="kubernetes_deployment.falco"];
+                    "module.data_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_deployment.trivy_server"
+                    [label="kubernetes_deployment.trivy_server"];
+                    "module.data_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_namespace.security_scanning"
+                    [label="kubernetes_namespace.security_scanning"];
+                    "module.data_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_persistent_volume_claim.trivy_cache"
+                    [label="kubernetes_persistent_volume_claim.trivy_cache"];
+                    "module.data_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_service.falco"
+                    [label="kubernetes_service.falco"];
+                    "module.data_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_service.trivy_server"
+                    [label="kubernetes_service.trivy_server"];
+                    "module.data_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_service_account.falco"
+                    [label="kubernetes_service_account.falco"];
+                    }
+                    subgraph "cluster_module.data_platform.module.storage.module.aws_storage" {
+                    label = "module.data_platform.module.storage.module.aws_storage"
+                    fontname = "sans-serif"
+                    "module.data_platform.module.storage.module.aws_storage.aws_iam_role.s3_access"
+                    [label="aws_iam_role.s3_access"];
+                    "module.data_platform.module.storage.module.aws_storage.aws_iam_role_policy.s3_access"
+                    [label="aws_iam_role_policy.s3_access"];
+                    "module.data_platform.module.storage.module.aws_storage.aws_s3_bucket.buckets"
+                    [label="aws_s3_bucket.buckets"];
+                    "module.data_platform.module.storage.module.aws_storage.aws_s3_bucket_lifecycle_configuration.buckets"
+                    [label="aws_s3_bucket_lifecycle_configuration.buckets"];
+                    "module.data_platform.module.storage.module.aws_storage.aws_s3_bucket_public_access_block.buckets"
+                    [label="aws_s3_bucket_public_access_block.buckets"];
+                    "module.data_platform.module.storage.module.aws_storage.aws_s3_bucket_server_side_encryption_configuration.buckets"
+                    [label="aws_s3_bucket_server_side_encryption_configuration.buckets"];
+                    "module.data_platform.module.storage.module.aws_storage.aws_s3_bucket_versioning.buckets"
+                    [label="aws_s3_bucket_versioning.buckets"];
+                    }
+                    subgraph "cluster_module.data_platform.module.storage.module.kubernetes_storage" {
+                    label = "module.data_platform.module.storage.module.kubernetes_storage"
+                    fontname = "sans-serif"
+                    "module.data_platform.module.storage.module.kubernetes_storage.kubernetes_deployment.minio"
+                    [label="kubernetes_deployment.minio"];
+                    "module.data_platform.module.storage.module.kubernetes_storage.kubernetes_job.create_buckets"
+                    [label="kubernetes_job.create_buckets"];
+                    "module.data_platform.module.storage.module.kubernetes_storage.kubernetes_namespace.storage"
+                    [label="kubernetes_namespace.storage"];
+                    "module.data_platform.module.storage.module.kubernetes_storage.kubernetes_secret.minio"
+                    [label="kubernetes_secret.minio"];
+                    "module.data_platform.module.storage.module.kubernetes_storage.kubernetes_service.minio"
+                    [label="kubernetes_service.minio"];
+                    "module.data_platform.module.storage.module.kubernetes_storage.random_password.minio_admin"
+                    [label="random_password.minio_admin"];
+                    }
+                    subgraph "cluster_module.ml_platform.module.backup.module.aws_backup" {
+                    label = "module.ml_platform.module.backup.module.aws_backup"
+                    fontname = "sans-serif"
+                    "module.ml_platform.module.backup.module.aws_backup.aws_backup_plan.main"
+                    [label="aws_backup_plan.main"];
+                    "module.ml_platform.module.backup.module.aws_backup.aws_backup_selection.ebs"
+                    [label="aws_backup_selection.ebs"];
+                    "module.ml_platform.module.backup.module.aws_backup.aws_backup_selection.rds"
+                    [label="aws_backup_selection.rds"];
+                    "module.ml_platform.module.backup.module.aws_backup.aws_backup_vault.main"
+                    [label="aws_backup_vault.main"];
+                    "module.ml_platform.module.backup.module.aws_backup.aws_iam_role.backup"
+                    [label="aws_iam_role.backup"];
+                    "module.ml_platform.module.backup.module.aws_backup.aws_iam_role_policy_attachment.backup"
+                    [label="aws_iam_role_policy_attachment.backup"];
+                    }
+                    subgraph "cluster_module.ml_platform.module.backup.module.kubernetes_backup" {
+                    label = "module.ml_platform.module.backup.module.kubernetes_backup"
+                    fontname = "sans-serif"
+                    "module.ml_platform.module.backup.module.kubernetes_backup.helm_release.velero"
+                    [label="helm_release.velero"];
+                    "module.ml_platform.module.backup.module.kubernetes_backup.kubernetes_namespace.velero"
+                    [label="kubernetes_namespace.velero"];
+                    "module.ml_platform.module.backup.module.kubernetes_backup.kubernetes_persistent_volume_claim.backup_storage"
+                    [label="kubernetes_persistent_volume_claim.backup_storage"];
+                    }
+                    subgraph "cluster_module.ml_platform.module.cache.module.aws_cache" {
+                    label = "module.ml_platform.module.cache.module.aws_cache"
+                    fontname = "sans-serif"
+                    "module.ml_platform.module.cache.module.aws_cache.aws_elasticache_replication_group.main"
+                    [label="aws_elasticache_replication_group.main"];
+                    "module.ml_platform.module.cache.module.aws_cache.aws_elasticache_subnet_group.main"
+                    [label="aws_elasticache_subnet_group.main"];
+                    "module.ml_platform.module.cache.module.aws_cache.aws_security_group.cache"
+                    [label="aws_security_group.cache"];
+                    }
+                    subgraph "cluster_module.ml_platform.module.cache.module.kubernetes_cache" {
+                    label = "module.ml_platform.module.cache.module.kubernetes_cache"
+                    fontname = "sans-serif"
+                    "module.ml_platform.module.cache.module.kubernetes_cache.kubernetes_deployment.redis"
+                    [label="kubernetes_deployment.redis"];
+                    "module.ml_platform.module.cache.module.kubernetes_cache.kubernetes_namespace.cache"
+                    [label="kubernetes_namespace.cache"];
+                    "module.ml_platform.module.cache.module.kubernetes_cache.kubernetes_service.redis"
+                    [label="kubernetes_service.redis"];
+                    }
+                    subgraph "cluster_module.ml_platform.module.database.module.aws_database" {
+                    label = "module.ml_platform.module.database.module.aws_database"
+                    fontname = "sans-serif"
+                    "module.ml_platform.module.database.module.aws_database.aws_db_instance.main"
+                    [label="aws_db_instance.main"];
+                    "module.ml_platform.module.database.module.aws_database.aws_db_subnet_group.main"
+                    [label="aws_db_subnet_group.main"];
+                    "module.ml_platform.module.database.module.aws_database.aws_secretsmanager_secret.database"
+                    [label="aws_secretsmanager_secret.database"];
+                    "module.ml_platform.module.database.module.aws_database.aws_secretsmanager_secret_version.database"
+                    [label="aws_secretsmanager_secret_version.database"];
+                    "module.ml_platform.module.database.module.aws_database.aws_security_group.database"
+                    [label="aws_security_group.database"];
+                    "module.ml_platform.module.database.module.aws_database.random_password.database"
+                    [label="random_password.database"];
+                    }
+                    subgraph "cluster_module.ml_platform.module.database.module.kubernetes_database" {
+                    label = "module.ml_platform.module.database.module.kubernetes_database"
+                    fontname = "sans-serif"
+                    "module.ml_platform.module.database.module.kubernetes_database.kubernetes_deployment.postgres"
+                    [label="kubernetes_deployment.postgres"];
+                    "module.ml_platform.module.database.module.kubernetes_database.kubernetes_namespace.database"
+                    [label="kubernetes_namespace.database"];
+                    "module.ml_platform.module.database.module.kubernetes_database.kubernetes_secret.postgres"
+                    [label="kubernetes_secret.postgres"];
+                    "module.ml_platform.module.database.module.kubernetes_database.kubernetes_service.postgres"
+                    [label="kubernetes_service.postgres"];
+                    }
+                    subgraph "cluster_module.ml_platform.module.monitoring.module.kubernetes_monitoring" {
+                    label = "module.ml_platform.module.monitoring.module.kubernetes_monitoring"
+                    fontname = "sans-serif"
+                    "module.ml_platform.module.monitoring.module.kubernetes_monitoring.helm_release.prometheus"
+                    [label="helm_release.prometheus"];
+                    "module.ml_platform.module.monitoring.module.kubernetes_monitoring.kubernetes_namespace.monitoring"
+                    [label="kubernetes_namespace.monitoring"];
+                    }
+                    subgraph
+                    "cluster_module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring" {
+                    label = "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring"
+                    fontname = "sans-serif"
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.data.archive_file.metrics_processor_zip"
+                    [label="data.archive_file.metrics_processor_zip"];
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.data.aws_region.current"
+                    [label="data.aws_region.current"];
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_api_gateway_deployment.metrics_api"
+                    [label="aws_api_gateway_deployment.metrics_api"];
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_api_gateway_integration.metrics_integration"
+                    [label="aws_api_gateway_integration.metrics_integration"];
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_api_gateway_method.metrics_post"
+                    [label="aws_api_gateway_method.metrics_post"];
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_api_gateway_resource.metrics"
+                    [label="aws_api_gateway_resource.metrics"];
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_api_gateway_rest_api.metrics_api"
+                    [label="aws_api_gateway_rest_api.metrics_api"];
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_api_gateway_stage.metrics_api"
+                    [label="aws_api_gateway_stage.metrics_api"];
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_applicationinsights_application.main"
+                    [label="aws_applicationinsights_application.main"];
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_cloudwatch_composite_alarm.application_health"
+                    [label="aws_cloudwatch_composite_alarm.application_health"];
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_cloudwatch_dashboard.performance_dashboard"
+                    [label="aws_cloudwatch_dashboard.performance_dashboard"];
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_cloudwatch_log_group.application_logs"
+                    [label="aws_cloudwatch_log_group.application_logs"];
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_cloudwatch_log_group.performance_logs"
+                    [label="aws_cloudwatch_log_group.performance_logs"];
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_cloudwatch_metric_alarm.high_error_rate"
+                    [label="aws_cloudwatch_metric_alarm.high_error_rate"];
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_cloudwatch_metric_alarm.high_latency"
+                    [label="aws_cloudwatch_metric_alarm.high_latency"];
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_iam_policy.lambda_metrics_processor"
+                    [label="aws_iam_policy.lambda_metrics_processor"];
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_iam_role.lambda_metrics_processor"
+                    [label="aws_iam_role.lambda_metrics_processor"];
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_iam_role_policy_attachment.lambda_metrics_processor"
+                    [label="aws_iam_role_policy_attachment.lambda_metrics_processor"];
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_lambda_function.metrics_processor"
+                    [label="aws_lambda_function.metrics_processor"];
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_lambda_permission.allow_api_gateway"
+                    [label="aws_lambda_permission.allow_api_gateway"];
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_resourcegroups_group.main"
+                    [label="aws_resourcegroups_group.main"];
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_sns_topic.performance_alerts"
+                    [label="aws_sns_topic.performance_alerts"];
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_xray_sampling_rule.main"
+                    [label="aws_xray_sampling_rule.main"];
+                    }
+                    subgraph
+                    "cluster_module.ml_platform.module.performance_monitoring.module.kubernetes_performance_monitoring"
+                    {
+                    label = "module.ml_platform.module.performance_monitoring.module.kubernetes_performance_monitoring"
+                    fontname = "sans-serif"
+                    "module.ml_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_cluster_role.otel_collector"
+                    [label="kubernetes_cluster_role.otel_collector"];
+                    "module.ml_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_cluster_role_binding.otel_collector"
+                    [label="kubernetes_cluster_role_binding.otel_collector"];
+                    "module.ml_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_config_map.otel_collector_config"
+                    [label="kubernetes_config_map.otel_collector_config"];
+                    "module.ml_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_deployment.elasticsearch"
+                    [label="kubernetes_deployment.elasticsearch"];
+                    "module.ml_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_deployment.jaeger"
+                    [label="kubernetes_deployment.jaeger"];
+                    "module.ml_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_deployment.kibana"
+                    [label="kubernetes_deployment.kibana"];
+                    "module.ml_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_deployment.otel_collector"
+                    [label="kubernetes_deployment.otel_collector"];
+                    "module.ml_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_namespace.performance_monitoring"
+                    [label="kubernetes_namespace.performance_monitoring"];
+                    "module.ml_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_persistent_volume_claim.elasticsearch_storage"
+                    [label="kubernetes_persistent_volume_claim.elasticsearch_storage"];
+                    "module.ml_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_persistent_volume_claim.jaeger_storage"
+                    [label="kubernetes_persistent_volume_claim.jaeger_storage"];
+                    "module.ml_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_service.elasticsearch"
+                    [label="kubernetes_service.elasticsearch"];
+                    "module.ml_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_service.jaeger"
+                    [label="kubernetes_service.jaeger"];
+                    "module.ml_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_service.kibana"
+                    [label="kubernetes_service.kibana"];
+                    "module.ml_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_service.otel_collector"
+                    [label="kubernetes_service.otel_collector"];
+                    "module.ml_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_service_account.otel_collector"
+                    [label="kubernetes_service_account.otel_collector"];
+                    }
+                    subgraph "cluster_module.ml_platform.module.security.module.kubernetes_security" {
+                    label = "module.ml_platform.module.security.module.kubernetes_security"
+                    fontname = "sans-serif"
+                    "module.ml_platform.module.security.module.kubernetes_security.kubernetes_labels.namespace_security"
+                    [label="kubernetes_labels.namespace_security"];
+                    "module.ml_platform.module.security.module.kubernetes_security.kubernetes_network_policy.allow_dns"
+                    [label="kubernetes_network_policy.allow_dns"];
+                    "module.ml_platform.module.security.module.kubernetes_security.kubernetes_network_policy.cache_access"
+                    [label="kubernetes_network_policy.cache_access"];
+                    "module.ml_platform.module.security.module.kubernetes_security.kubernetes_network_policy.database_access"
+                    [label="kubernetes_network_policy.database_access"];
+                    "module.ml_platform.module.security.module.kubernetes_security.kubernetes_network_policy.deny_all"
+                    [label="kubernetes_network_policy.deny_all"];
+                    "module.ml_platform.module.security.module.kubernetes_security.kubernetes_network_policy.monitoring_scrape"
+                    [label="kubernetes_network_policy.monitoring_scrape"];
+                    "module.ml_platform.module.security.module.kubernetes_security.kubernetes_network_policy.storage_access"
+                    [label="kubernetes_network_policy.storage_access"];
+                    }
+                    subgraph "cluster_module.ml_platform.module.security_scanning.module.aws_security_scanning" {
+                    label = "module.ml_platform.module.security_scanning.module.aws_security_scanning"
+                    fontname = "sans-serif"
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.data.archive_file.security_processor_zip"
+                    [label="data.archive_file.security_processor_zip"];
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.data.aws_caller_identity.current"
+                    [label="data.aws_caller_identity.current"];
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_cloudwatch_event_rule.security_findings"
+                    [label="aws_cloudwatch_event_rule.security_findings"];
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_cloudwatch_event_target.security_findings_lambda"
+                    [label="aws_cloudwatch_event_target.security_findings_lambda"];
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_cloudwatch_event_target.security_findings_logs"
+                    [label="aws_cloudwatch_event_target.security_findings_logs"];
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_cloudwatch_event_target.security_findings_sns"
+                    [label="aws_cloudwatch_event_target.security_findings_sns"];
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_cloudwatch_log_group.security_scanning"
+                    [label="aws_cloudwatch_log_group.security_scanning"];
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_ecr_registry_scanning_configuration.main"
+                    [label="aws_ecr_registry_scanning_configuration.main"];
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_guardduty_detector.main"
+                    [label="aws_guardduty_detector.main"];
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_guardduty_detector_feature.kubernetes_audit_logs"
+                    [label="aws_guardduty_detector_feature.kubernetes_audit_logs"];
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_guardduty_detector_feature.malware_protection"
+                    [label="aws_guardduty_detector_feature.malware_protection"];
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_guardduty_detector_feature.s3_logs"
+                    [label="aws_guardduty_detector_feature.s3_logs"];
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_iam_policy.lambda_security_processor"
+                    [label="aws_iam_policy.lambda_security_processor"];
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_iam_policy.security_scanning"
+                    [label="aws_iam_policy.security_scanning"];
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_iam_role.lambda_security_processor"
+                    [label="aws_iam_role.lambda_security_processor"];
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_iam_role.security_scanning"
+                    [label="aws_iam_role.security_scanning"];
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_iam_role_policy_attachment.lambda_security_processor"
+                    [label="aws_iam_role_policy_attachment.lambda_security_processor"];
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_iam_role_policy_attachment.security_scanning"
+                    [label="aws_iam_role_policy_attachment.security_scanning"];
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_inspector2_enabler.inspector"
+                    [label="aws_inspector2_enabler.inspector"];
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_lambda_function.security_processor"
+                    [label="aws_lambda_function.security_processor"];
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_lambda_permission.allow_eventbridge"
+                    [label="aws_lambda_permission.allow_eventbridge"];
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_securityhub_account.main"
+                    [label="aws_securityhub_account.main"];
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_sns_topic.security_findings"
+                    [label="aws_sns_topic.security_findings"];
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_sns_topic_subscription.security_findings_webhook"
+                    [label="aws_sns_topic_subscription.security_findings_webhook"];
+                    }
+                    subgraph "cluster_module.ml_platform.module.security_scanning.module.kubernetes_security_scanning" {
+                    label = "module.ml_platform.module.security_scanning.module.kubernetes_security_scanning"
+                    fontname = "sans-serif"
+                    "module.ml_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_cluster_role.falco"
+                    [label="kubernetes_cluster_role.falco"];
+                    "module.ml_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_cluster_role_binding.falco"
+                    [label="kubernetes_cluster_role_binding.falco"];
+                    "module.ml_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_cron_job_v1.image_scanner"
+                    [label="kubernetes_cron_job_v1.image_scanner"];
+                    "module.ml_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_deployment.falco"
+                    [label="kubernetes_deployment.falco"];
+                    "module.ml_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_deployment.trivy_server"
+                    [label="kubernetes_deployment.trivy_server"];
+                    "module.ml_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_namespace.security_scanning"
+                    [label="kubernetes_namespace.security_scanning"];
+                    "module.ml_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_persistent_volume_claim.trivy_cache"
+                    [label="kubernetes_persistent_volume_claim.trivy_cache"];
+                    "module.ml_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_service.falco"
+                    [label="kubernetes_service.falco"];
+                    "module.ml_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_service.trivy_server"
+                    [label="kubernetes_service.trivy_server"];
+                    "module.ml_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_service_account.falco"
+                    [label="kubernetes_service_account.falco"];
+                    }
+                    subgraph "cluster_module.ml_platform.module.storage.module.aws_storage" {
+                    label = "module.ml_platform.module.storage.module.aws_storage"
+                    fontname = "sans-serif"
+                    "module.ml_platform.module.storage.module.aws_storage.aws_iam_role.s3_access"
+                    [label="aws_iam_role.s3_access"];
+                    "module.ml_platform.module.storage.module.aws_storage.aws_iam_role_policy.s3_access"
+                    [label="aws_iam_role_policy.s3_access"];
+                    "module.ml_platform.module.storage.module.aws_storage.aws_s3_bucket.buckets"
+                    [label="aws_s3_bucket.buckets"];
+                    "module.ml_platform.module.storage.module.aws_storage.aws_s3_bucket_lifecycle_configuration.buckets"
+                    [label="aws_s3_bucket_lifecycle_configuration.buckets"];
+                    "module.ml_platform.module.storage.module.aws_storage.aws_s3_bucket_public_access_block.buckets"
+                    [label="aws_s3_bucket_public_access_block.buckets"];
+                    "module.ml_platform.module.storage.module.aws_storage.aws_s3_bucket_server_side_encryption_configuration.buckets"
+                    [label="aws_s3_bucket_server_side_encryption_configuration.buckets"];
+                    "module.ml_platform.module.storage.module.aws_storage.aws_s3_bucket_versioning.buckets"
+                    [label="aws_s3_bucket_versioning.buckets"];
+                    }
+                    subgraph "cluster_module.ml_platform.module.storage.module.kubernetes_storage" {
+                    label = "module.ml_platform.module.storage.module.kubernetes_storage"
+                    fontname = "sans-serif"
+                    "module.ml_platform.module.storage.module.kubernetes_storage.kubernetes_deployment.minio"
+                    [label="kubernetes_deployment.minio"];
+                    "module.ml_platform.module.storage.module.kubernetes_storage.kubernetes_job.create_buckets"
+                    [label="kubernetes_job.create_buckets"];
+                    "module.ml_platform.module.storage.module.kubernetes_storage.kubernetes_namespace.storage"
+                    [label="kubernetes_namespace.storage"];
+                    "module.ml_platform.module.storage.module.kubernetes_storage.kubernetes_secret.minio"
+                    [label="kubernetes_secret.minio"];
+                    "module.ml_platform.module.storage.module.kubernetes_storage.kubernetes_service.minio"
+                    [label="kubernetes_service.minio"];
+                    "module.ml_platform.module.storage.module.kubernetes_storage.random_password.minio_admin"
+                    [label="random_password.minio_admin"];
+                    }
+                    subgraph "cluster_module.security_bootstrap" {
+                    label = "module.security_bootstrap"
+                    fontname = "sans-serif"
+                    "module.security_bootstrap.helm_release.argocd" [label="helm_release.argocd"];
+                    "module.security_bootstrap.helm_release.cert_manager" [label="helm_release.cert_manager"];
+                    "module.security_bootstrap.helm_release.nginx_ingress" [label="helm_release.nginx_ingress"];
+                    "module.security_bootstrap.helm_release.prometheus" [label="helm_release.prometheus"];
+                    "module.security_bootstrap.kubernetes_labels.argocd_namespace"
+                    [label="kubernetes_labels.argocd_namespace"];
+                    "module.security_bootstrap.kubernetes_labels.monitoring_namespace"
+                    [label="kubernetes_labels.monitoring_namespace"];
+                    "module.security_bootstrap.kubernetes_manifest.letsencrypt_issuer"
+                    [label="kubernetes_manifest.letsencrypt_issuer"];
+                    "module.security_bootstrap.kubernetes_manifest.selfsigned_issuer"
+                    [label="kubernetes_manifest.selfsigned_issuer"];
+                    "module.security_bootstrap.random_password.argocd_admin" [label="random_password.argocd_admin"];
+                    "module.security_bootstrap.time_sleep.wait_for_argocd" [label="time_sleep.wait_for_argocd"];
+                    "module.security_bootstrap.time_sleep.wait_for_cert_manager"
+                    [label="time_sleep.wait_for_cert_manager"];
+                    }
+                    "module.data_platform.module.backup.module.aws_backup.aws_backup_plan.main" ->
+                    "module.data_platform.module.backup.module.aws_backup.aws_backup_vault.main";
+                    "module.data_platform.module.backup.module.aws_backup.aws_backup_selection.ebs" ->
+                    "module.data_platform.module.backup.module.aws_backup.aws_backup_plan.main";
+                    "module.data_platform.module.backup.module.aws_backup.aws_backup_selection.ebs" ->
+                    "module.data_platform.module.backup.module.aws_backup.aws_iam_role.backup";
+                    "module.data_platform.module.backup.module.aws_backup.aws_backup_selection.rds" ->
+                    "module.data_platform.module.backup.module.aws_backup.aws_backup_plan.main";
+                    "module.data_platform.module.backup.module.aws_backup.aws_backup_selection.rds" ->
+                    "module.data_platform.module.backup.module.aws_backup.aws_iam_role.backup";
+                    "module.data_platform.module.backup.module.aws_backup.aws_backup_vault.main" ->
+                    "kind_cluster.data_platform";
+                    "module.data_platform.module.backup.module.aws_backup.aws_iam_role.backup" ->
+                    "kind_cluster.data_platform";
+                    "module.data_platform.module.backup.module.aws_backup.aws_iam_role_policy_attachment.backup" ->
+                    "module.data_platform.module.backup.module.aws_backup.aws_iam_role.backup";
+                    "module.data_platform.module.backup.module.kubernetes_backup.helm_release.velero" ->
+                    "module.data_platform.module.backup.module.kubernetes_backup.kubernetes_namespace.velero";
+                    "module.data_platform.module.backup.module.kubernetes_backup.kubernetes_namespace.velero" ->
+                    "kind_cluster.data_platform";
+                    "module.data_platform.module.backup.module.kubernetes_backup.kubernetes_persistent_volume_claim.backup_storage"
+                    -> "module.data_platform.module.backup.module.kubernetes_backup.kubernetes_namespace.velero";
+                    "module.data_platform.module.cache.module.aws_cache.aws_elasticache_replication_group.main" ->
+                    "module.data_platform.module.cache.module.aws_cache.aws_elasticache_subnet_group.main";
+                    "module.data_platform.module.cache.module.aws_cache.aws_elasticache_replication_group.main" ->
+                    "module.data_platform.module.cache.module.aws_cache.aws_security_group.cache";
+                    "module.data_platform.module.cache.module.aws_cache.aws_elasticache_subnet_group.main" ->
+                    "kind_cluster.data_platform";
+                    "module.data_platform.module.cache.module.aws_cache.aws_security_group.cache" ->
+                    "kind_cluster.data_platform";
+                    "module.data_platform.module.cache.module.kubernetes_cache.kubernetes_deployment.redis" ->
+                    "module.data_platform.module.cache.module.kubernetes_cache.kubernetes_namespace.cache";
+                    "module.data_platform.module.cache.module.kubernetes_cache.kubernetes_namespace.cache" ->
+                    "kind_cluster.data_platform";
+                    "module.data_platform.module.cache.module.kubernetes_cache.kubernetes_service.redis" ->
+                    "module.data_platform.module.cache.module.kubernetes_cache.kubernetes_namespace.cache";
+                    "module.data_platform.module.database.module.aws_database.aws_db_instance.main" ->
+                    "module.data_platform.module.database.module.aws_database.aws_db_subnet_group.main";
+                    "module.data_platform.module.database.module.aws_database.aws_db_instance.main" ->
+                    "module.data_platform.module.database.module.aws_database.aws_security_group.database";
+                    "module.data_platform.module.database.module.aws_database.aws_db_instance.main" ->
+                    "module.data_platform.module.database.module.aws_database.random_password.database";
+                    "module.data_platform.module.database.module.aws_database.aws_db_subnet_group.main" ->
+                    "kind_cluster.data_platform";
+                    "module.data_platform.module.database.module.aws_database.aws_secretsmanager_secret.database" ->
+                    "kind_cluster.data_platform";
+                    "module.data_platform.module.database.module.aws_database.aws_secretsmanager_secret_version.database"
+                    -> "module.data_platform.module.database.module.aws_database.aws_secretsmanager_secret.database";
+                    "module.data_platform.module.database.module.aws_database.aws_secretsmanager_secret_version.database"
+                    -> "module.data_platform.module.database.module.aws_database.random_password.database";
+                    "module.data_platform.module.database.module.aws_database.aws_security_group.database" ->
+                    "kind_cluster.data_platform";
+                    "module.data_platform.module.database.module.aws_database.random_password.database" ->
+                    "kind_cluster.data_platform";
+                    "module.data_platform.module.database.module.kubernetes_database.kubernetes_deployment.postgres" ->
+                    "module.data_platform.module.database.module.kubernetes_database.kubernetes_secret.postgres";
+                    "module.data_platform.module.database.module.kubernetes_database.kubernetes_namespace.database" ->
+                    "kind_cluster.data_platform";
+                    "module.data_platform.module.database.module.kubernetes_database.kubernetes_secret.postgres" ->
+                    "module.data_platform.module.database.module.kubernetes_database.kubernetes_namespace.database";
+                    "module.data_platform.module.database.module.kubernetes_database.kubernetes_service.postgres" ->
+                    "module.data_platform.module.database.module.kubernetes_database.kubernetes_namespace.database";
+                    "module.data_platform.module.monitoring.module.kubernetes_monitoring.helm_release.prometheus" ->
+                    "module.data_platform.module.monitoring.module.kubernetes_monitoring.kubernetes_namespace.monitoring";
+                    "module.data_platform.module.monitoring.module.kubernetes_monitoring.kubernetes_namespace.monitoring"
+                    -> "kind_cluster.data_platform";
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.data.archive_file.metrics_processor_zip"
+                    -> "kind_cluster.data_platform";
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.data.aws_region.current"
+                    -> "kind_cluster.data_platform";
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_api_gateway_deployment.metrics_api"
+                    ->
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_api_gateway_integration.metrics_integration";
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_api_gateway_integration.metrics_integration"
+                    ->
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_api_gateway_method.metrics_post";
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_api_gateway_integration.metrics_integration"
+                    ->
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_lambda_function.metrics_processor";
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_api_gateway_method.metrics_post"
+                    ->
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_api_gateway_resource.metrics";
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_api_gateway_resource.metrics"
+                    ->
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_api_gateway_rest_api.metrics_api";
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_api_gateway_rest_api.metrics_api"
+                    -> "kind_cluster.data_platform";
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_api_gateway_stage.metrics_api"
+                    ->
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_api_gateway_deployment.metrics_api";
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_applicationinsights_application.main"
+                    ->
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_resourcegroups_group.main";
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_cloudwatch_composite_alarm.application_health"
+                    ->
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_cloudwatch_metric_alarm.high_error_rate";
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_cloudwatch_composite_alarm.application_health"
+                    ->
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_cloudwatch_metric_alarm.high_latency";
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_cloudwatch_dashboard.performance_dashboard"
+                    ->
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.data.aws_region.current";
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_cloudwatch_dashboard.performance_dashboard"
+                    ->
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_cloudwatch_log_group.application_logs";
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_cloudwatch_log_group.application_logs"
+                    -> "kind_cluster.data_platform";
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_cloudwatch_log_group.performance_logs"
+                    -> "kind_cluster.data_platform";
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_cloudwatch_metric_alarm.high_error_rate"
+                    ->
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_sns_topic.performance_alerts";
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_cloudwatch_metric_alarm.high_latency"
+                    ->
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_sns_topic.performance_alerts";
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_iam_policy.lambda_metrics_processor"
+                    ->
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_cloudwatch_log_group.performance_logs";
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_iam_role.lambda_metrics_processor"
+                    -> "kind_cluster.data_platform";
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_iam_role_policy_attachment.lambda_metrics_processor"
+                    ->
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_iam_policy.lambda_metrics_processor";
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_iam_role_policy_attachment.lambda_metrics_processor"
+                    ->
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_iam_role.lambda_metrics_processor";
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_lambda_function.metrics_processor"
+                    ->
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.data.archive_file.metrics_processor_zip";
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_lambda_function.metrics_processor"
+                    ->
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_iam_role.lambda_metrics_processor";
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_lambda_permission.allow_api_gateway"
+                    ->
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_api_gateway_rest_api.metrics_api";
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_lambda_permission.allow_api_gateway"
+                    ->
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_lambda_function.metrics_processor";
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_resourcegroups_group.main"
+                    -> "kind_cluster.data_platform";
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_sns_topic.performance_alerts"
+                    -> "kind_cluster.data_platform";
+                    "module.data_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_xray_sampling_rule.main"
+                    -> "kind_cluster.data_platform";
+                    "module.data_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_cluster_role.otel_collector"
+                    -> "kind_cluster.data_platform";
+                    "module.data_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_cluster_role_binding.otel_collector"
+                    ->
+                    "module.data_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_cluster_role.otel_collector";
+                    "module.data_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_cluster_role_binding.otel_collector"
+                    ->
+                    "module.data_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_service_account.otel_collector";
+                    "module.data_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_config_map.otel_collector_config"
+                    ->
+                    "module.data_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_namespace.performance_monitoring";
+                    "module.data_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_deployment.elasticsearch"
+                    ->
+                    "module.data_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_persistent_volume_claim.elasticsearch_storage";
+                    "module.data_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_deployment.jaeger"
+                    ->
+                    "module.data_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_persistent_volume_claim.jaeger_storage";
+                    "module.data_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_deployment.kibana"
+                    ->
+                    "module.data_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_namespace.performance_monitoring";
+                    "module.data_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_deployment.otel_collector"
+                    ->
+                    "module.data_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_config_map.otel_collector_config";
+                    "module.data_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_deployment.otel_collector"
+                    ->
+                    "module.data_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_service_account.otel_collector";
+                    "module.data_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_namespace.performance_monitoring"
+                    -> "kind_cluster.data_platform";
+                    "module.data_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_persistent_volume_claim.elasticsearch_storage"
+                    ->
+                    "module.data_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_namespace.performance_monitoring";
+                    "module.data_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_persistent_volume_claim.jaeger_storage"
+                    ->
+                    "module.data_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_namespace.performance_monitoring";
+                    "module.data_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_service.elasticsearch"
+                    ->
+                    "module.data_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_namespace.performance_monitoring";
+                    "module.data_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_service.jaeger"
+                    ->
+                    "module.data_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_namespace.performance_monitoring";
+                    "module.data_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_service.kibana"
+                    ->
+                    "module.data_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_namespace.performance_monitoring";
+                    "module.data_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_service.otel_collector"
+                    ->
+                    "module.data_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_namespace.performance_monitoring";
+                    "module.data_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_service_account.otel_collector"
+                    ->
+                    "module.data_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_namespace.performance_monitoring";
+                    "module.data_platform.module.security.module.kubernetes_security.kubernetes_labels.namespace_security"
+                    -> "kind_cluster.data_platform";
+                    "module.data_platform.module.security.module.kubernetes_security.kubernetes_network_policy.allow_dns"
+                    -> "kind_cluster.data_platform";
+                    "module.data_platform.module.security.module.kubernetes_security.kubernetes_network_policy.cache_access"
+                    -> "kind_cluster.data_platform";
+                    "module.data_platform.module.security.module.kubernetes_security.kubernetes_network_policy.database_access"
+                    -> "kind_cluster.data_platform";
+                    "module.data_platform.module.security.module.kubernetes_security.kubernetes_network_policy.deny_all"
+                    -> "kind_cluster.data_platform";
+                    "module.data_platform.module.security.module.kubernetes_security.kubernetes_network_policy.monitoring_scrape"
+                    -> "kind_cluster.data_platform";
+                    "module.data_platform.module.security.module.kubernetes_security.kubernetes_network_policy.storage_access"
+                    -> "kind_cluster.data_platform";
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.data.archive_file.security_processor_zip"
+                    -> "kind_cluster.data_platform";
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.data.aws_caller_identity.current"
+                    -> "kind_cluster.data_platform";
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_cloudwatch_event_rule.security_findings"
+                    -> "kind_cluster.data_platform";
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_cloudwatch_event_target.security_findings_lambda"
+                    ->
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_cloudwatch_event_rule.security_findings";
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_cloudwatch_event_target.security_findings_lambda"
+                    ->
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_lambda_function.security_processor";
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_cloudwatch_event_target.security_findings_logs"
+                    ->
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_cloudwatch_event_rule.security_findings";
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_cloudwatch_event_target.security_findings_logs"
+                    ->
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_cloudwatch_log_group.security_scanning";
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_cloudwatch_event_target.security_findings_sns"
+                    ->
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_cloudwatch_event_rule.security_findings";
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_cloudwatch_event_target.security_findings_sns"
+                    ->
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_sns_topic.security_findings";
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_cloudwatch_log_group.security_scanning"
+                    -> "kind_cluster.data_platform";
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_ecr_registry_scanning_configuration.main"
+                    -> "kind_cluster.data_platform";
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_guardduty_detector.main"
+                    -> "kind_cluster.data_platform";
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_guardduty_detector_feature.kubernetes_audit_logs"
+                    ->
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_guardduty_detector.main";
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_guardduty_detector_feature.malware_protection"
+                    ->
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_guardduty_detector.main";
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_guardduty_detector_feature.s3_logs"
+                    ->
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_guardduty_detector.main";
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_iam_policy.lambda_security_processor"
+                    ->
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_cloudwatch_log_group.security_scanning";
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_iam_policy.security_scanning"
+                    -> "kind_cluster.data_platform";
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_iam_role.lambda_security_processor"
+                    -> "kind_cluster.data_platform";
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_iam_role.security_scanning"
+                    -> "kind_cluster.data_platform";
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_iam_role_policy_attachment.lambda_security_processor"
+                    ->
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_iam_policy.lambda_security_processor";
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_iam_role_policy_attachment.lambda_security_processor"
+                    ->
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_iam_role.lambda_security_processor";
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_iam_role_policy_attachment.security_scanning"
+                    ->
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_iam_policy.security_scanning";
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_iam_role_policy_attachment.security_scanning"
+                    ->
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_iam_role.security_scanning";
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_inspector2_enabler.inspector"
+                    ->
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.data.aws_caller_identity.current";
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_lambda_function.security_processor"
+                    ->
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.data.archive_file.security_processor_zip";
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_lambda_function.security_processor"
+                    ->
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_cloudwatch_log_group.security_scanning";
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_lambda_function.security_processor"
+                    ->
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_iam_role.lambda_security_processor";
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_lambda_permission.allow_eventbridge"
+                    ->
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_cloudwatch_event_rule.security_findings";
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_lambda_permission.allow_eventbridge"
+                    ->
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_lambda_function.security_processor";
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_securityhub_account.main"
+                    -> "kind_cluster.data_platform";
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_sns_topic.security_findings"
+                    -> "kind_cluster.data_platform";
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_sns_topic_subscription.security_findings_webhook"
+                    ->
+                    "module.data_platform.module.security_scanning.module.aws_security_scanning.aws_sns_topic.security_findings";
+                    "module.data_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_cluster_role.falco"
+                    -> "kind_cluster.data_platform";
+                    "module.data_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_cluster_role_binding.falco"
+                    ->
+                    "module.data_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_cluster_role.falco";
+                    "module.data_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_cluster_role_binding.falco"
+                    ->
+                    "module.data_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_service_account.falco";
+                    "module.data_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_cron_job_v1.image_scanner"
+                    ->
+                    "module.data_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_namespace.security_scanning";
+                    "module.data_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_deployment.falco"
+                    ->
+                    "module.data_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_service_account.falco";
+                    "module.data_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_deployment.trivy_server"
+                    ->
+                    "module.data_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_persistent_volume_claim.trivy_cache";
+                    "module.data_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_namespace.security_scanning"
+                    -> "kind_cluster.data_platform";
+                    "module.data_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_persistent_volume_claim.trivy_cache"
+                    ->
+                    "module.data_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_namespace.security_scanning";
+                    "module.data_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_service.falco"
+                    ->
+                    "module.data_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_namespace.security_scanning";
+                    "module.data_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_service.trivy_server"
+                    ->
+                    "module.data_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_namespace.security_scanning";
+                    "module.data_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_service_account.falco"
+                    ->
+                    "module.data_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_namespace.security_scanning";
+                    "module.data_platform.module.storage.module.aws_storage.aws_iam_role.s3_access" ->
+                    "kind_cluster.data_platform";
+                    "module.data_platform.module.storage.module.aws_storage.aws_iam_role_policy.s3_access" ->
+                    "module.data_platform.module.storage.module.aws_storage.aws_iam_role.s3_access";
+                    "module.data_platform.module.storage.module.aws_storage.aws_iam_role_policy.s3_access" ->
+                    "module.data_platform.module.storage.module.aws_storage.aws_s3_bucket.buckets";
+                    "module.data_platform.module.storage.module.aws_storage.aws_s3_bucket.buckets" ->
+                    "kind_cluster.data_platform";
+                    "module.data_platform.module.storage.module.aws_storage.aws_s3_bucket_lifecycle_configuration.buckets"
+                    -> "module.data_platform.module.storage.module.aws_storage.aws_s3_bucket.buckets";
+                    "module.data_platform.module.storage.module.aws_storage.aws_s3_bucket_public_access_block.buckets"
+                    -> "module.data_platform.module.storage.module.aws_storage.aws_s3_bucket.buckets";
+                    "module.data_platform.module.storage.module.aws_storage.aws_s3_bucket_server_side_encryption_configuration.buckets"
+                    -> "module.data_platform.module.storage.module.aws_storage.aws_s3_bucket.buckets";
+                    "module.data_platform.module.storage.module.aws_storage.aws_s3_bucket_versioning.buckets" ->
+                    "module.data_platform.module.storage.module.aws_storage.aws_s3_bucket.buckets";
+                    "module.data_platform.module.storage.module.kubernetes_storage.kubernetes_deployment.minio" ->
+                    "module.data_platform.module.storage.module.kubernetes_storage.kubernetes_secret.minio";
+                    "module.data_platform.module.storage.module.kubernetes_storage.kubernetes_job.create_buckets" ->
+                    "module.data_platform.module.storage.module.kubernetes_storage.kubernetes_deployment.minio";
+                    "module.data_platform.module.storage.module.kubernetes_storage.kubernetes_namespace.storage" ->
+                    "kind_cluster.data_platform";
+                    "module.data_platform.module.storage.module.kubernetes_storage.kubernetes_secret.minio" ->
+                    "module.data_platform.module.storage.module.kubernetes_storage.kubernetes_namespace.storage";
+                    "module.data_platform.module.storage.module.kubernetes_storage.kubernetes_secret.minio" ->
+                    "module.data_platform.module.storage.module.kubernetes_storage.random_password.minio_admin";
+                    "module.data_platform.module.storage.module.kubernetes_storage.kubernetes_service.minio" ->
+                    "module.data_platform.module.storage.module.kubernetes_storage.kubernetes_namespace.storage";
+                    "module.data_platform.module.storage.module.kubernetes_storage.random_password.minio_admin" ->
+                    "kind_cluster.data_platform";
+                    "module.ml_platform.module.backup.module.aws_backup.aws_backup_plan.main" ->
+                    "module.ml_platform.module.backup.module.aws_backup.aws_backup_vault.main";
+                    "module.ml_platform.module.backup.module.aws_backup.aws_backup_selection.ebs" ->
+                    "module.ml_platform.module.backup.module.aws_backup.aws_backup_plan.main";
+                    "module.ml_platform.module.backup.module.aws_backup.aws_backup_selection.ebs" ->
+                    "module.ml_platform.module.backup.module.aws_backup.aws_iam_role.backup";
+                    "module.ml_platform.module.backup.module.aws_backup.aws_backup_selection.rds" ->
+                    "module.ml_platform.module.backup.module.aws_backup.aws_backup_plan.main";
+                    "module.ml_platform.module.backup.module.aws_backup.aws_backup_selection.rds" ->
+                    "module.ml_platform.module.backup.module.aws_backup.aws_iam_role.backup";
+                    "module.ml_platform.module.backup.module.aws_backup.aws_backup_vault.main" ->
+                    "kind_cluster.default";
+                    "module.ml_platform.module.backup.module.aws_backup.aws_iam_role.backup" -> "kind_cluster.default";
+                    "module.ml_platform.module.backup.module.aws_backup.aws_iam_role_policy_attachment.backup" ->
+                    "module.ml_platform.module.backup.module.aws_backup.aws_iam_role.backup";
+                    "module.ml_platform.module.backup.module.kubernetes_backup.helm_release.velero" ->
+                    "module.ml_platform.module.backup.module.kubernetes_backup.kubernetes_namespace.velero";
+                    "module.ml_platform.module.backup.module.kubernetes_backup.kubernetes_namespace.velero" ->
+                    "kind_cluster.default";
+                    "module.ml_platform.module.backup.module.kubernetes_backup.kubernetes_persistent_volume_claim.backup_storage"
+                    -> "module.ml_platform.module.backup.module.kubernetes_backup.kubernetes_namespace.velero";
+                    "module.ml_platform.module.cache.module.aws_cache.aws_elasticache_replication_group.main" ->
+                    "module.ml_platform.module.cache.module.aws_cache.aws_elasticache_subnet_group.main";
+                    "module.ml_platform.module.cache.module.aws_cache.aws_elasticache_replication_group.main" ->
+                    "module.ml_platform.module.cache.module.aws_cache.aws_security_group.cache";
+                    "module.ml_platform.module.cache.module.aws_cache.aws_elasticache_subnet_group.main" ->
+                    "kind_cluster.default";
+                    "module.ml_platform.module.cache.module.aws_cache.aws_security_group.cache" ->
+                    "kind_cluster.default";
+                    "module.ml_platform.module.cache.module.kubernetes_cache.kubernetes_deployment.redis" ->
+                    "module.ml_platform.module.cache.module.kubernetes_cache.kubernetes_namespace.cache";
+                    "module.ml_platform.module.cache.module.kubernetes_cache.kubernetes_namespace.cache" ->
+                    "kind_cluster.default";
+                    "module.ml_platform.module.cache.module.kubernetes_cache.kubernetes_service.redis" ->
+                    "module.ml_platform.module.cache.module.kubernetes_cache.kubernetes_namespace.cache";
+                    "module.ml_platform.module.database.module.aws_database.aws_db_instance.main" ->
+                    "module.ml_platform.module.database.module.aws_database.aws_db_subnet_group.main";
+                    "module.ml_platform.module.database.module.aws_database.aws_db_instance.main" ->
+                    "module.ml_platform.module.database.module.aws_database.aws_security_group.database";
+                    "module.ml_platform.module.database.module.aws_database.aws_db_instance.main" ->
+                    "module.ml_platform.module.database.module.aws_database.random_password.database";
+                    "module.ml_platform.module.database.module.aws_database.aws_db_subnet_group.main" ->
+                    "kind_cluster.default";
+                    "module.ml_platform.module.database.module.aws_database.aws_secretsmanager_secret.database" ->
+                    "kind_cluster.default";
+                    "module.ml_platform.module.database.module.aws_database.aws_secretsmanager_secret_version.database"
+                    -> "module.ml_platform.module.database.module.aws_database.aws_secretsmanager_secret.database";
+                    "module.ml_platform.module.database.module.aws_database.aws_secretsmanager_secret_version.database"
+                    -> "module.ml_platform.module.database.module.aws_database.random_password.database";
+                    "module.ml_platform.module.database.module.aws_database.aws_security_group.database" ->
+                    "kind_cluster.default";
+                    "module.ml_platform.module.database.module.aws_database.random_password.database" ->
+                    "kind_cluster.default";
+                    "module.ml_platform.module.database.module.kubernetes_database.kubernetes_deployment.postgres" ->
+                    "module.ml_platform.module.database.module.kubernetes_database.kubernetes_secret.postgres";
+                    "module.ml_platform.module.database.module.kubernetes_database.kubernetes_namespace.database" ->
+                    "kind_cluster.default";
+                    "module.ml_platform.module.database.module.kubernetes_database.kubernetes_secret.postgres" ->
+                    "module.ml_platform.module.database.module.kubernetes_database.kubernetes_namespace.database";
+                    "module.ml_platform.module.database.module.kubernetes_database.kubernetes_service.postgres" ->
+                    "module.ml_platform.module.database.module.kubernetes_database.kubernetes_namespace.database";
+                    "module.ml_platform.module.monitoring.module.kubernetes_monitoring.helm_release.prometheus" ->
+                    "module.ml_platform.module.monitoring.module.kubernetes_monitoring.kubernetes_namespace.monitoring";
+                    "module.ml_platform.module.monitoring.module.kubernetes_monitoring.kubernetes_namespace.monitoring"
+                    -> "kind_cluster.default";
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.data.archive_file.metrics_processor_zip"
+                    -> "kind_cluster.default";
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.data.aws_region.current"
+                    -> "kind_cluster.default";
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_api_gateway_deployment.metrics_api"
+                    ->
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_api_gateway_integration.metrics_integration";
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_api_gateway_integration.metrics_integration"
+                    ->
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_api_gateway_method.metrics_post";
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_api_gateway_integration.metrics_integration"
+                    ->
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_lambda_function.metrics_processor";
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_api_gateway_method.metrics_post"
+                    ->
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_api_gateway_resource.metrics";
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_api_gateway_resource.metrics"
+                    ->
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_api_gateway_rest_api.metrics_api";
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_api_gateway_rest_api.metrics_api"
+                    -> "kind_cluster.default";
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_api_gateway_stage.metrics_api"
+                    ->
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_api_gateway_deployment.metrics_api";
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_applicationinsights_application.main"
+                    ->
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_resourcegroups_group.main";
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_cloudwatch_composite_alarm.application_health"
+                    ->
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_cloudwatch_metric_alarm.high_error_rate";
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_cloudwatch_composite_alarm.application_health"
+                    ->
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_cloudwatch_metric_alarm.high_latency";
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_cloudwatch_dashboard.performance_dashboard"
+                    ->
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.data.aws_region.current";
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_cloudwatch_dashboard.performance_dashboard"
+                    ->
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_cloudwatch_log_group.application_logs";
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_cloudwatch_log_group.application_logs"
+                    -> "kind_cluster.default";
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_cloudwatch_log_group.performance_logs"
+                    -> "kind_cluster.default";
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_cloudwatch_metric_alarm.high_error_rate"
+                    ->
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_sns_topic.performance_alerts";
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_cloudwatch_metric_alarm.high_latency"
+                    ->
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_sns_topic.performance_alerts";
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_iam_policy.lambda_metrics_processor"
+                    ->
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_cloudwatch_log_group.performance_logs";
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_iam_role.lambda_metrics_processor"
+                    -> "kind_cluster.default";
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_iam_role_policy_attachment.lambda_metrics_processor"
+                    ->
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_iam_policy.lambda_metrics_processor";
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_iam_role_policy_attachment.lambda_metrics_processor"
+                    ->
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_iam_role.lambda_metrics_processor";
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_lambda_function.metrics_processor"
+                    ->
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.data.archive_file.metrics_processor_zip";
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_lambda_function.metrics_processor"
+                    ->
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_iam_role.lambda_metrics_processor";
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_lambda_permission.allow_api_gateway"
+                    ->
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_api_gateway_rest_api.metrics_api";
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_lambda_permission.allow_api_gateway"
+                    ->
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_lambda_function.metrics_processor";
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_resourcegroups_group.main"
+                    -> "kind_cluster.default";
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_sns_topic.performance_alerts"
+                    -> "kind_cluster.default";
+                    "module.ml_platform.module.performance_monitoring.module.aws_performance_monitoring.aws_xray_sampling_rule.main"
+                    -> "kind_cluster.default";
+                    "module.ml_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_cluster_role.otel_collector"
+                    -> "kind_cluster.default";
+                    "module.ml_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_cluster_role_binding.otel_collector"
+                    ->
+                    "module.ml_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_cluster_role.otel_collector";
+                    "module.ml_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_cluster_role_binding.otel_collector"
+                    ->
+                    "module.ml_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_service_account.otel_collector";
+                    "module.ml_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_config_map.otel_collector_config"
+                    ->
+                    "module.ml_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_namespace.performance_monitoring";
+                    "module.ml_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_deployment.elasticsearch"
+                    ->
+                    "module.ml_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_persistent_volume_claim.elasticsearch_storage";
+                    "module.ml_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_deployment.jaeger"
+                    ->
+                    "module.ml_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_persistent_volume_claim.jaeger_storage";
+                    "module.ml_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_deployment.kibana"
+                    ->
+                    "module.ml_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_namespace.performance_monitoring";
+                    "module.ml_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_deployment.otel_collector"
+                    ->
+                    "module.ml_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_config_map.otel_collector_config";
+                    "module.ml_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_deployment.otel_collector"
+                    ->
+                    "module.ml_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_service_account.otel_collector";
+                    "module.ml_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_namespace.performance_monitoring"
+                    -> "kind_cluster.default";
+                    "module.ml_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_persistent_volume_claim.elasticsearch_storage"
+                    ->
+                    "module.ml_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_namespace.performance_monitoring";
+                    "module.ml_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_persistent_volume_claim.jaeger_storage"
+                    ->
+                    "module.ml_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_namespace.performance_monitoring";
+                    "module.ml_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_service.elasticsearch"
+                    ->
+                    "module.ml_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_namespace.performance_monitoring";
+                    "module.ml_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_service.jaeger"
+                    ->
+                    "module.ml_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_namespace.performance_monitoring";
+                    "module.ml_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_service.kibana"
+                    ->
+                    "module.ml_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_namespace.performance_monitoring";
+                    "module.ml_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_service.otel_collector"
+                    ->
+                    "module.ml_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_namespace.performance_monitoring";
+                    "module.ml_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_service_account.otel_collector"
+                    ->
+                    "module.ml_platform.module.performance_monitoring.module.kubernetes_performance_monitoring.kubernetes_namespace.performance_monitoring";
+                    "module.ml_platform.module.security.module.kubernetes_security.kubernetes_labels.namespace_security"
+                    -> "kind_cluster.default";
+                    "module.ml_platform.module.security.module.kubernetes_security.kubernetes_network_policy.allow_dns"
+                    -> "kind_cluster.default";
+                    "module.ml_platform.module.security.module.kubernetes_security.kubernetes_network_policy.cache_access"
+                    -> "kind_cluster.default";
+                    "module.ml_platform.module.security.module.kubernetes_security.kubernetes_network_policy.database_access"
+                    -> "kind_cluster.default";
+                    "module.ml_platform.module.security.module.kubernetes_security.kubernetes_network_policy.deny_all"
+                    -> "kind_cluster.default";
+                    "module.ml_platform.module.security.module.kubernetes_security.kubernetes_network_policy.monitoring_scrape"
+                    -> "kind_cluster.default";
+                    "module.ml_platform.module.security.module.kubernetes_security.kubernetes_network_policy.storage_access"
+                    -> "kind_cluster.default";
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.data.archive_file.security_processor_zip"
+                    -> "kind_cluster.default";
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.data.aws_caller_identity.current"
+                    -> "kind_cluster.default";
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_cloudwatch_event_rule.security_findings"
+                    -> "kind_cluster.default";
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_cloudwatch_event_target.security_findings_lambda"
+                    ->
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_cloudwatch_event_rule.security_findings";
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_cloudwatch_event_target.security_findings_lambda"
+                    ->
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_lambda_function.security_processor";
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_cloudwatch_event_target.security_findings_logs"
+                    ->
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_cloudwatch_event_rule.security_findings";
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_cloudwatch_event_target.security_findings_logs"
+                    ->
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_cloudwatch_log_group.security_scanning";
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_cloudwatch_event_target.security_findings_sns"
+                    ->
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_cloudwatch_event_rule.security_findings";
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_cloudwatch_event_target.security_findings_sns"
+                    ->
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_sns_topic.security_findings";
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_cloudwatch_log_group.security_scanning"
+                    -> "kind_cluster.default";
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_ecr_registry_scanning_configuration.main"
+                    -> "kind_cluster.default";
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_guardduty_detector.main"
+                    -> "kind_cluster.default";
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_guardduty_detector_feature.kubernetes_audit_logs"
+                    ->
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_guardduty_detector.main";
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_guardduty_detector_feature.malware_protection"
+                    ->
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_guardduty_detector.main";
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_guardduty_detector_feature.s3_logs"
+                    ->
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_guardduty_detector.main";
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_iam_policy.lambda_security_processor"
+                    ->
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_cloudwatch_log_group.security_scanning";
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_iam_policy.security_scanning"
+                    -> "kind_cluster.default";
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_iam_role.lambda_security_processor"
+                    -> "kind_cluster.default";
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_iam_role.security_scanning"
+                    -> "kind_cluster.default";
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_iam_role_policy_attachment.lambda_security_processor"
+                    ->
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_iam_policy.lambda_security_processor";
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_iam_role_policy_attachment.lambda_security_processor"
+                    ->
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_iam_role.lambda_security_processor";
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_iam_role_policy_attachment.security_scanning"
+                    ->
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_iam_policy.security_scanning";
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_iam_role_policy_attachment.security_scanning"
+                    ->
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_iam_role.security_scanning";
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_inspector2_enabler.inspector"
+                    ->
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.data.aws_caller_identity.current";
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_lambda_function.security_processor"
+                    ->
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.data.archive_file.security_processor_zip";
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_lambda_function.security_processor"
+                    ->
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_cloudwatch_log_group.security_scanning";
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_lambda_function.security_processor"
+                    ->
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_iam_role.lambda_security_processor";
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_lambda_permission.allow_eventbridge"
+                    ->
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_cloudwatch_event_rule.security_findings";
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_lambda_permission.allow_eventbridge"
+                    ->
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_lambda_function.security_processor";
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_securityhub_account.main"
+                    -> "kind_cluster.default";
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_sns_topic.security_findings"
+                    -> "kind_cluster.default";
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_sns_topic_subscription.security_findings_webhook"
+                    ->
+                    "module.ml_platform.module.security_scanning.module.aws_security_scanning.aws_sns_topic.security_findings";
+                    "module.ml_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_cluster_role.falco"
+                    -> "kind_cluster.default";
+                    "module.ml_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_cluster_role_binding.falco"
+                    ->
+                    "module.ml_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_cluster_role.falco";
+                    "module.ml_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_cluster_role_binding.falco"
+                    ->
+                    "module.ml_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_service_account.falco";
+                    "module.ml_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_cron_job_v1.image_scanner"
+                    ->
+                    "module.ml_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_namespace.security_scanning";
+                    "module.ml_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_deployment.falco"
+                    ->
+                    "module.ml_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_service_account.falco";
+                    "module.ml_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_deployment.trivy_server"
+                    ->
+                    "module.ml_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_persistent_volume_claim.trivy_cache";
+                    "module.ml_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_namespace.security_scanning"
+                    -> "kind_cluster.default";
+                    "module.ml_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_persistent_volume_claim.trivy_cache"
+                    ->
+                    "module.ml_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_namespace.security_scanning";
+                    "module.ml_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_service.falco"
+                    ->
+                    "module.ml_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_namespace.security_scanning";
+                    "module.ml_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_service.trivy_server"
+                    ->
+                    "module.ml_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_namespace.security_scanning";
+                    "module.ml_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_service_account.falco"
+                    ->
+                    "module.ml_platform.module.security_scanning.module.kubernetes_security_scanning.kubernetes_namespace.security_scanning";
+                    "module.ml_platform.module.storage.module.aws_storage.aws_iam_role.s3_access" ->
+                    "kind_cluster.default";
+                    "module.ml_platform.module.storage.module.aws_storage.aws_iam_role_policy.s3_access" ->
+                    "module.ml_platform.module.storage.module.aws_storage.aws_iam_role.s3_access";
+                    "module.ml_platform.module.storage.module.aws_storage.aws_iam_role_policy.s3_access" ->
+                    "module.ml_platform.module.storage.module.aws_storage.aws_s3_bucket.buckets";
+                    "module.ml_platform.module.storage.module.aws_storage.aws_s3_bucket.buckets" ->
+                    "kind_cluster.default";
+                    "module.ml_platform.module.storage.module.aws_storage.aws_s3_bucket_lifecycle_configuration.buckets"
+                    -> "module.ml_platform.module.storage.module.aws_storage.aws_s3_bucket.buckets";
+                    "module.ml_platform.module.storage.module.aws_storage.aws_s3_bucket_public_access_block.buckets" ->
+                    "module.ml_platform.module.storage.module.aws_storage.aws_s3_bucket.buckets";
+                    "module.ml_platform.module.storage.module.aws_storage.aws_s3_bucket_server_side_encryption_configuration.buckets"
+                    -> "module.ml_platform.module.storage.module.aws_storage.aws_s3_bucket.buckets";
+                    "module.ml_platform.module.storage.module.aws_storage.aws_s3_bucket_versioning.buckets" ->
+                    "module.ml_platform.module.storage.module.aws_storage.aws_s3_bucket.buckets";
+                    "module.ml_platform.module.storage.module.kubernetes_storage.kubernetes_deployment.minio" ->
+                    "module.ml_platform.module.storage.module.kubernetes_storage.kubernetes_secret.minio";
+                    "module.ml_platform.module.storage.module.kubernetes_storage.kubernetes_job.create_buckets" ->
+                    "module.ml_platform.module.storage.module.kubernetes_storage.kubernetes_deployment.minio";
+                    "module.ml_platform.module.storage.module.kubernetes_storage.kubernetes_namespace.storage" ->
+                    "kind_cluster.default";
+                    "module.ml_platform.module.storage.module.kubernetes_storage.kubernetes_secret.minio" ->
+                    "module.ml_platform.module.storage.module.kubernetes_storage.kubernetes_namespace.storage";
+                    "module.ml_platform.module.storage.module.kubernetes_storage.kubernetes_secret.minio" ->
+                    "module.ml_platform.module.storage.module.kubernetes_storage.random_password.minio_admin";
+                    "module.ml_platform.module.storage.module.kubernetes_storage.kubernetes_service.minio" ->
+                    "module.ml_platform.module.storage.module.kubernetes_storage.kubernetes_namespace.storage";
+                    "module.ml_platform.module.storage.module.kubernetes_storage.random_password.minio_admin" ->
+                    "kind_cluster.default";
+                    "module.security_bootstrap.helm_release.argocd" ->
+                    "module.security_bootstrap.helm_release.nginx_ingress";
+                    "module.security_bootstrap.helm_release.argocd" ->
+                    "module.security_bootstrap.kubernetes_manifest.selfsigned_issuer";
+                    "module.security_bootstrap.helm_release.argocd" ->
+                    "module.security_bootstrap.random_password.argocd_admin";
+                    "module.security_bootstrap.helm_release.cert_manager" -> "kind_cluster.data_platform";
+                    "module.security_bootstrap.helm_release.nginx_ingress" ->
+                    "module.security_bootstrap.helm_release.cert_manager";
+                    "module.security_bootstrap.helm_release.prometheus" ->
+                    "module.security_bootstrap.helm_release.nginx_ingress";
+                    "module.security_bootstrap.kubernetes_labels.argocd_namespace" ->
+                    "module.security_bootstrap.helm_release.argocd";
+                    "module.security_bootstrap.kubernetes_labels.monitoring_namespace" ->
+                    "module.security_bootstrap.helm_release.prometheus";
+                    "module.security_bootstrap.kubernetes_manifest.letsencrypt_issuer" ->
+                    "module.security_bootstrap.time_sleep.wait_for_cert_manager";
+                    "module.security_bootstrap.kubernetes_manifest.selfsigned_issuer" ->
+                    "module.security_bootstrap.time_sleep.wait_for_cert_manager";
+                    "module.security_bootstrap.random_password.argocd_admin" -> "kind_cluster.data_platform";
+                    "module.security_bootstrap.time_sleep.wait_for_argocd" ->
+                    "module.security_bootstrap.helm_release.argocd";
+                    "module.security_bootstrap.time_sleep.wait_for_cert_manager" ->
+                    "module.security_bootstrap.helm_release.cert_manager";
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>🐳 Interactive Rover Setup</h2>
+            <p>To run the full interactive Rover visualization:</p>
+            <div class="graph-container">
+                    <pre><code># For ARM64 systems (Apple Silicon)
+docker run --rm --platform linux/amd64 \
+  -v "$(pwd):/src" \
+  -p 9000:9000 \
+  im2nguyen/rover \
+  -tfPath /src
+
+# For AMD64 systems
+docker run --rm \
+  -v "$(pwd):/src" \
+  -p 9000:9000 \
+  im2nguyen/rover \
+  -tfPath /src
+
+# Then open: http://localhost:9000</code></pre>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>📋 Alternative Visualization Tools</h2>
+            <p>Use these commands for additional visualization options:</p>
+            <div class="graph-container">
+                    <pre><code># Generate PNG with Graphviz
+terraform graph | dot -Tpng > infrastructure.png
+
+# Generate SVG with custom layout
+terraform graph | dot -Tsvg -Grankdir=LR > infrastructure.svg
+
+# Use InfraMap for simplified view
+inframap generate --format png .</code></pre>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

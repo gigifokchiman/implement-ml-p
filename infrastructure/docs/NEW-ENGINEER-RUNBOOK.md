@@ -82,6 +82,15 @@ helm version
 brew update && brew upgrade
 ```
 
+**🐳 Docker Container Benefits:**
+
+- ✅ **No local tool installation** required
+- ✅ **Consistent tool versions** across team members
+- ✅ **All security scanners** pre-installed (Checkov, tfsec, Terrascan, OPA)
+- ✅ **Performance tools** included (K6, Chaos Toolkit)
+- ✅ **Kubernetes utilities** (k9s, kubectx, kubens, Kustomize)
+- ✅ **Monitoring tools** (Prometheus CLI tools)
+
 | Tool       | Version  | Purpose                   | Installation                                                                                            |
 |------------|----------|---------------------------|---------------------------------------------------------------------------------------------------------|
 | Docker     | 20.10+   | Container runtime         | [Docker Desktop](https://www.docker.com/products/docker-desktop)                                        |
@@ -91,9 +100,26 @@ brew update && brew upgrade
 # Verify Docker installation
 docker --version
 docker info
+
+# Build the infrastructure tools container
+cd infrastructure
+docker build -t ml-platform-tools .
+
+# Verify all tools are working
+docker run --rm ml-platform-tools health-check.sh
+
+# IMPORTANT: Use --network host so container can access Kind cluster
+docker run -it --rm --user root \
+  --network host \
+  -v ~/.docker/run/docker.sock:/var/run/docker.sock \
+  -v $(pwd):/workspace \
+  -v ~/.aws:/workspace/.aws:ro \
+  ml-platform-tools
 ```
 
-**Note:** The Docker approach uses the pre-built container at `infrastructure/Dockerfile` with all tools included.
+**🔍 Docker Container Notes:**
+
+- `--network host` is REQUIRED for kubectl to access the Kind cluster
 
 ### Repository Setup
 
@@ -123,7 +149,8 @@ Deploy a single cluster with proper team boundaries:
 
 ```bash
 # Deploy the main ML platform cluster with comprehensive setup
-./infrastructure/scripts/deployment/deploy-local.sh --clean-first
+cd infrastructure
+make deploy-tf-local
 
 # This creates:
 # ✅ Single Kind cluster (ml-platform-local)
@@ -132,12 +159,34 @@ Deploy a single cluster with proper team boundaries:
 # ✅ Storage (MinIO) with pre-created buckets in storage namespace
 # ✅ Local path storage provisioner
 # ✅ Kubernetes networking and services
-
+# ✅ TLS termination at ingress with Let's Encrypt
+# ✅ Kubernetes audit logging for compliance
+#
 # Verify deployment
 kind get clusters
 kubectl get pods --all-namespaces
 kubectl get namespaces
 kubectl get services --all-namespaces
+
+# Verify the namespaces and labels
+./scripts/monitoring/check-resource-labels.sh
+
+# you can see that app-xx-team not found as it will be handled by the argocd
+# 👥 Team Namespaces:
+# ⚠️  Team namespace app-ml-team not found
+# ⚠️  Team namespace app-data-team not found
+# ⚠️  Team namespace app-core-team not found
+
+# 📊 Compliance Report
+# ===================
+# Total checks: 43
+# Passed: 43
+# Failed: 0
+
+# to apply a small change
+make init-tf-local
+make apply-tf-local
+
 ```
 
 **🎯 Understanding What We Built:**
@@ -155,15 +204,24 @@ kubectl get services --all-namespaces
 Implement enterprise-grade security using plain Kubernetes:
 
 ```bash
-# Deploy comprehensive security (TLS, audit, network policies, rate limiting)
-./infrastructure/scripts/security/deploy-kubernetes-security.sh
+# Deploy app-level security
+make deploy-argocd-local
+
 
 # This creates:
-# ✅ TLS termination at ingress with Let's Encrypt
-# ✅ Kubernetes audit logging for compliance
 # ✅ Network policies for team isolation
 # ✅ Rate limiting per team and endpoint
 # ✅ Application-level security middleware
+
+
+# Debugging why the application cannot be synced
+kubectl get applications -n argocd
+kubectl describe application security-policies -n argocd | grep -A 10 "Message:"
+kubectl describe application security-policies -n argocd | grep -A 10 "Status:"
+
+# patch
+kubectl patch application security-policies -n argocd --type merge --patch '{"operation": {"sync":
+      {}}}'
 
 # Verify security components
 kubectl get networkpolicies --all-namespaces
@@ -195,57 +253,7 @@ kubectl port-forward -n storage svc/minio 9001:9000 &
 # Storage: http://localhost:9001 (minioadmin/minioadmin)
 ```
 
-**Option B: Using Docker Container (No Local Tool Installation Required)**
 
-If you prefer not to install tools locally, use the provided Docker container:
-
-```bash
-# Build the infrastructure tools container
-cd infrastructure
-docker build -t ml-platform-tools .
-
-# Verify all tools are working
-docker run --rm ml-platform-tools health-check.sh
-
-# IMPORTANT: Use --network host so container can access Kind cluster
-docker run -it --rm --user root \
-  --network host \
-  -v ~/.docker/run/docker.sock:/var/run/docker.sock \
-  -v $(pwd):/workspace \
-  -v ~/.aws:/workspace/.aws:ro \
-  ml-platform-tools
-
-# Inside container - use the comprehensive deployment script
-./scripts/deploy-local.sh --clean-first
-
-# Get clusters
-kind get clusters
-
-kubectl get pods --all-namespaces
-
-# Exit container when done
-exit
-```
-
-**🔍 Docker Container Notes:**
-- `--network host` is REQUIRED for kubectl to access the Kind cluster
-- Without it, you'll get "connection refused" errors
-- All infrastructure tools are pre-installed in the container
-
-**🐳 Docker Container Benefits:**
-- ✅ **No local tool installation** required
-- ✅ **Consistent tool versions** across team members
-- ✅ **All security scanners** pre-installed (Checkov, tfsec, Terrascan, OPA)
-- ✅ **Performance tools** included (K6, Chaos Toolkit)
-- ✅ **Kubernetes utilities** (k9s, kubectx, kubens, Kustomize)
-- ✅ **Monitoring tools** (Prometheus CLI tools)
-
-**📦 Container Includes:**
-- Terraform, kubectl, Helm, Kind
-- AWS CLI, Docker CLI latest stable
-- Security: Checkov, tfsec, Terrascan, OPA, Conftest
-- Monitoring: Prometheus tools, K6 load testing
-- Plus helpful aliases: `k=kubectl`, `tf=terraform`, `h=helm`
 
 ### Step 1.3: Deploy Team Isolation (15 minutes)
 
@@ -255,8 +263,8 @@ Now add team-specific namespaces and resource controls:
 # Apply team isolation (resource quotas, RBAC)
 ./infrastructure/scripts/security/deploy-single-cluster-isolation.sh
 
-# Apply proper resource labeling  
-./infrastructure/scripts/utilities/apply-proper-labeling.sh
+# Check that labels are properly applied (for compliance)
+./infrastructure/scripts/monitoring/check-resource-labels.sh
 
 # This creates:
 # ✅ Team namespaces (ml-team, data-team, app-team)
@@ -385,6 +393,9 @@ kubectl run network-test --image=nicolaka/netshoot -n ml-team
 # Check team resource usage
 kubectl get resourcequota --all-namespaces
 kubectl top pods --all-namespaces 2>/dev/null || echo "Metrics server not installed"
+
+# Verify label compliance (important for cost tracking)
+./infrastructure/scripts/monitoring/check-resource-labels.sh
 
 # Port forward to monitoring
 kubectl port-forward -n monitoring svc/prometheus-grafana 3000:80 &
