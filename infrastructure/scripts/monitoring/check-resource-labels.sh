@@ -114,7 +114,7 @@ echo "-----------------------------"
 
 # Define known namespaces by category
 TEAM_NAMESPACES="app-ml-team app-data-team app-core-team"
-PLATFORM_NAMESPACES="monitoring database cache storage argocd performance-monitoring security-scanning"
+PLATFORM_NAMESPACES="monitoring database cache storage argocd performance-monitoring security-scanning secret-store audit-logging"
 SYSTEM_NAMESPACES="kube-system kube-public kube-node-lease local-path-storage default cert-manager ingress-nginx"
 
 # Combine all known namespaces

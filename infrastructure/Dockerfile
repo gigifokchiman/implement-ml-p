@@ -6,7 +6,7 @@ FROM ubuntu:22.04
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TERRAFORM_VERSION=1.6.6
 ENV KUBECTL_VERSION=v1.28.4
-ENV HELM_VERSION=v3.13.3
+ENV HELM_VERSION=v3.18.3
 ENV KIND_VERSION=v0.20.0
 ENV DOCKER_VERSION=latest
 ENV YQ_VERSION=v4.40.5
@@ -17,6 +17,11 @@ ENV TFSEC_VERSION=v1.28.4
 ENV TERRASCAN_VERSION=1.18.11
 ENV OPA_VERSION=v0.58.0
 ENV CONFTEST_VERSION=0.46.0
+ENV TRIVY_VERSION=0.47.0
+ENV GH_VERSION=2.40.1
+ENV K6_VERSION=v0.47.0
+ENV KUSTOMIZE_VERSION=5.0.1
+ENV GRAPHVIZ_VERSION=latest
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -36,6 +41,7 @@ RUN apt-get update && apt-get install -y \
     gettext-base \
     openssh-client \
     rsync \
+    graphviz \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Node.js and npm for k6 and other JS tooling
@@ -224,30 +230,24 @@ RUN npm install -g k6@latest && \
 # RUN pip3 install chaostoolkit chaostoolkit-kubernetes
 
 # Install custom terraform-provider-kind
-# Option 1: Copy pre-built binary if available (for cross-platform builds)
-COPY terraform-provider-mlplatform* /tmp/ 2>/dev/null || true
+# Create placeholder files to avoid COPY errors when source files don't exist
+RUN touch /tmp/terraform-provider-mlplatform-placeholder && \
+    touch /tmp/terraform-provider-kind-placeholder
 
-# Option 2: Build from source if source code is available
-COPY terraform-provider-kind /tmp/terraform-provider-kind 2>/dev/null || true
-
+# Download terraform provider (simplified approach)
 RUN ARCH=$(dpkg --print-architecture) && \
-    mkdir -p /workspace/.terraform.d/plugins/registry.terraform.io/gigifokchiman/kind/0.1.0/linux_${ARCH} && \
-    # Try to use pre-built binary first
-    if [ -f /tmp/terraform-provider-mlplatform ]; then \
-        echo "Using pre-built terraform provider binary" && \
-        cp /tmp/terraform-provider-mlplatform /workspace/.terraform.d/plugins/registry.terraform.io/gigifokchiman/kind/0.1.0/linux_${ARCH}/terraform-provider-kind_v0.1.0 && \
-        chmod +x /workspace/.terraform.d/plugins/registry.terraform.io/gigifokchiman/kind/0.1.0/linux_${ARCH}/terraform-provider-kind_v0.1.0; \
-    elif [ -d /tmp/terraform-provider-kind ]; then \
-        echo "Building terraform provider from source" && \
-        cd /tmp/terraform-provider-kind && \
-        go mod tidy && \
-        CGO_ENABLED=0 GOOS=linux GOARCH=${ARCH} go build -o terraform-provider-kind && \
-        cp terraform-provider-kind /workspace/.terraform.d/plugins/registry.terraform.io/gigifokchiman/kind/0.1.0/linux_${ARCH}/terraform-provider-kind_v0.1.0 && \
-        chmod +x /workspace/.terraform.d/plugins/registry.terraform.io/gigifokchiman/kind/0.1.0/linux_${ARCH}/terraform-provider-kind_v0.1.0; \
-    else \
-        echo "No terraform provider source found, will need to install manually or mount from host"; \
-    fi && \
-    rm -rf /tmp/terraform-provider-kind /tmp/terraform-provider-mlplatform*
+    TERRAFORM_ARCH="linux_${ARCH}" && \
+    mkdir -p /workspace/.terraform.d/plugins/kind.local/gigifokchiman/kind/0.1.0/${TERRAFORM_ARCH} && \
+    echo "Attempting to download terraform provider for ${TERRAFORM_ARCH}" && \
+    (wget -q https://github.com/gigifokchiman/kind/releases/download/v0.1.0/terraform-provider-kind_v0.1.0_${TERRAFORM_ARCH}.tar.gz -O /tmp/provider.tar.gz || \
+     wget -q https://github.com/gigifokchiman/kind/releases/download/v0.1.0/terraform-provider-kind_v0.1.0_linux_amd64.tar.gz -O /tmp/provider.tar.gz) && \
+    cd /tmp && tar -xzf provider.tar.gz && \
+    cp terraform-provider-kind /workspace/.terraform.d/plugins/kind.local/gigifokchiman/kind/0.1.0/${TERRAFORM_ARCH}/terraform-provider-kind && \
+    chmod +x /workspace/.terraform.d/plugins/kind.local/gigifokchiman/kind/0.1.0/${TERRAFORM_ARCH}/terraform-provider-kind && \
+    echo "✅ Terraform provider installed" || echo "⚠️  Terraform provider not available - manual installation required"
+
+# Don't clean up for debugging
+# RUN rm -rf /tmp/provider.tar.gz /tmp/terraform-provider-kind* /tmp/terraform-provider-mlplatform*
 
 # Create working directory
 WORKDIR /workspace

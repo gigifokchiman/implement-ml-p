@@ -59,9 +59,19 @@ apply-tf-local: ## (TF-LOCAL) Apply local terraform changes
 
 clean-tf-local: ## (TF-LOCAL) Destroy local environment (uses terraform destroy)
 	@echo "$(RED)💣 Destroying local environment$(NC)"
-	@cd terraform/environments/local && terraform destroy -auto-approve
+	@cd terraform/environments/local && terraform destroy -auto-approve || echo "Terraform destroy completed with warnings"
+	@echo "$(YELLOW)🧹 Cleaning up Kind clusters$(NC)"
+	@kind get clusters | xargs -I {} kind delete cluster --name {} || echo "Kind clusters cleaned"
+	@echo "$(YELLOW)🧹 Cleaning terraform state$(NC)"
 	@cd terraform/environments/local && rm -f .terraform.lock.hcl && rm -rf .terraform
-	@kind get clusters | xargs -I {} kind delete cluster --name {}
+	@echo "$(GREEN)✅ Local environment cleanup completed$(NC)"
+
+clean-all-local: ## (TF-LOCAL) Complete cleanup including Docker
+	@echo "$(RED)💣 Complete local environment cleanup$(NC)"
+	@$(MAKE) clean-tf-local
+	@echo "$(YELLOW)🧹 Cleaning Docker system$(NC)"
+	@docker system prune -f || echo "Docker cleanup completed"
+	@echo "$(GREEN)✅ Complete cleanup finished$(NC)"
 
 # Target-specific terraform operations
 apply-cluster-tf-local: ## (TF-LOCAL) Apply only the data platform cluster

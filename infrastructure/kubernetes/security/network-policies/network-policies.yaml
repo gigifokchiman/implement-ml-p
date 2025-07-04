@@ -1,0 +1,199 @@
+# Network Policies for Team Isolation
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: app-ml-team-policy
+  namespace: app-ml-team
+  labels:
+    app.kubernetes.io/name: app-ml-team-policy
+    app.kubernetes.io/component: security
+spec:
+  podSelector: { }
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow traffic from ingress controller
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+    # Allow traffic from monitoring
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: monitoring
+      ports:
+        - protocol: TCP
+          port: 8080
+    # Allow internal traffic within namespace
+    - from:
+        - podSelector: { }
+  egress:
+    # Allow DNS
+    - to: [ ]
+      ports:
+        - protocol: UDP
+          port: 53
+    # Allow traffic to database
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: database
+      ports:
+        - protocol: TCP
+          port: 5432
+    # Allow traffic to cache
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: cache
+      ports:
+        - protocol: TCP
+          port: 6379
+    # Allow traffic to storage
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: storage
+      ports:
+        - protocol: TCP
+          port: 9000
+    # Allow outbound HTTPS for external APIs
+    - to: [ ]
+      ports:
+        - protocol: TCP
+          port: 443
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: app-data-team-policy
+  namespace: app-data-team
+  labels:
+    app.kubernetes.io/name: app-data-team-policy
+    app.kubernetes.io/component: security
+spec:
+  podSelector: { }
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow traffic from ingress controller
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+    # Allow traffic from monitoring
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: monitoring
+      ports:
+        - protocol: TCP
+          port: 8080
+    # Allow internal traffic within namespace
+    - from:
+        - podSelector: { }
+  egress:
+    # Allow DNS
+    - to: [ ]
+      ports:
+        - protocol: UDP
+          port: 53
+    # Allow traffic to database
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: database
+      ports:
+        - protocol: TCP
+          port: 5432
+    # Allow traffic to cache
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: cache
+      ports:
+        - protocol: TCP
+          port: 6379
+    # Allow traffic to storage
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: storage
+      ports:
+        - protocol: TCP
+          port: 9000
+    # Allow outbound HTTPS for external APIs
+    - to: [ ]
+      ports:
+        - protocol: TCP
+          port: 443
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: app-core-team-policy
+  namespace: app-core-team
+  labels:
+    app.kubernetes.io/name: app-core-team-policy
+    app.kubernetes.io/component: security
+spec:
+  podSelector: { }
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow traffic from ingress controller
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+    # Allow traffic from monitoring
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: monitoring
+      ports:
+        - protocol: TCP
+          port: 8080
+    # Allow internal traffic within namespace
+    - from:
+        - podSelector: { }
+  egress:
+    # Allow DNS
+    - to: [ ]
+      ports:
+        - protocol: UDP
+          port: 53
+    # Allow traffic to database
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: database
+      ports:
+        - protocol: TCP
+          port: 5432
+    # Allow traffic to cache
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: cache
+      ports:
+        - protocol: TCP
+          port: 6379
+    # Allow traffic to storage
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: storage
+      ports:
+        - protocol: TCP
+          port: 9000
+    # Allow outbound HTTPS for external APIs
+    - to: [ ]
+      ports:
+        - protocol: TCP
+          port: 443

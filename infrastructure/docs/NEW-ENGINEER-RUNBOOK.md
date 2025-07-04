@@ -25,10 +25,20 @@ and **Kubernetes-native security**. By the end, you'll have:
 - **Storage**: 20GB free space
 - **OS**: macOS (currently tested in macOS)
 
+### Repository Setup
+
+```bash
+# Clone the repository
+git clone https://github.com/gigifokchiman/implement-ml-p.git # OR download from the github. 
+cd implement-ml-p
+
+# Verify structure
+ls -la infrastructure/
+```
+
 ## 📋 Prerequisites
 
 **Choose Your Approach:**
-
 
 ### Option A: Local Tool Installation
 
@@ -38,40 +48,81 @@ and **Kubernetes-native security**. By the end, you'll have:
 brew update && brew upgrade
 ```
 
-| Tool       | Version  | Purpose                   | Installation                                                                                            |
-|------------|----------|---------------------------|---------------------------------------------------------------------------------------------------------|
-| Docker     | 20.10+   | Container runtime         | [Docker Desktop](https://www.docker.com/products/docker-desktop)                                        |
-| AWS CLI    | 2.0+     | AWS cloud operations      | `brew install awscli`                                                                                   |
-| Kubernetes | 1.27+    | Container orchestration   | Included with Docker Desktop                                                                            |
-| Kind       | 0.20+    | Local Kubernetes clusters | `brew install kind` or [Kind Releases](https://kind.sigs.k8s.io/docs/user/quick-start/#installation)    |
-| Terraform  | 1.0+     | Infrastructure as Code    | `brew install terraform` or [Terraform Downloads](https://www.terraform.io/downloads)                   |
-| kubectl    | 1.27+    | Kubernetes CLI            | `brew install kubectl` or [kubectl Install](https://kubernetes.io/docs/tasks/tools/)                    |
+| Tool       | Version  | Purpose                   | Installation                                                                                                |
+|------------|----------|---------------------------|-------------------------------------------------------------------------------------------------------------|
+| AWS CLI    | 2.0+     | AWS cloud operations      | `brew install awscli`                                                                                       |
+| Docker     | 20.10+   | Container runtime         | [Docker Desktop](https://www.docker.com/products/docker-desktop)                                            |
+| Git        | 2.30+    | Version control           | `brew install git` or [Git Downloads](https://git-scm.com/downloads)                                        |
+| Kind       | 0.20+    | Local Kubernetes clusters | `brew install kind` or [Kind Releases](https://kind.sigs.k8s.io/docs/user/quick-start/#installation)        |
+| kubectl    | 1.27+    | Kubernetes CLI            | `brew install kubectl` or [kubectl Install](https://kubernetes.io/docs/tasks/tools/)                        |
+| Kubernetes | 1.27+    | Container orchestration   | Included with Docker Desktop                                                                                |
 | Kustomize  | 5.0+     | Kubernetes configuration  | `brew install kustomize` or [Kustomize Install](https://kubectl.docs.kubernetes.io/installation/kustomize/) |
-| Helm       | v3.18.3+ | Deploy to k8s             | `brew install helm`                                                                                     |
+| Helm       | v3.18.3+ | Deploy to k8s             | `brew install helm`                                                                                         |
+| Terraform  | 1.0+     | Infrastructure as Code    | `brew install terraform` or [Terraform Downloads](https://www.terraform.io/downloads)                       |
+
+### Custom Terraform Provider
+
+This project uses a custom Kind terraform provider. Download it locally:
+
+```bash
+# Detect your architecture
+ARCH=$(uname -m)
+if [ "$ARCH" = "x86_64" ]; then
+    TERRAFORM_ARCH="darwin_amd64"
+elif [ "$ARCH" = "arm64" ]; then
+    TERRAFORM_ARCH="darwin_arm64"
+else
+    echo "Unsupported architecture: $ARCH"
+    exit 1
+fi
+
+# Create terraform plugins directory with proper architecture folder
+mkdir -p ~/.terraform.d/plugins/kind.local/gigifokchiman/kind/0.1.0/$TERRAFORM_ARCH
+
+# Download and install the provider
+wget https://github.com/gigifokchiman/kind/releases/download/v0.1.0/terraform-provider-kind_v0.1.0_${TERRAFORM_ARCH}.tar.gz \
+  -O /tmp/terraform-provider-kind.tar.gz
+cd /tmp && tar -xzf terraform-provider-kind.tar.gz
+cp terraform-provider-kind_v0.1.0 ~/.terraform.d/plugins/kind.local/gigifokchiman/kind/0.1.0/$TERRAFORM_ARCH/terraform-provider-kind
+
+# Make it executable
+chmod +x ~/.terraform.d/plugins/kind.local/gigifokchiman/kind/0.1.0/$TERRAFORM_ARCH/terraform-provider-kind
+
+# Clean up
+rm -f /tmp/terraform-provider-kind*
+```
 
 
 ### Optional Tools
 
-| Tool     | Purpose                                                | Installation            |
-|----------|--------------------------------------------------------|-------------------------|
-| jq       | JSON processing                                        | `brew install jq`       |
-| yq       | YAML processing                                        | `brew install yq`       |
-| gh       | GitHub CLI                                             | `brew install gh`       |
-| Go       | For changing the configuration from the kind terraform | `brew install go`       |
-| k6       | Load testing and performance validation                | `brew install k6`       |
-| trivy    | Container security scanning                            | `brew install trivy`    |
-| tfsec    | Terraform security scanning                            | `brew install tfsec`    |
-| graphviz | Infrastructure visualization and diagram generation    | `brew install graphviz` |
+| Tool     | Purpose                                                          | Installation            |
+|----------|------------------------------------------------------------------|-------------------------|
+| gh       | GitHub CLI                                                       | `brew install gh`       |
+| Go       | For changing the configuration from the kind terraform           | `brew install go`       |
+| graphviz | Infrastructure visualization and diagram generation (macos only) | `brew install graphviz` |
+| k6       | Load testing and performance validation                          | `brew install k6`       |
+| jq       | JSON processing                                                  | `brew install jq`       |
+| tfsec    | Terraform security scanning                                      | `brew install tfsec`    |
+| trivy    | Container security scanning                                      | `brew install trivy`    |
+| yq       | YAML processing                                                  | `brew install yq`       |
 
 ### Option A: Local approach
 
 ```bash
 # Verify installations
-terraform --version  # >= 1.0
-kubectl version --client  # >= 1.25
+awscli --version
 docker --version
+git version
 kind --version
+kubectl version --client  # >= 1.25
+kustomize version
 helm version
+terraform --version  # >= 1.0
+
+# Verify custom terraform provider is installed
+ls -la ~/.terraform.d/plugins/kind.local/gigifokchiman/kind/0.1.0/*/terraform-provider-kind
+
+cd infrastructure
 ```
 
 ### Option B: Docker-Only Approach (Recommended for Quick Start)
@@ -91,10 +142,10 @@ brew update && brew upgrade
 - ✅ **Kubernetes utilities** (k9s, kubectx, kubens, Kustomize)
 - ✅ **Monitoring tools** (Prometheus CLI tools)
 
-| Tool       | Version  | Purpose                   | Installation                                                                                            |
-|------------|----------|---------------------------|---------------------------------------------------------------------------------------------------------|
-| Docker     | 20.10+   | Container runtime         | [Docker Desktop](https://www.docker.com/products/docker-desktop)                                        |
-| AWS CLI    | 2.0+     | AWS cloud operations      | `brew install awscli`                                                                                   |
+| Tool    | Version | Purpose              | Installation                                                     |
+|---------|---------|----------------------|------------------------------------------------------------------|
+| AWS CLI | 2.0+    | AWS cloud operations | `brew install awscli`                                            |
+| Docker  | 20.10+  | Container runtime    | [Docker Desktop](https://www.docker.com/products/docker-desktop) |
 
 ```bash
 # Verify Docker installation
@@ -114,23 +165,14 @@ docker run -it --rm --user root \
   -v ~/.docker/run/docker.sock:/var/run/docker.sock \
   -v $(pwd):/workspace \
   -v ~/.aws:/workspace/.aws:ro \
+  -v ~/.kube:/workspace/.kube \
   ml-platform-tools
+
+
 ```
 
 **🔍 Docker Container Notes:**
-
 - `--network host` is REQUIRED for kubectl to access the Kind cluster
-
-### Repository Setup
-
-```bash
-# Clone the repository
-git clone https://github.com/gigifokchiman/implement-ml-p.git
-cd implement-ml-p
-
-# Verify structure
-ls -la infrastructure/
-```
 
 ## 🚀 Phase 1: Single Cluster Team Platform (45 minutes)
 
@@ -149,8 +191,10 @@ Deploy a single cluster with proper team boundaries:
 
 ```bash
 # Deploy the main ML platform cluster with comprehensive setup
-cd infrastructure
 make deploy-tf-local
+
+# If you have tf provider issues
+make init-tf-local && make deploy-tf-local
 
 # This creates:
 # ✅ Single Kind cluster (ml-platform-local)
@@ -164,6 +208,8 @@ make deploy-tf-local
 #
 # Verify deployment
 kind get clusters
+kubectl config use-context kind-data-platform-local
+
 kubectl get pods --all-namespaces
 kubectl get namespaces
 kubectl get services --all-namespaces
@@ -184,8 +230,7 @@ kubectl get services --all-namespaces
 # Failed: 0
 
 # to apply a small change
-make init-tf-local
-make apply-tf-local
+make init-tf-local && make apply-tf-local
 
 ```
 
@@ -684,3 +729,45 @@ If you encounter issues:
 ---
 
 **Time to build amazing applications!** 🚀
+
+## 🧹 Cleanup Instructions
+
+### Option A: Clean from Local (Recommended)
+
+```bash
+# Exit Docker container if running
+exit
+
+# Clean up from local machine (has proper kube config write access)
+cd infrastructure
+make clean-tf-local
+
+# If you get permission errors, manually clean:
+kind delete cluster --name data-platform-local
+kind delete cluster --name ml-platform-local
+```
+
+### Option B: Clean from Docker (if needed)
+
+```bash
+# Inside Docker container - may have kube config write issues
+make clean-tf-local
+
+# If kube config errors occur, clean manually:
+docker exec -it $(docker ps -q --filter ancestor=ml-platform-tools) \
+  bash -c "kind delete cluster --name data-platform-local --kubeconfig /dev/null"
+```
+
+### Complete Environment Reset
+
+```bash
+# Remove all Kind clusters
+kind get clusters | xargs -I {} kind delete cluster --name {}
+
+# Clean terraform state
+cd infrastructure/terraform/environments/local
+rm -rf .terraform .terraform.lock.hcl terraform.tfstate*
+
+# Clean Docker
+docker system prune -f
+```
