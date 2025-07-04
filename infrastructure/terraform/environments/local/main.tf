@@ -133,7 +133,7 @@ provider "aws" {
 # Commented out to avoid duplicate resource creation with data_platform
 # Both were creating the same namespaces in the same cluster
 # module "ml_platform" {
-#   source = "../../modules/compositions/ml-platform"
+#   source = "../../modules/compositions/data-platform"
 #
 #   name        = "${local.shared_config.project_name}-local"
 #   environment = "local"

@@ -22,6 +22,7 @@ TF_DIR := terraform/environments
 SCRIPTS_DIR := scripts
 
 # Docker configuration
+cluster_name := kind-data-platform-local
 DOCKER_IMAGE := data-platform/infra-tools
 DOCKER_TAG := latest
 DOCKER_COMPOSE_FILE := docker-compose.infra.yml
@@ -37,10 +38,11 @@ help: ## Show this help message
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  $(GREEN)%-20s$(NC) %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 	@echo ''
 	@echo 'Examples:'
-	@echo '  $(GREEN)make deploy-local$(NC)       Deploy local ML platform (clean)'
-	@echo '  $(GREEN)make deploy-platform$(NC)    Deploy complete platform stack'
-	@echo '  $(GREEN)make check-labels$(NC)       Check resource compliance'
-	@echo '  $(GREEN)make local-down$(NC)         Cleanup local environment'
+	@echo '  $(GREEN)make deploy-local$(NC)         Deploy local ML platform (clean)'
+	@echo '  $(GREEN)make deploy-team-isolation$(NC) Deploy team isolation (RBAC, quotas, monitoring)'
+	@echo '  $(GREEN)make check-team-isolation$(NC)  Check team isolation compliance'
+	@echo '  $(GREEN)make deploy-argocd-security$(NC) Deploy security policies via GitOps'
+	@echo '  $(GREEN)make local-down$(NC)           Cleanup local environment'
 
 # =============================================================================
 # Terraform Infrastructure Management
@@ -60,6 +62,11 @@ apply-tf-local: ## (TF-LOCAL) Apply local terraform changes
 clean-tf-local: ## (TF-LOCAL) Destroy local environment (uses terraform destroy)
 	@echo "$(RED)💣 Destroying local environment$(NC)"
 	@cd terraform/environments/local && terraform destroy -auto-approve || echo "Terraform destroy completed with warnings"
+	#@echo "$(YELLOW)🧹 Cleaning up manual Kubernetes resources$(NC)"
+	#@kubectl delete clusterrole local-path-provisioner-role --ignore-not-found=true || true
+	#@kubectl delete clusterrolebinding local-path-provisioner-bind --ignore-not-found=true || true
+	#@kubectl delete storageclass standard --ignore-not-found=true || true
+	#@kubectl delete namespace local-path-storage --ignore-not-found=true || true
 	@echo "$(YELLOW)🧹 Cleaning up Kind clusters$(NC)"
 	@kind get clusters | xargs -I {} kind delete cluster --name {} || echo "Kind clusters cleaned"
 	@echo "$(YELLOW)🧹 Cleaning terraform state$(NC)"
@@ -102,7 +109,6 @@ setup-storage-local: ## Install and configure local-path-provisioner - this solv
 deploy-security-bootstrap-tf-local: ## (TF-LOCAL) Deploy security infrastructure in correct order
 	@echo "$(GREEN)🔐 Deploying security bootstrap infrastructure$(NC)"
 	@cd terraform/environments/local && terraform apply \
-		-target=module.storage_provisioner \
 		-target=module.security_bootstrap.helm_release.cert_manager \
 		-target=module.security_bootstrap.helm_release.nginx_ingress \
 		-target=module.security_bootstrap.time_sleep.wait_for_cert_manager \
@@ -156,10 +162,10 @@ deploy-tf-local: ## Complete local ML platform deployment with cleanup
 	@echo "$(GREEN)🎉 Data Platform deployment completed successfully!$(NC)"
 	@echo ""
 	@echo "🔗 To access services, use these port-forward commands:"
-	@echo "  kubectl port-forward -n database svc/postgres 5432:5432"
-	@echo "  kubectl port-forward -n cache svc/redis 6379:6379"
-	@echo "  kubectl port-forward -n storage svc/minio 9001:9000"
-	@echo "  kubectl port-forward -n monitoring svc/prometheus-grafana 3000:80"
+	@echo "  kubectl port-forward -n data-platform-database svc/postgres 5432:5432"
+	@echo "  kubectl port-forward -n data-platform-cache svc/redis 6379:6379"
+	@echo "  kubectl port-forward -n data-platform-storage svc/minio 9001:9000"
+	@echo "  kubectl port-forward -n data-platform-monitoring svc/prometheus-grafana 3000:80"
 	@echo "  kubectl port-forward -n argocd svc/argocd-server 8080:443"
 	@echo ""
 	@echo "🌐 Service endpoints:"
@@ -169,7 +175,7 @@ deploy-tf-local: ## Complete local ML platform deployment with cleanup
 	@echo "  Grafana: http://localhost:3000 (admin/admin)"
 	@echo "  ArgoCD: https://localhost:8080 (admin/admin123)"
 	@echo ""
-	@echo "📚 Next: Deploy ArgoCD applications with 'make deploy-argocd-apps'"
+	@echo "📚 Next: Deploy ArgoCD applications with 'make deploy-argocd-local'"
 
 # Local development workflow (calls scripts - kept for compatibility)
 local-up: deploy-tf-local ## Deploy local platform (full deployment)
@@ -316,12 +322,56 @@ test: ## Run infrastructure tests
 # Security - Hybrid Infrastructure + GitOps
 # =============================================================================
 
+deploy-team-isolation: ## Deploy team isolation (namespaces, RBAC, quotas, monitoring)
+	@echo "$(BLUE)🔐 Team Isolation Infrastructure$(NC)"
+	@echo "==================================="
+	@echo ""
+	@kubectl config use-context $(cluster_name)
+	@echo "📋 Checking existing team isolation deployment..."
+	@if kubectl get namespace app-ml-team &>/dev/null; then \
+		echo "$(GREEN)✅ Team isolation already deployed and active$(NC)"; \
+		echo ""; \
+		echo "🧪 Running compliance check..."; \
+		scripts/security/check-single-cluster-isolation.sh; \
+	else \
+		echo "$(YELLOW)⚠️  Team isolation not deployed. Please run deployment manually:$(NC)"; \
+		echo "  kubectl apply -f <path-to-team-resources>"; \
+	fi
+	@echo ""
+	@echo "🎯 Team Isolation Summary:"
+	@echo "   • 3 Team namespaces: app-ml-team, app-data-team, app-core-team"
+	@echo "   • Resource quotas enforced per team"
+	@echo "   • RBAC isolation with service account permissions"  
+	@echo "   • Network policies for team isolation"
+	@echo "   • ServiceMonitors for Prometheus monitoring"
+	@echo ""
+	@echo "💡 Commands:"
+	@echo "   make check-team-isolation    - Check compliance"
+	@echo "   kubectl get all -n app-ml-team  - View ML team resources"
+
+check-team-isolation: ## Run team isolation compliance check
+	@echo "$(BLUE)🔍 Running Team Isolation Compliance Check$(NC)"
+	@scripts/security/check-single-cluster-isolation.sh
+
+remove-team-isolation: ## Remove team isolation resources (DESTRUCTIVE!)
+	@echo "$(RED)💣 WARNING: This will remove all team isolation resources!$(NC)"
+	@read -p "Type 'REMOVE-TEAMS' to continue: " -r; \
+	if [ "$$REPLY" = "REMOVE-TEAMS" ]; then \
+		echo "$(YELLOW)🗑️  Removing team isolation resources...$(NC)"; \
+		kubectl delete namespace app-ml-team app-data-team app-core-team --ignore-not-found=true; \
+		kubectl delete clusterrole app-ml-team-cross-namespace-read app-data-team-storage-access app-core-team-ingress-access --ignore-not-found=true; \
+		kubectl delete clusterrolebinding app-ml-team-cross-namespace-read-binding app-data-team-storage-access-binding app-core-team-ingress-access-binding --ignore-not-found=true; \
+		echo "$(GREEN)✅ Team isolation resources removed$(NC)"; \
+	else \
+		echo "$(GREEN)✅ Team isolation removal cancelled$(NC)"; \
+	fi
+
 deploy-argocd-security: ## (ArgoCD) Deploy security policies via GitOps
 	@echo "$(BLUE)🚀 Deploying security policies via ArgoCD$(NC)"
+	@kubectl config use-context $(cluster_name)
 	@kubectl apply -f kubernetes/security/argocd-security-apps.yaml
 	@echo "$(YELLOW)⏳ Waiting for ArgoCD to sync applications...$(NC)"
 	@kubectl wait --for=jsonpath='{.status.health.status}'=Healthy --timeout=300s application/network-policies -n argocd || echo "⚠️  Manual sync may be required"
-	@kubectl wait --for=jsonpath='{.status.health.status}'=Healthy --timeout=300s application/team-namespaces -n argocd || echo "⚠️  Manual sync may be required"
 	@kubectl wait --for=jsonpath='{.status.health.status}'=Healthy --timeout=300s application/security-policies -n argocd || echo "⚠️  Manual sync may be required"
 	@kubectl wait --for=jsonpath='{.status.health.status}'=Healthy --timeout=300s application/tls-certificates -n argocd || echo "⚠️  Manual sync may be required"
 	@echo "$(GREEN)✅ Security applications setup via ArgoCD$(NC)"
@@ -337,10 +387,10 @@ deploy-argocd-apps: ## (ArgoCD) Deploy ArgoCD applications
 port-forward: ## Setup port forwarding for all services
 	@echo "$(BLUE)🔗 Setting up port forwarding$(NC)"
 	@echo "Starting port forwards in background..."
-	@kubectl port-forward -n database svc/postgres 5432:5432 > /dev/null 2>&1 &
-	@kubectl port-forward -n cache svc/redis 6379:6379 > /dev/null 2>&1 &
-	@kubectl port-forward -n storage svc/minio 9001:9000 > /dev/null 2>&1 &
-	@kubectl port-forward -n monitoring svc/prometheus-grafana 3000:80 > /dev/null 2>&1 &
+	@kubectl port-forward -n data-platform-database svc/postgres 5432:5432 > /dev/null 2>&1 &
+	@kubectl port-forward -n data-platform-cache svc/redis 6379:6379 > /dev/null 2>&1 &
+	@kubectl port-forward -n data-platform-storage svc/minio 9001:9000 > /dev/null 2>&1 &
+	@kubectl port-forward -n data-platform-monitoring svc/prometheus-grafana 3000:80 > /dev/null 2>&1 &
 	@echo "$(GREEN)✅ Port forwards started$(NC)"
 	@echo "  Database: postgresql://admin:password@localhost:5432/metadata"
 	@echo "  Cache: redis://localhost:6379"

@@ -35,7 +35,7 @@ variable "region" {
 variable "cluster_name" {
   description = "EKS cluster name"
   type        = string
-  default     = "ml-platform"
+  default     = "data-platform"
 }
 
 variable "vpc_cidr" {
@@ -50,7 +50,7 @@ locals {
 
   common_tags = {
     "Environment" = var.environment
-    "Project"     = "ml-platform"
+    "Project"     = "data-platform"
     "ManagedBy"   = "terraform"
   }
 }
@@ -284,9 +284,9 @@ resource "aws_s3_bucket" "model_registry" {
   tags   = local.common_tags
 }
 
-# ECR repositories for container images
-resource "aws_ecr_repository" "backend" {
-  name                 = "ml-platform/backend"
+# ECR repository for container images (consolidated)
+resource "aws_ecr_repository" "main" {
+  name                 = "data-platform-prod"
   image_tag_mutability = "MUTABLE"
 
   image_scanning_configuration {
@@ -297,27 +297,14 @@ resource "aws_ecr_repository" "backend" {
     encryption_type = "AES256"
   }
 
-  tags = local.common_tags
+  tags = merge(local.common_tags, {
+    Purpose = "Container images for all services (frontend, backend, ml)"
+  })
 }
 
-resource "aws_ecr_repository" "frontend" {
-  name                 = "ml-platform/frontend"
-  image_tag_mutability = "MUTABLE"
-
-  image_scanning_configuration {
-    scan_on_push = true
-  }
-
-  encryption_configuration {
-    encryption_type = "AES256"
-  }
-
-  tags = local.common_tags
-}
-
-# ECR lifecycle policies
-resource "aws_ecr_lifecycle_policy" "backend" {
-  repository = aws_ecr_repository.backend.name
+# ECR lifecycle policy
+resource "aws_ecr_lifecycle_policy" "main" {
+  repository = aws_ecr_repository.main.name
 
   policy = jsonencode({
     rules = [
@@ -364,53 +351,6 @@ resource "aws_ecr_lifecycle_policy" "backend" {
   })
 }
 
-resource "aws_ecr_lifecycle_policy" "frontend" {
-  repository = aws_ecr_repository.frontend.name
-
-  policy = jsonencode({
-    rules = [
-      {
-        rulePriority = 1
-        description  = "Keep last 10 production images"
-        selection = {
-          tagStatus     = "tagged"
-          tagPrefixList = ["prod", "staging"]
-          countType     = "imageCountMoreThan"
-          countNumber   = 10
-        }
-        action = {
-          type = "expire"
-        }
-      },
-      {
-        rulePriority = 2
-        description  = "Keep last 5 development images"
-        selection = {
-          tagStatus     = "tagged"
-          tagPrefixList = ["dev", "latest"]
-          countType     = "imageCountMoreThan"
-          countNumber   = 5
-        }
-        action = {
-          type = "expire"
-        }
-      },
-      {
-        rulePriority = 3
-        description  = "Delete untagged images older than 1 day"
-        selection = {
-          tagStatus   = "untagged"
-          countType   = "sinceImagePushed"
-          countUnit   = "days"
-          countNumber = 1
-        }
-        action = {
-          type = "expire"
-        }
-      }
-    ]
-  })
-}
 
 # Security groups
 resource "aws_security_group" "rds" {
@@ -605,4 +545,14 @@ output "s3_buckets" {
     data_lake      = aws_s3_bucket.data_lake.bucket
     model_registry = aws_s3_bucket.model_registry.bucket
   }
+}
+
+output "ecr_repository" {
+  description = "ECR repository URL for all container images"
+  value = aws_ecr_repository.main.repository_url
+}
+
+output "ecr_repository_name" {
+  description = "ECR repository name"
+  value = aws_ecr_repository.main.name
 }

@@ -114,11 +114,14 @@ echo "-----------------------------"
 
 # Define known namespaces by category
 TEAM_NAMESPACES="app-ml-team app-data-team app-core-team"
-PLATFORM_NAMESPACES="monitoring database cache storage argocd performance-monitoring security-scanning secret-store audit-logging"
+# Platform namespaces with data-platform-local prefix (current naming convention)
+PLATFORM_NAMESPACES="data-platform-local-database data-platform-local-cache data-platform-local-storage data-platform-local-performance data-platform-local-security-scanning argocd secret-store audit-logging"
+# Legacy platform namespaces (old naming convention)
+LEGACY_PLATFORM_NAMESPACES="monitoring database cache storage performance-monitoring security-scanning data-platform-monitoring data-platform-database data-platform-cache data-platform-storage data-platform-performance data-platform-security-scanning"
 SYSTEM_NAMESPACES="kube-system kube-public kube-node-lease local-path-storage default cert-manager ingress-nginx"
 
-# Combine all known namespaces
-KNOWN_NAMESPACES="$TEAM_NAMESPACES $PLATFORM_NAMESPACES"
+# Combine all known namespaces (including both new and legacy naming)
+KNOWN_NAMESPACES="$TEAM_NAMESPACES $PLATFORM_NAMESPACES $LEGACY_PLATFORM_NAMESPACES"
 CHECKED_NAMESPACES=""
 UNKNOWN_NAMESPACES=""
 
@@ -155,6 +158,12 @@ get_namespace_category() {
     done
     for platform_ns in $PLATFORM_NAMESPACES; do
         if [ "$ns" = "$platform_ns" ]; then
+            echo "platform"
+            return 0
+        fi
+    done
+    for legacy_ns in $LEGACY_PLATFORM_NAMESPACES; do
+        if [ "$ns" = "$legacy_ns" ]; then
             echo "platform"
             return 0
         fi

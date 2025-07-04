@@ -314,6 +314,9 @@ EOF
 
 RUN chmod +x /usr/local/bin/health-check.sh
 
+# Grant execute permissions to all files in scripts folders
+RUN chmod -R +x /workspace/scripts 2>/dev/null || true
+
 # Switch to non-root user
 USER infrauser
 

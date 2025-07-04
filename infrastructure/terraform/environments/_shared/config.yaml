@@ -1,11 +1,10 @@
 # Shared configuration across all environments
-project_name: "ml-platform"
+project_name: "data-platform"
 
 # Common tags
 common_tags:
-  Project: "ml-platform"
+  Project: "data-platform"
   ManagedBy: "terraform"
-  Repository: "github.com_gigifokchiman_ml-platform"
   Team: "ml-engineering"
   # Compliance labels for platform namespaces
   team: "platform-engineering"
@@ -36,16 +35,6 @@ storage_config:
     - name: "model-registry"
       public: false
 
-# Container registry configuration
-registry_config:
-  image_tag_mutability: "MUTABLE"
-  scan_on_push: true
-  encryption_enabled: true
-  repositories:
-    - "ml-platform/backend"
-    - "ml-platform/frontend"
-    - "ml-platform/data-processor"
-    - "ml-platform/ml-trainer"
 
 # Kubernetes base configuration
 kubernetes_config:

@@ -18,6 +18,12 @@ terraform {
 }
 
 # Variables
+variable "environment" {
+  description = "Environment name"
+  type        = string
+  default     = "staging"
+}
+
 variable "region" {
   description = "AWS region"
   type        = string
@@ -27,7 +33,7 @@ variable "region" {
 variable "cluster_name" {
   description = "EKS cluster name"
   type        = string
-  default     = "ml-platform"
+  default     = "data-platform"
 }
 
 variable "vpc_cidr" {
@@ -38,12 +44,11 @@ variable "vpc_cidr" {
 
 # Locals
 locals {
-  environment = "staging"
-  name_prefix = "${var.cluster_name}-${local.environment}"
+  name_prefix = "${var.cluster_name}-${var.environment}"
 
   common_tags = {
-    "Environment" = local.environment
-    "Project"     = "ml-platform"
+    "Environment" = var.environment
+    "Project"     = "data-platform"
     "ManagedBy"   = "terraform"
   }
 }
@@ -66,7 +71,7 @@ module "vpc" {
   public_subnets  = [for k, v in slice(data.aws_availability_zones.available.names, 0, 3) : cidrsubnet(var.vpc_cidr, 8, k + 48)]
 
   enable_nat_gateway   = true
-  single_nat_gateway   = false # Multi-AZ for staging
+  single_nat_gateway   = var.environment == "dev"
   enable_dns_hostnames = true
   enable_dns_support   = true
 
@@ -96,6 +101,7 @@ module "eks" {
   subnet_ids                     = module.vpc.private_subnets
   cluster_endpoint_public_access = true
 
+  # Cluster access entry
   # EKS access management (replaces aws-auth configmap in v20+)
   enable_cluster_creator_admin_permissions = true
 
@@ -114,8 +120,9 @@ module "eks" {
     }
   }
 
-  # Node groups similar to prod but smaller
+  # Node groups
   eks_managed_node_groups = {
+    # General purpose nodes
     general = {
       name = "${local.name_prefix}-gen"
 
@@ -125,13 +132,16 @@ module "eks" {
       max_size     = 6
       desired_size = 3
 
+      # Kubernetes labels
       labels = {
         role = "general"
       }
 
+      # Kubernetes taints
       taints = []
     }
 
+    # Data processing nodes
     data_processing = {
       name = "${local.name_prefix}-data"
 
@@ -225,9 +235,9 @@ resource "aws_s3_bucket" "model_registry" {
   tags   = local.common_tags
 }
 
-# ECR repositories for container images
-resource "aws_ecr_repository" "backend" {
-  name                 = "ml-platform/backend"
+# ECR repository for container images (consolidated)
+resource "aws_ecr_repository" "main" {
+  name                 = "data-platform-staging"
   image_tag_mutability = "MUTABLE"
 
   image_scanning_configuration {
@@ -238,27 +248,14 @@ resource "aws_ecr_repository" "backend" {
     encryption_type = "AES256"
   }
 
-  tags = local.common_tags
+  tags = merge(local.common_tags, {
+    Purpose = "Container images for all services (frontend, backend, ml)"
+  })
 }
 
-resource "aws_ecr_repository" "frontend" {
-  name                 = "ml-platform/frontend"
-  image_tag_mutability = "MUTABLE"
-
-  image_scanning_configuration {
-    scan_on_push = true
-  }
-
-  encryption_configuration {
-    encryption_type = "AES256"
-  }
-
-  tags = local.common_tags
-}
-
-# ECR lifecycle policies
-resource "aws_ecr_lifecycle_policy" "backend" {
-  repository = aws_ecr_repository.backend.name
+# ECR lifecycle policy
+resource "aws_ecr_lifecycle_policy" "main" {
+  repository = aws_ecr_repository.main.name
 
   policy = jsonencode({
     rules = [
@@ -305,53 +302,6 @@ resource "aws_ecr_lifecycle_policy" "backend" {
   })
 }
 
-resource "aws_ecr_lifecycle_policy" "frontend" {
-  repository = aws_ecr_repository.frontend.name
-
-  policy = jsonencode({
-    rules = [
-      {
-        rulePriority = 1
-        description  = "Keep last 10 production images"
-        selection = {
-          tagStatus     = "tagged"
-          tagPrefixList = ["prod", "staging"]
-          countType     = "imageCountMoreThan"
-          countNumber   = 10
-        }
-        action = {
-          type = "expire"
-        }
-      },
-      {
-        rulePriority = 2
-        description  = "Keep last 5 development images"
-        selection = {
-          tagStatus     = "tagged"
-          tagPrefixList = ["dev", "latest"]
-          countType     = "imageCountMoreThan"
-          countNumber   = 5
-        }
-        action = {
-          type = "expire"
-        }
-      },
-      {
-        rulePriority = 3
-        description  = "Delete untagged images older than 1 day"
-        selection = {
-          tagStatus   = "untagged"
-          countType   = "sinceImagePushed"
-          countUnit   = "days"
-          countNumber = 1
-        }
-        action = {
-          type = "expire"
-        }
-      }
-    ]
-  })
-}
 
 # Security groups
 resource "aws_security_group" "rds" {
@@ -436,10 +386,12 @@ output "s3_buckets" {
   }
 }
 
-output "ecr_repositories" {
-  description = "ECR repository URLs"
-  value = {
-    backend  = aws_ecr_repository.backend.repository_url
-    frontend = aws_ecr_repository.frontend.repository_url
-  }
+output "ecr_repository" {
+  description = "ECR repository URL for all container images"
+  value = aws_ecr_repository.main.repository_url
+}
+
+output "ecr_repository_name" {
+  description = "ECR repository name"
+  value = aws_ecr_repository.main.name
 }

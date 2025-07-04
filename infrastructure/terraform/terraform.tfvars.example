@@ -7,7 +7,7 @@ environment = "dev"
 region      = "us-west-2"
 
 # Cluster Configuration
-cluster_name = "ml-platform-dev"
+cluster_name = "data-platform-dev"
 cluster_version = "1.28"
 
 # Networking
@@ -76,8 +76,8 @@ security_config = {
 # Tags
 tags = {
   Environment = "dev"
-  Project     = "ml-platform"
-  Team        = "data-science"
+  Project     = "data-platform"
+  Team        = "data"
   Owner       = "your-email@company.com"
   CostCenter  = "engineering"
 }

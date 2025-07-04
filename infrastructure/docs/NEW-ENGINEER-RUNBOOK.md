@@ -167,8 +167,6 @@ docker run -it --rm --user root \
   -v ~/.aws:/workspace/.aws:ro \
   -v ~/.kube:/workspace/.kube \
   ml-platform-tools
-
-
 ```
 
 **🔍 Docker Container Notes:**
@@ -242,6 +240,13 @@ make init-tf-local && make apply-tf-local
 - **Storage**: MinIO object storage with pre-created buckets (ml-artifacts, data-lake, model-registry, etc.)
 - **Local Path Provisioner**: Dynamic volume provisioning for persistent workloads
 
+**What Just Happened:**
+
+1. **Terraform** created a Kind cluster with proper networking
+2. **Kubernetes** deployed PostgreSQL, Redis, MinIO as core services
+3. **Storage buckets** created for ML artifacts, data lake, and model registry
+4. All components are running and ready for argocd and application development
+
 ### Step 1.3: Deploy ArgoCD
 
 **🎯 Security Without Service Mesh Complexity**
@@ -250,7 +255,8 @@ Implement enterprise-grade security using plain Kubernetes + applications
 
 ```bash
 # Deploy app-level security
-make deploy-argocd-local
+make deploy-argocd-security
+make deploy-team-isolation
 
 # This creates:
 # ✅ Network policies for team isolation
@@ -258,6 +264,8 @@ make deploy-argocd-local
 # ✅ Application-level security middleware
 # ✅ Team namespaces (ml-team, data-team, app-team)
 
+# Check team isolation compliance (validates deployment)
+./scripts/security/check-single-cluster-isolation.sh
 
 # Debugging why the application cannot be synced
 kubectl get applications -n argocd
@@ -272,40 +280,18 @@ kubectl patch application security-policies -n argocd --type merge --patch '{"op
 kubectl get networkpolicies --all-namespaces
 kubectl get certificates --all-namespaces
 kubectl get prometheusrules --all-namespaces
+
+make deploy-argocd-apps
+
 ```
 
-**What Just Happened:**
-
-1. **Terraform** created a Kind cluster with proper networking
-2. **Kubernetes** deployed PostgreSQL, Redis, MinIO as core services
-3. **Storage buckets** created for ML artifacts, data lake, and model registry
-4. All components are running and ready for application development
-
-```bash
-# Verify deployment
-kind get clusters
-kubectl get pods --all-namespaces
-kubectl get services --all-namespaces
-
-# Access services via port forwarding
-kubectl port-forward -n database svc/postgres 5432:5432 &
-kubectl port-forward -n cache svc/redis 6379:6379 &
-kubectl port-forward -n storage svc/minio 9001:9000 &
-
-# Service endpoints:
-# Database: postgresql://admin:password@localhost:5432/metadata
-# Cache: redis://localhost:6379  
-# Storage: http://localhost:9001 (minioadmin/minioadmin)
-```
 
 ### Step 1.3: Checkers and testing
 
 ```bash
-# Check team isolation compliance (validates deployment)
-./infrastructure/scripts/security/check-single-cluster-isolation.sh
 
 # Check that labels are properly applied (for compliance)
-./infrastructure/scripts/monitoring/check-resource-labels.sh
+./scripts/monitoring/check-resource-labels.sh
 
 # Verify team isolation
 kubectl get namespaces --show-labels
@@ -437,9 +423,6 @@ kubectl describe resourcequota -n app-ml-team
 
 # Test security scanning results (if deployed)
 kubectl get vulnerabilityreports --all-namespaces 2>/dev/null || echo "Security scanning not deployed"
-
-# Validate cluster security posture
-./infrastructure/scripts/security/check-single-cluster-isolation.sh
 ```
 
 ### Step 3.2: Team Monitoring & Alerting (10 minutes)
@@ -493,9 +476,17 @@ else
 fi
 ```
 
-## 🛠️ Phase 4: Production Readiness (30 minutes)
+## 🛠️ Phase 4: Testing
 
-### Step 4.1: Disaster Recovery Testing (15 minutes)
+```bash
+make test
+
+make apply-tf-local
+````
+
+## 🛠️ Phase 5: Production Readiness (30 minutes) (WIP)
+
+### Step 5.1: Disaster Recovery Testing (15 minutes)
 
 Test your DR procedures:
 

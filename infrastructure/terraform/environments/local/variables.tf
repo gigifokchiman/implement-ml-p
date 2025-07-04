@@ -4,7 +4,7 @@
 variable "project_name" {
   description = "Name of the project"
   type        = string
-  default     = "ml-platform"
+  default     = "data-platform"
 }
 
 variable "environment" {
@@ -131,26 +131,6 @@ variable "storage_config" {
         name   = "model-registry"
         public = false
       }
-    ])
-  })
-  default = {}
-}
-
-variable "registry_config" {
-  description = "Container registry configuration"
-  type = object({
-    image_tag_mutability = optional(string, "MUTABLE")
-    scan_on_push         = optional(bool, true)
-    encryption_enabled   = optional(bool, true)
-    repositories = optional(list(string), [
-      "ml-platform/backend",
-      "ml-platform/frontend",
-      "ml-platform/data-processor",
-      "ml-platform/ml-trainer",
-      "data-platform/data-api",
-      "data-platform/data-processor",
-      "data-platform/stream-processor",
-      "data-platform/data-quality"
     ])
   })
   default = {}
