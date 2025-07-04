@@ -15,6 +15,7 @@ resource "kubernetes_namespace" "security_scanning" {
     labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"             = "security-scanning"
       "app.kubernetes.io/component"        = "security"
+      "workload-type"                      = "security"
       "pod-security.kubernetes.io/enforce" = "baseline"
       "pod-security.kubernetes.io/audit"   = "baseline"
       "pod-security.kubernetes.io/warn"    = "baseline"

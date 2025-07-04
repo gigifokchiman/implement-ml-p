@@ -15,6 +15,7 @@ resource "kubernetes_namespace" "performance_monitoring" {
     labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"             = "performance-monitoring"
       "app.kubernetes.io/component"        = "observability"
+      "workload-type"                      = "observability"
       "pod-security.kubernetes.io/enforce" = "baseline"
       "pod-security.kubernetes.io/audit"   = "baseline"
       "pod-security.kubernetes.io/warn"    = "baseline"

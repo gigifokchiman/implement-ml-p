@@ -33,6 +33,10 @@ locals {
     {
       environment = "local"
       is_local    = true
+      # Add environment label to common tags
+      common_tags = merge(local.shared_config.common_tags, {
+        environment = "local"
+      })
     }
   )
 }
@@ -84,7 +88,7 @@ resource "kind_cluster" "data_platform" {
       role = "control-plane"
 
       kubeadm_config_patches = [
-        "kind: InitConfiguration\nnodeRegistration:\n  kubeletExtraArgs:\n    node-labels: \"ingress-ready=true\""
+        "kind: InitConfiguration\nnodeRegistration:\n  kubeletExtraArgs:\n    node-labels: \"ingress-ready=true,environment=local,cluster-name=data-platform-local,workload-type=data-processing\""
       ]
 
       extra_port_mappings {
@@ -101,6 +105,10 @@ resource "kind_cluster" "data_platform" {
 
     node {
       role = "worker"
+      
+      kubeadm_config_patches = [
+        "kind: JoinConfiguration\nnodeRegistration:\n  kubeletExtraArgs:\n    node-labels: \"environment=local,cluster-name=data-platform-local,workload-type=data-processing\""
+      ]
     }
   }
 }
@@ -116,9 +124,9 @@ provider "kubernetes" {
 provider "helm" {
   kubernetes {
     host                   = kind_cluster.default.endpoint
-    cluster_ca_certificate = kind_cluster.default.cluster_ca_certificate
-    client_certificate     = kind_cluster.default.client_certificate
-    client_key             = kind_cluster.default.client_key
+    cluster_ca_certificate = base64decode(kind_cluster.default.cluster_ca_certificate)
+    client_certificate     = base64decode(kind_cluster.default.client_certificate)
+    client_key             = base64decode(kind_cluster.default.client_key)
   }
 }
 
@@ -135,9 +143,9 @@ provider "helm" {
   alias = "data_platform"
   kubernetes {
     host                   = kind_cluster.data_platform.endpoint
-    cluster_ca_certificate = kind_cluster.data_platform.cluster_ca_certificate
-    client_certificate     = kind_cluster.data_platform.client_certificate
-    client_key             = kind_cluster.data_platform.client_key
+    cluster_ca_certificate = base64decode(kind_cluster.data_platform.cluster_ca_certificate)
+    client_certificate     = base64decode(kind_cluster.data_platform.client_certificate)
+    client_key             = base64decode(kind_cluster.data_platform.client_key)
   }
 }
 
@@ -166,7 +174,7 @@ module "ml_platform" {
   cache_config    = var.cache_config
   storage_config  = var.storage_config
 
-  tags = local.shared_config.common_tags
+  tags = local.environment_config.common_tags
 
   depends_on = [kind_cluster.default]
 }
@@ -182,13 +190,98 @@ module "data_platform" {
   cache_config    = var.cache_config
   storage_config  = var.storage_config
 
-  tags = local.shared_config.common_tags
+  tags = local.environment_config.common_tags
 
   depends_on = [kind_cluster.data_platform]
 
   providers = {
     kubernetes = kubernetes.data_platform
     helm       = helm.data_platform
+  }
+}
+
+# Generate random passwords
+resource "random_password" "argocd_admin" {
+  length  = 16
+  special = true
+}
+
+# Secret Store for Platform Secrets
+module "secret_store" {
+  source = "../../modules/secret-store"
+
+  environment = "local"
+  tags        = local.environment_config.common_tags
+
+  argocd_admin_password    = random_password.argocd_admin.result
+  grafana_admin_password   = "admin"
+  postgres_admin_password  = "password"
+  redis_password          = ""
+  minio_access_key        = "minioadmin"
+  minio_secret_key        = "minioadmin"
+
+  depends_on = [kind_cluster.data_platform]
+
+  providers = {
+    kubernetes = kubernetes.data_platform
+  }
+}
+
+# Security Bootstrap for Data Platform
+module "security_bootstrap" {
+  source = "../../modules/security-bootstrap"
+
+  environment  = "local"
+  cluster_name = "data-platform-local"
+  tags         = local.environment_config.common_tags
+
+  cert_manager_config = {
+    version               = "v1.13.2"
+    enable_cluster_issuer = true
+    letsencrypt_email     = "admin@example.com"
+  }
+
+  nginx_config = {
+    version      = "v1.8.2"
+    enable_ssl   = true
+    default_cert = "default-ssl-certificate"
+  }
+
+  argocd_config = {
+    version        = "5.51.4"
+    enable_ui      = true
+    admin_password = random_password.argocd_admin.result
+    enable_dex     = false
+    enable_tls     = true
+  }
+
+  prometheus_config = {
+    version                = "55.5.0"
+    enable_grafana        = true
+    grafana_admin_password = "admin"
+    storage_class         = ""
+    retention_days        = "15d"
+  }
+
+  depends_on = [kind_cluster.data_platform]
+
+  providers = {
+    kubernetes = kubernetes.data_platform
+    helm       = helm.data_platform
+  }
+}
+
+# Audit Logging Configuration
+module "audit_logging" {
+  source = "../../modules/audit-logging"
+
+  environment = "local"
+  tags        = local.environment_config.common_tags
+
+  depends_on = [kind_cluster.data_platform]
+
+  providers = {
+    kubernetes = kubernetes.data_platform
   }
 }
 

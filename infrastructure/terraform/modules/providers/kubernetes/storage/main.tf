@@ -13,6 +13,7 @@ resource "kubernetes_namespace" "storage" {
     labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"      = "storage"
       "app.kubernetes.io/component" = "storage"
+      "workload-type"               = "storage"
     })
   }
 }
@@ -123,6 +124,10 @@ resource "kubernetes_service" "minio" {
   metadata {
     name      = "minio"
     namespace = kubernetes_namespace.storage.metadata[0].name
+    labels = {
+      "app.kubernetes.io/name"      = "minio"
+      "app.kubernetes.io/component" = "storage"
+    }
   }
 
   spec {

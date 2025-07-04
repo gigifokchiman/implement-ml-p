@@ -1,6 +1,20 @@
 # Platform-agnostic cache interface
 # Delegates to provider-specific implementations
 
+terraform {
+  required_providers {
+    kubernetes = {
+      source = "hashicorp/kubernetes"
+    }
+    helm = {
+      source = "hashicorp/helm"
+    }
+    aws = {
+      source = "hashicorp/aws"
+    }
+  }
+}
+
 locals {
   is_local = var.config.node_type == "local"
 }

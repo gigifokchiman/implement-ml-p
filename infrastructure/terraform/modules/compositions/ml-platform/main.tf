@@ -1,6 +1,20 @@
 # ML Platform Composition Module
 # Orchestrates all platform components
 
+terraform {
+  required_providers {
+    kubernetes = {
+      source = "hashicorp/kubernetes"
+    }
+    helm = {
+      source = "hashicorp/helm"
+    }
+    aws = {
+      source = "hashicorp/aws"
+    }
+  }
+}
+
 module "database" {
   source = "../../platform/database"
 

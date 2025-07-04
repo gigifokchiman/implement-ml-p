@@ -22,10 +22,10 @@ TF_DIR := terraform/environments
 SCRIPTS_DIR := scripts
 
 # Docker configuration
-DOCKER_IMAGE := ml-platform/infra-tools
+DOCKER_IMAGE := data-platform/infra-tools
 DOCKER_TAG := latest
 DOCKER_COMPOSE_FILE := docker-compose.infra.yml
-CONTAINER_NAME := ml-platform-infra-tools
+CONTAINER_NAME := data-platform-infra-tools
 
 help: ## Show this help message
 	@echo '$(BLUE)ML Platform Infrastructure Makefile$(NC)'
@@ -37,70 +37,204 @@ help: ## Show this help message
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  $(GREEN)%-20s$(NC) %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 	@echo ''
 	@echo 'Examples:'
-	@echo '  $(GREEN)make init-local$(NC)     Initialize local environment'
-	@echo '  $(GREEN)make plan-local$(NC)     Plan changes for local environment'
-	@echo '  $(GREEN)make apply-local$(NC)    Apply changes to local environment'
+	@echo '  $(GREEN)make deploy-local$(NC)       Deploy local ML platform (clean)'
+	@echo '  $(GREEN)make deploy-platform$(NC)    Deploy complete platform stack'
+	@echo '  $(GREEN)make check-labels$(NC)       Check resource compliance'
+	@echo '  $(GREEN)make local-down$(NC)         Cleanup local environment'
 
-# Local environment targets
-init-local: ## Initialize local environment (TF $(TF_VERSION_LOCAL))
-	@echo "$(BLUE)🔧 Initializing local environment with Terraform $(TF_VERSION_LOCAL)$(NC)"
-	@$(SCRIPTS_DIR)/tf-wrapper.sh local init
+# =============================================================================
+# Terraform Infrastructure Management
+# =============================================================================
+init-tf-local: ## (TF-LOCAL) Initialize local terraform
+	@echo "$(BLUE)🔧 Initializing local Terraform$(NC)"
+	@cd terraform/environments/local && rm -f .terraform.lock.hcl && rm -rf .terraform && terraform init --upgrade
 
-plan-local: ## Plan local environment changes
-	@echo "$(BLUE)📋 Planning local environment changes$(NC)"
-	@$(SCRIPTS_DIR)/tf-wrapper.sh local plan
+plan-tf-local: ## (TF-LOCAL) Plan local terraform changes
+	@echo "$(BLUE)📋 Planning local Terraform changes$(NC)"
+	@cd terraform/environments/local && terraform plan
 
-apply-local: ## Apply local environment changes
-	@echo "$(GREEN)🚀 Applying local environment changes$(NC)"
-	@$(SCRIPTS_DIR)/tf-wrapper.sh local apply
+apply-tf-local: ## (TF-LOCAL) Apply local terraform changes
+	@echo "$(GREEN)🚀 Applying local Terraform changes$(NC)"
+	@cd terraform/environments/local && terraform apply -auto-approve
 
-destroy-local: ## Destroy local environment (DANGEROUS!)
+clean-tf-local: ## (TF-LOCAL) Destroy local environment (uses terraform destroy)
 	@echo "$(RED)💣 Destroying local environment$(NC)"
-	@$(SCRIPTS_DIR)/tf-wrapper.sh local destroy
+	@cd terraform/environments/local && terraform destroy -auto-approve
+	@cd terraform/environments/local && rm -f .terraform.lock.hcl && rm -rf .terraform
+	@kind get clusters | xargs -I {} kind delete cluster --name {}
+
+# Target-specific terraform operations
+apply-cluster-tf-local: ## (TF-LOCAL) Apply only the data platform cluster
+	@echo "$(BLUE)🐳 Creating data platform cluster$(NC)"
+	@cd terraform/environments/local && terraform apply -target=kind_cluster.data_platform -auto-approve
+
+# kubectl context setup
+setup-kubectl-local: ## Configure kubectl context for local cluster
+	@echo "$(BLUE)⚙️ Configuring kubectl context$(NC)"
+	@kubectl config use-context kind-data-platform-local
+
+# TODO: review it
+# Storage provisioner setup
+setup-storage-local: ## Install and configure local-path-provisioner - this solves error about the storage.
+	@echo "$(BLUE)💾 Setting up storage provisioner$(NC)"
+	@if ! kubectl get deployment -n local-path-storage local-path-provisioner 2>/dev/null; then \
+		echo "📦 Installing local-path-provisioner..."; \
+		kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.24/deploy/local-path-storage.yaml; \
+	fi
+	@echo "⏳ Waiting for provisioner to be ready..."
+	@kubectl wait --for=condition=ready pod -n local-path-storage -l app=local-path-provisioner --timeout=120s
+	@kubectl delete storageclass standard --ignore-not-found=true
+	@echo "💾 Creating storage class..."
+	@kubectl apply -f kubernetes/storage/local-path-storage-class.yaml
+	@echo "$(GREEN)✅ Storage provisioner configured!$(NC)"
+
+setup-team-namespaces: ## Create team namespaces with proper labels
+	@echo "$(BLUE)👥 Setting up team namespaces$(NC)"
+	@kubectl apply -f kubernetes/team-isolation/team-namespaces.yaml
+	@echo "$(GREEN)✅ Team namespaces created!$(NC)"
+
+deploy-security-bootstrap-tf-local: ## (TF-LOCAL) Deploy security infrastructure in correct order
+	@echo "$(GREEN)🔐 Deploying security bootstrap infrastructure$(NC)"
+	@cd terraform/environments/local && terraform apply \
+		-target=module.security_bootstrap.helm_release.cert_manager \
+		-target=module.security_bootstrap.helm_release.nginx_ingress \
+		-target=module.security_bootstrap.time_sleep.wait_for_cert_manager \
+		-auto-approve
+	@echo "$(YELLOW)⏳ Waiting for CRDs...$(NC)"
+	@kubectl wait --for=condition=established --timeout=60s crd/clusterissuers.cert-manager.io
+	@echo "$(GREEN)📋 Deploying ClusterIssuers and ArgoCD$(NC)"
+	@cd terraform/environments/local && terraform apply \
+		-target=module.security_bootstrap.kubernetes_manifest.selfsigned_issuer \
+		-target=module.security_bootstrap.kubernetes_manifest.letsencrypt_issuer \
+		-target=module.security_bootstrap.helm_release.argocd \
+		-target=module.security_bootstrap.helm_release.prometheus \
+		-auto-approve
+	@echo "$(YELLOW)⏳ Waiting for ArgoCD to be ready...$(NC)"
+	@kubectl wait --for=condition=ready pod -n argocd -l app.kubernetes.io/name=argocd-server --timeout=300s || echo "⚠️  ArgoCD may need more time"
+	@echo "$(GREEN)🔒 Applying remaining security bootstrap resources$(NC)"
+	@cd terraform/environments/local && terraform apply -target=module.security_bootstrap -auto-approve
+	@echo "$(GREEN)✅ Security bootstrap complete with GitOps and Monitoring$(NC)"
 
 # Development environment targets
-init-dev: ## Initialize dev environment (TF $(TF_VERSION_DEV))
+init-dev: ## (TF-DEV) Initialize dev environment (TF $(TF_VERSION_DEV))
 	@echo "$(BLUE)🔧 Initializing dev environment with Terraform $(TF_VERSION_DEV)$(NC)"
-	@$(SCRIPTS_DIR)/tf-wrapper.sh dev init
+	@cd terraform/environments/dev && rm -f .terraform.lock.hcl && rm -rf .terraform && terraform init --upgrade
 
-plan-dev: ## Plan dev environment changes
+plan-dev: ## (TF-DEV) Plan dev environment changes
 	@echo "$(BLUE)📋 Planning dev environment changes$(NC)"
-	@$(SCRIPTS_DIR)/tf-wrapper.sh dev plan
+	@cd terraform/environments/dev && terraform plan
 
-apply-dev: ## Apply dev environment changes
+apply-dev: ## (TF-DEV) Apply dev environment changes
 	@echo "$(GREEN)🚀 Applying dev environment changes$(NC)"
-	@$(SCRIPTS_DIR)/tf-wrapper.sh dev apply
+	@cd terraform/environments/dev && terraform apply -auto-approve
+
+destroy-dev: ## (TF-DEV) Destroy dev environment
+	@echo "$(RED)💣 Destroying dev environment$(NC)"
+	@cd terraform/environments/dev && terraform destroy -auto-approve
+
+cleanup-dev: ## Clean up dev terraform cache
+	@echo "$(YELLOW)🧹 Cleaning up dev terraform$(NC)"
+	@cd terraform/environments/dev && rm -rf .terraform .terraform.lock.hcl
+
+# Complete dev deployment
+deploy-dev-full: ## Complete dev environment deployment with cleanup
+	@echo "$(GREEN)🚀 ML Platform Dev Deployment$(NC)"
+	@echo "=================================="
+	@echo ""
+	@echo "📍 Working in dev environment"
+	@echo ""
+	@echo "🧹 Cleaning up existing resources..."
+	@$(MAKE) destroy-dev || echo "⚠️  No existing dev environment to destroy"
+	@$(MAKE) cleanup-dev
+	@echo "✅ Cleanup complete"
+	@echo ""
+	@echo "🔧 Step 1: Setting up Terraform..."
+	@$(MAKE) init-dev
+	@echo "✅ Terraform provider setup complete"
+	@echo ""
+	@echo "☁️  Step 2: Creating AWS EKS cluster..."
+	@$(MAKE) apply-dev
+	@echo ""
+	@echo "🔧 Configuring kubectl context..."
+	@aws eks update-kubeconfig --region us-west-2 --name data-platform-dev || echo "⚠️  Configure kubectl manually"
+	@echo ""
+	@echo "🔐 Step 3: Deploying security bootstrap (CRDs)..."
+	@cd terraform/environments/dev && terraform apply \
+		-target=module.security_bootstrap.helm_release.cert_manager \
+		-target=module.security_bootstrap.helm_release.nginx_ingress \
+		-auto-approve || echo "⚠️  Security bootstrap may need manual configuration"
+	@kubectl wait --for=condition=established --timeout=60s crd/clusterissuers.cert-manager.io || echo "⚠️  CRDs not ready"
+	@cd terraform/environments/dev && terraform apply -target=module.security_bootstrap -auto-approve || echo "⚠️  Complete security bootstrap manually"
+	@echo ""
+	@echo "✅ Step 4: Verifying deployment..."
+	@kubectl get nodes || echo "⚠️  Cluster not ready yet"
+	@kubectl get namespaces
+	@echo ""
+	@echo "$(GREEN)🎉 Dev environment deployment completed!$(NC)"
+	@echo ""
+	@echo "🔗 Next steps:"
+	@echo "  1. Configure kubectl: aws eks update-kubeconfig --region us-west-2 --name data-platform-dev"
+	@echo "  2. Deploy applications: make deploy-dev-apps"
+	@echo "  3. Setup monitoring: make deploy-monitoring"
+
+deploy-dev-quick: ## Quick dev deployment (no cleanup)
+	@echo "$(GREEN)⚡ Quick Dev Environment Deployment$(NC)"
+	@echo "===================================="
+	@$(MAKE) init-dev
+	@$(MAKE) apply-dev
+	@echo "$(GREEN)✅ Quick dev deployment completed!$(NC)"
 
 # Staging environment targets
-init-staging: ## Initialize staging environment (TF $(TF_VERSION_STAGING))
+init-staging: ## (TF-STAGING) Initialize staging environment (TF $(TF_VERSION_STAGING))
 	@echo "$(BLUE)🔧 Initializing staging environment with Terraform $(TF_VERSION_STAGING)$(NC)"
-	@$(SCRIPTS_DIR)/tf-wrapper.sh staging init
+	@cd terraform/environments/staging && rm -f .terraform.lock.hcl && rm -rf .terraform && terraform init --upgrade
 
-plan-staging: ## Plan staging environment changes
+plan-staging: ## (TF-STAGING) Plan staging environment changes
 	@echo "$(BLUE)📋 Planning staging environment changes$(NC)"
-	@$(SCRIPTS_DIR)/tf-wrapper.sh staging plan
+	@cd terraform/environments/staging && terraform plan
 
-apply-staging: ## Apply staging environment changes
+apply-staging: ## (TF-STAGING) Apply staging environment changes
 	@echo "$(GREEN)🚀 Applying staging environment changes$(NC)"
-	@$(SCRIPTS_DIR)/tf-wrapper.sh staging apply
+	@cd terraform/environments/staging && terraform apply -auto-approve
+
+destroy-staging: ## (TF-STAGING) Destroy staging environment
+	@echo "$(RED)💣 Destroying staging environment$(NC)"
+	@cd terraform/environments/staging && terraform destroy -auto-approve
+
+cleanup-staging: ## Clean up staging terraform cache
+	@echo "$(YELLOW)🧹 Cleaning up staging terraform$(NC)"
+	@cd terraform/environments/staging && rm -rf .terraform .terraform.lock.hcl
 
 # Production environment targets
-init-prod: ## Initialize prod environment (TF $(TF_VERSION_PROD))
+init-prod: ## (TF-PROD) Initialize prod environment (TF $(TF_VERSION_PROD))
 	@echo "$(BLUE)🔧 Initializing prod environment with Terraform $(TF_VERSION_PROD)$(NC)"
-	@$(SCRIPTS_DIR)/tf-wrapper.sh prod init
+	@cd terraform/environments/prod && rm -f .terraform.lock.hcl && rm -rf .terraform && terraform init --upgrade
 
-plan-prod: ## Plan prod environment changes
+plan-prod: ## (TF-PROD) Plan prod environment changes
 	@echo "$(BLUE)📋 Planning prod environment changes$(NC)"
-	@$(SCRIPTS_DIR)/tf-wrapper.sh prod plan
+	@cd terraform/environments/prod && terraform plan
 
-apply-prod: ## Apply prod environment changes (requires confirmation)
+apply-prod: ## (TF-PROD) Apply prod environment changes (requires confirmation)
 	@echo "$(RED)⚠️  WARNING: This will apply changes to PRODUCTION!$(NC)"
 	@read -p "Are you sure? Type 'yes' to continue: " -r; \
 	if [ "$$REPLY" = "yes" ]; then \
-		$(SCRIPTS_DIR)/tf-wrapper.sh prod apply; \
+		cd terraform/environments/prod && terraform apply; \
 	else \
 		echo "$(GREEN)✅ Production apply cancelled$(NC)"; \
 	fi
+
+destroy-prod: ## (TF-PROD) Destroy production environment (DANGEROUS!)
+	@echo "$(RED)💣 WARNING: This will DESTROY PRODUCTION!$(NC)"
+	@read -p "Type 'DELETE-PRODUCTION' to continue: " -r; \
+	if [ "$$REPLY" = "DELETE-PRODUCTION" ]; then \
+		cd terraform/environments/prod && terraform destroy; \
+	else \
+		echo "$(GREEN)✅ Production destroy cancelled$(NC)"; \
+	fi
+
+cleanup-prod: ## Clean up production terraform cache
+	@echo "$(YELLOW)🧹 Cleaning up production terraform$(NC)"
+	@cd terraform/environments/prod && rm -rf .terraform .terraform.lock.hcl
 
 # Utility targets
 format: ## Format all Terraform files
@@ -121,21 +255,177 @@ clean: ## Clean Terraform cache and temporary files
 	@find $(TF_DIR) -type f -name "*.tfplan" -exec rm -f {} + 2>/dev/null || true
 	@echo "$(GREEN)✅ Cleanup completed$(NC)"
 
-deep-clean: ## Deep clean all temporary files, state, and artifacts
-	@echo "$(YELLOW)🧹 Running deep infrastructure cleanup$(NC)"
-	@$(SCRIPTS_DIR)/cleanup-infrastructure.sh
-	@echo "$(GREEN)✅ Deep cleanup completed$(NC)"
 
 test: ## Run infrastructure tests
 	@echo "$(BLUE)🧪 Running infrastructure tests$(NC)"
 	@cd tests && ./run-all.sh
 
-# Quick local development workflow
-local-up: init-local plan-local ## Initialize and plan local environment
-	@echo "$(GREEN)✅ Local environment ready for apply$(NC)"
+# CI/CD deployment workflows
+deploy-cicd-local: init-local apply-cluster-local setup-kubectl apply-local ## Full local deployment (CI/CD)
+	@echo "$(GREEN)✅ Complete local ML platform deployed$(NC)"
 
-local-down: destroy-local clean ## Destroy local environment and clean up
-	@echo "$(GREEN)✅ Local environment destroyed$(NC)"
+deploy-cicd-dev: init-dev apply-dev ## Full dev deployment (CI/CD)
+	@echo "$(GREEN)✅ Complete dev environment deployed$(NC)"
+
+deploy-cicd-staging: init-staging apply-staging ## Full staging deployment (CI/CD)
+	@echo "$(GREEN)✅ Complete staging environment deployed$(NC)"
+
+deploy-cicd-prod: init-prod apply-prod ## Full production deployment (CI/CD)
+	@echo "$(GREEN)✅ Complete production environment deployed$(NC)"
+
+# Complete local deployment (replaces deploy-local.sh)
+deploy-tf-local: ## Complete local ML platform deployment with cleanup
+	@echo "$(GREEN)🚀 ML Platform Local Deployment$(NC)"
+	@echo "======================================"
+	@echo ""
+	@echo "📍 Working in: $(shell pwd)"
+	@echo ""
+	@echo "🧹 Cleaning up existing resources..."
+	@$(MAKE) clean-tf-local
+	@echo ""
+	@echo "✅ Cleanup complete"
+	@echo ""
+	@echo "🔧 Step 1: Setting up Terraform..."
+	@$(MAKE) init-tf-local
+	@echo "✅ Terraform provider setup complete"
+	@echo ""
+	@echo "🐳 Step 2: Creating data platform cluster..."
+	@$(MAKE) apply-cluster-tf-local
+	@echo ""
+	@echo "🔧 Configuring kubectl context..."
+	@$(MAKE) setup-kubectl-local
+	@echo ""
+	# @echo "💾 Step 3: Setting up storage provisioner..."
+	# @$(MAKE) setup-storage-local
+	@echo ""
+	@echo "🔐 Step 4: Deploying security bootstrap (CRDs)..."
+	@$(MAKE) deploy-security-bootstrap-tf-local
+	@echo ""
+	@echo "🏗️  Step 5: Deploying others..."
+	@$(MAKE) apply-tf-local
+	@echo ""
+	@echo "✅ Step 6: Verifying deployment..."
+	@kubectl get pods --all-namespaces | grep -E "(postgres|redis|minio|prometheus|grafana)" || true
+	@kubectl get pvc --all-namespaces
+	@echo ""
+	@echo "$(GREEN)🎉 Data Platform deployment completed successfully!$(NC)"
+	@echo ""
+	@echo "🔗 To access services, use these port-forward commands:"
+	@echo "  kubectl port-forward -n database svc/postgres 5432:5432"
+	@echo "  kubectl port-forward -n cache svc/redis 6379:6379"
+	@echo "  kubectl port-forward -n storage svc/minio 9001:9000"
+	@echo "  kubectl port-forward -n monitoring svc/prometheus-grafana 3000:80"
+	@echo "  kubectl port-forward -n argocd svc/argocd-server 8080:443"
+	@echo ""
+	@echo "🌐 Service endpoints:"
+	@echo "  Database: postgresql://admin:password@localhost:5432/metadata"
+	@echo "  Cache: redis://localhost:6379"
+	@echo "  Storage: http://localhost:9001 (minioadmin/minioadmin)"
+	@echo "  Grafana: http://localhost:3000 (admin/admin)"
+	@echo "  ArgoCD: https://localhost:8080 (admin/admin123)"
+	@echo ""
+	@echo "📚 Next: Deploy ArgoCD applications with 'make deploy-argocd-apps'"
+
+# Local development workflow (calls scripts - kept for compatibility)
+local-up: deploy-tf-local ## Deploy local platform (full deployment)
+
+deep-clean: ## Deep security cleanup (repository files + infrastructure)
+	@echo "$(RED)💣 Running deep security cleanup$(NC)"
+	@$(MAKE) tf-clean
+	@$(SCRIPTS_DIR)/management/cleanup-infrastructure.sh
+
+# =============================================================================
+# Security - Hybrid Infrastructure + GitOps
+# =============================================================================
+deploy-tf-security-only: ## (TF) Deploy security infrastructure via Terraform only
+	@echo "$(BLUE)🔧 Deploying security infrastructure via Terraform$(NC)"
+	@cd terraform/environments/local && terraform apply -target=module.security_bootstrap -auto-approve
+	@echo "$(GREEN)✅ Security infrastructure deployed$(NC)"
+
+deploy-argocd-security: ## (ArgoCD) Deploy security policies via GitOps
+	@echo "$(BLUE)🚀 Deploying security policies via ArgoCD$(NC)"
+	@kubectl apply -f kubernetes/security/argocd-security-apps.yaml
+	@echo "$(YELLOW)⏳ Waiting for ArgoCD to sync applications...$(NC)"
+	@kubectl wait --for=condition=Synced --timeout=300s application/security-policies -n argocd || echo "⚠️  Manual sync may be required"
+	@kubectl wait --for=condition=Synced --timeout=300s application/tls-certificates -n argocd || echo "⚠️  Manual sync may be required"
+	@kubectl wait --for=condition=Synced --timeout=300s application/network-policies -n argocd || echo "⚠️  Manual sync may be required"
+	@echo "$(GREEN)✅ Security applications deployed via ArgoCD$(NC)"
+
+validate-security: ## Validate security configuration
+	@echo "$(BLUE)🔍 Validating security configuration$(NC)"
+	@$(SCRIPTS_DIR)/security/validate-security.sh
+
+deploy-security-full: terraform-security-bootstrap argocd-deploy-security ## Deploy complete security stack (hybrid)
+	@echo "$(GREEN)🎉 Complete security stack deployed!$(NC)"
+	@echo ""
+	@echo "🔐 Security Features Deployed:"
+	@echo "  - Infrastructure: cert-manager, ingress-nginx (Terraform)"
+	@echo "  - Policies: NetworkPolicies, TLS certificates (ArgoCD)"
+	@echo "  - Validation: Security testing scripts"
+
+deploy-team-isolation: ## Deploy team isolation (quotas, RBAC)
+	@echo "$(BLUE)👥 Deploying team isolation$(NC)"
+	@$(SCRIPTS_DIR)/security/deploy-single-cluster-isolation.sh
+
+# GitOps and monitoring
+# deploy-argocd: ## Deploy ArgoCD for GitOps
+# 	@echo "$(BLUE)🚀 Deploying ArgoCD$(NC)"
+# 	@$(SCRIPTS_DIR)/deployment/deploy-argocd.sh
+
+deploy-argocd-apps: ## (ArgoCD) Deploy ArgoCD applications
+	@echo "$(BLUE)📱 Setting up ArgoCD applications$(NC)"
+	@echo "🔐 Deploying security applications..."
+	@kubectl apply -f kubernetes/security/argocd-security-apps.yaml
+	@echo "🚀 Deploying base GitOps configuration..."
+	@kubectl apply -f kubernetes/base/gitops/argocd-projects.yaml
+	@echo "$(GREEN)✅ ArgoCD applications deployed$(NC)"
+
+# Compliance and validation
+check-labels: ## Check resource label compliance
+	@echo "$(BLUE)🔍 Checking resource label compliance$(NC)"
+	@$(SCRIPTS_DIR)/monitoring/check-resource-labels.sh
+
+audit-logs: ## View Kubernetes audit logs
+	@echo "$(BLUE)📋 Kubernetes Audit Logs$(NC)"
+	@echo "=========================="
+	@docker exec data-platform-local-control-plane cat /var/log/kubernetes/audit.log 2>/dev/null | tail -20 || echo "Audit logs not available (cluster may not have audit logging enabled)"
+
+audit-logs-follow: ## Follow Kubernetes audit logs in real-time
+	@echo "$(BLUE)📋 Following Kubernetes Audit Logs$(NC)"
+	@echo "Press Ctrl+C to stop"
+	@docker exec data-platform-local-control-plane tail -f /var/log/kubernetes/audit.log 2>/dev/null || echo "Audit logs not available"
+
+# Development utilities
+show-status: ## Show infrastructure status
+	@echo "$(BLUE)📊 Infrastructure Status$(NC)"
+	@$(SCRIPTS_DIR)/utilities/show-infrastructure.sh
+
+port-forward: ## Setup port forwarding for all services
+	@echo "$(BLUE)🔗 Setting up port forwarding$(NC)"
+	@echo "Starting port forwards in background..."
+	@kubectl port-forward -n database svc/postgres 5432:5432 > /dev/null 2>&1 &
+	@kubectl port-forward -n cache svc/redis 6379:6379 > /dev/null 2>&1 &
+	@kubectl port-forward -n storage svc/minio 9001:9000 > /dev/null 2>&1 &
+	@kubectl port-forward -n monitoring svc/prometheus-grafana 3000:80 > /dev/null 2>&1 &
+	@echo "$(GREEN)✅ Port forwards started$(NC)"
+	@echo "  Database: postgresql://admin:password@localhost:5432/metadata"
+	@echo "  Cache: redis://localhost:6379"
+	@echo "  Storage: http://localhost:9001 (minioadmin/minioadmin)"
+	@echo "  Grafana: http://localhost:3000 (admin/admin)"
+
+kill-port-forward: ## Kill all port forwarding processes
+	@echo "$(YELLOW)🛑 Killing port forward processes$(NC)"
+	@pkill -f "kubectl port-forward" || true
+	@echo "$(GREEN)✅ Port forwards stopped$(NC)"
+
+# Complete platform setup
+deploy-platform: deploy-local deploy-security deploy-team-isolation deploy-argocd deploy-monitoring ## Deploy complete platform stack
+	@echo "$(GREEN)🎉 Complete ML platform deployed!$(NC)"
+	@echo ""
+	@echo "$(BLUE)🔗 Access services:$(NC)"
+	@echo "  ArgoCD: kubectl port-forward svc/argocd-server -n argocd 8080:443 > /dev/null 2>&1 &"
+	@echo "  Grafana: kubectl port-forward svc/prometheus-grafana -n monitoring 3000:80 > /dev/null 2>&1 &"
+	@echo "  MinIO: kubectl port-forward -n storage svc/minio 9001:9000  > /dev/null 2>&1 &"
 
 # Module targets
 plan-module-%: ## Plan specific module (e.g., make plan-module-database ENV=local)
@@ -155,17 +445,17 @@ apply-module-%: ## Apply specific module (e.g., make apply-module-database ENV=l
 	@$(SCRIPTS_DIR)/tf-wrapper.sh $(ENV) apply -target=module.$* -auto-approve
 
 # Check prerequisites
-check-deps: ## Check required dependencies
-	@echo "$(BLUE)🔍 Checking dependencies$(NC)"
-	@command -v terraform >/dev/null 2>&1 || { echo "$(RED)❌ terraform not found$(NC)"; exit 1; }
-	@command -v kubectl >/dev/null 2>&1 || { echo "$(RED)❌ kubectl not found$(NC)"; exit 1; }
-	@command -v docker >/dev/null 2>&1 || { echo "$(RED)❌ docker not found$(NC)"; exit 1; }
-	@if command -v tfenv >/dev/null 2>&1; then \
-		echo "$(GREEN)✅ tfenv installed$(NC)"; \
-	else \
-		echo "$(YELLOW)⚠️  tfenv not found (recommended for version management)$(NC)"; \
-	fi
-	@echo "$(GREEN)✅ All required dependencies found$(NC)"
+# check-deps: ## Check required dependencies
+# 	@echo "$(BLUE)🔍 Checking dependencies$(NC)"
+# 	@command -v terraform >/dev/null 2>&1 || { echo "$(RED)❌ terraform not found$(NC)"; exit 1; }
+# 	@command -v kubectl >/dev/null 2>&1 || { echo "$(RED)❌ kubectl not found$(NC)"; exit 1; }
+# 	@command -v docker >/dev/null 2>&1 || { echo "$(RED)❌ docker not found$(NC)"; exit 1; }
+# 	@if command -v tfenv >/dev/null 2>&1; then \
+# 		echo "$(GREEN)✅ tfenv installed$(NC)"; \
+# 	else \
+# 		echo "$(YELLOW)⚠️  tfenv not found (recommended for version management)$(NC)"; \
+# 	fi
+# 	@echo "$(GREEN)✅ All required dependencies found$(NC)"
 
 # Show current infrastructure status
 status: ## Show infrastructure status for all environments
@@ -325,12 +615,115 @@ docker-help: ## Show Docker-specific help
 	@echo "  $(GREEN)make docker-clean$(NC)        Clean up Docker resources"
 
 # =============================================================================
+# CI/CD Specific Targets (for automation)
+# =============================================================================
+
+# CI/CD Environment validation
+ci-check-deps: check-deps ## CI/CD: Check all dependencies
+	@echo "$(BLUE)🔍 CI/CD: Validating environment$(NC)"
+	@command -v make >/dev/null 2>&1 || { echo "$(RED)❌ make not found$(NC)"; exit 1; }
+	@echo "$(GREEN)✅ CI/CD environment ready$(NC)"
+
+# CI/CD Terraform operations with proper error handling
+ci-init-%: ## CI/CD: Initialize environment with validation
+	@echo "$(BLUE)🔧 CI/CD: Initializing $* environment$(NC)"
+	@cd terraform/environments/$* && \
+		rm -f .terraform.lock.hcl && \
+		rm -rf .terraform && \
+		terraform init --upgrade
+	@echo "$(GREEN)✅ CI/CD: $* environment initialized$(NC)"
+
+ci-plan-%: ## CI/CD: Plan with output saving
+	@echo "$(BLUE)📋 CI/CD: Planning $* environment$(NC)"
+	@cd terraform/environments/$* && \
+		terraform plan -out=$*.tfplan
+	@echo "$(GREEN)✅ CI/CD: $* plan saved$(NC)"
+
+ci-apply-%: ## CI/CD: Apply with plan validation
+	@echo "$(GREEN)🚀 CI/CD: Applying $* environment$(NC)"
+	@cd terraform/environments/$* && \
+		terraform apply $*.tfplan
+	@echo "$(GREEN)✅ CI/CD: $* environment deployed$(NC)"
+
+ci-destroy-%: ## CI/CD: Destroy with confirmation bypass
+	@echo "$(RED)💣 CI/CD: Destroying $* environment$(NC)"
+	@cd terraform/environments/$* && \
+		terraform destroy -auto-approve
+	@echo "$(GREEN)✅ CI/CD: $* environment destroyed$(NC)"
+
+# CI/CD Full workflows
+ci-deploy-local: ci-check-deps ci-init-local ci-plan-local ci-apply-local ## CI/CD: Complete local deployment
+	@echo "$(GREEN)🎉 CI/CD: Local environment deployed$(NC)"
+
+ci-deploy-dev: ci-check-deps ci-init-dev ci-plan-dev ci-apply-dev ## CI/CD: Complete dev deployment
+	@echo "$(GREEN)🎉 CI/CD: Dev environment deployed$(NC)"
+
+ci-deploy-staging: ci-check-deps ci-init-staging ci-plan-staging ci-apply-staging ## CI/CD: Complete staging deployment
+	@echo "$(GREEN)🎉 CI/CD: Staging environment deployed$(NC)"
+
+ci-deploy-prod: ci-check-deps ci-init-prod ci-plan-prod ci-apply-prod ## CI/CD: Complete production deployment
+	@echo "$(GREEN)🎉 CI/CD: Production environment deployed$(NC)"
+
+# CI/CD Testing and validation
+ci-test: format validate test ## CI/CD: Run all tests and validation
+	@echo "$(GREEN)✅ CI/CD: All tests passed$(NC)"
+
+ci-security-scan: ## CI/CD: Run security scans
+	@echo "$(BLUE)🔒 CI/CD: Running security scans$(NC)"
+	@cd terraform && \
+		tfsec . --format json --out tfsec-results.json || true && \
+		checkov -d . --framework terraform --output json --output-file checkov-results.json || true
+	@echo "$(GREEN)✅ CI/CD: Security scan completed$(NC)"
+
+# CI/CD Cleanup
+ci-cleanup: ## CI/CD: Clean all temporary files
+	@echo "$(YELLOW)🧹 CI/CD: Cleaning up$(NC)"
+	@find terraform -name "*.tfplan" -delete
+	@find terraform -name "*.tfstate.backup" -delete
+	@find terraform -name "*-results.json" -delete
+	@echo "$(GREEN)✅ CI/CD: Cleanup completed$(NC)"
+
+# =============================================================================
 # ArgoCD GitOps Management
 # =============================================================================
 
+deploy-argocd-local: ## (ArgoCD) Deploy all ArgoCD applications and setup
+	@echo "$(GREEN)🚀 Complete ArgoCD Deployment$(NC)"
+	@echo "==============================="
+	@echo ""
+	@echo "🔐 Step 1: Deploying security policies..."
+	@$(MAKE) deploy-argocd-security
+	@echo ""
+	@echo "📱 Step 2: Deploying ArgoCD applications..."
+	@$(MAKE) deploy-argocd-apps
+	@echo ""
+	@echo "🔄 Step 3: Waiting for applications to sync..."
+	@kubectl wait --for=condition=Synced --timeout=300s application/security-policies -n argocd || echo "⚠️  Manual sync may be required"
+	@kubectl wait --for=condition=Synced --timeout=300s application/network-policies -n argocd || echo "⚠️  Manual sync may be required"
+	@kubectl wait --for=condition=Synced --timeout=300s application/tls-certificates -n argocd || echo "⚠️  Manual sync may be required"
+	@kubectl wait --for=condition=Synced --timeout=300s application/team-namespaces -n argocd || echo "⚠️  Manual sync may be required"
+	@echo ""
+	@echo "$(GREEN)✅ Complete ArgoCD deployment finished$(NC)"
+	@echo ""
+	@echo "$(GREEN)🎉 ArgoCD deployment completed!$(NC)"
+	@echo ""
+	@echo "🔗 Access ArgoCD:"
+	@echo "  URL: https://localhost:8080"
+	@echo "  Username: admin"
+	@echo "  Password: Run 'make argocd-password' to get securely"
+	@echo ""
+	@echo "📚 Next steps:"
+	@echo "  1. Access ArgoCD UI at https://localhost:8080"
+	@echo "  2. Get password: make argocd-password"
+	@echo "  3. Sync applications: make argocd-sync-all"
+	@echo "  4. Check application status: make argocd-status"
+	@echo ""
+	@echo "💡 Security: Passwords are stored securely in Kubernetes secrets"
+	@echo "💡 To stop port forward: pkill -f 'kubectl port-forward'"
+
 argocd-bootstrap: ## Bootstrap ArgoCD for GitOps (ENV=local)
 	@echo "$(BLUE)🚀 Bootstrapping ArgoCD for $(ENV) environment$(NC)"
-	@$(SCRIPTS_DIR)/bootstrap-argocd.sh $(ENV)
+	@$(SCRIPTS_DIR)/management/bootstrap-argocd.sh $(ENV)
 
 argocd-dashboard: ## Open ArgoCD dashboard
 	@echo "$(BLUE)📊 Opening ArgoCD dashboard$(NC)"
@@ -338,11 +731,20 @@ argocd-dashboard: ## Open ArgoCD dashboard
 
 argocd-login: ## Login to ArgoCD CLI
 	@echo "$(BLUE)🔐 Logging into ArgoCD$(NC)"
-	@$(SCRIPTS_DIR)/argocd-manage.sh login
+	@$(SCRIPTS_DIR)/management/argocd-login.sh
 
-argocd-password: ## Get ArgoCD admin password
+argocd-password: ## Get ArgoCD admin password (secure)
 	@echo "$(BLUE)🔑 ArgoCD admin password:$(NC)"
-	@$(SCRIPTS_DIR)/argocd-manage.sh password
+	@$(SCRIPTS_DIR)/management/get-secret.sh argocd_admin_password || echo "Password not found - run 'terraform apply' first"
+	@echo ""
+
+get-secret: ## Get any platform secret (Usage: make get-secret SECRET=argocd_admin_password)
+	@if [ -z "$(SECRET)" ]; then \
+		echo "$(RED)❌ SECRET variable required. Usage: make get-secret SECRET=argocd_admin_password$(NC)"; \
+		$(SCRIPTS_DIR)/management/get-secret.sh; \
+	else \
+		$(SCRIPTS_DIR)/management/get-secret.sh $(SECRET); \
+	fi
 
 argocd-apps: ## List all ArgoCD applications
 	@echo "$(BLUE)📋 ArgoCD Applications$(NC)"
@@ -352,9 +754,20 @@ argocd-status: ## Show status of all applications
 	@echo "$(BLUE)📊 ArgoCD Applications Status$(NC)"
 	@$(SCRIPTS_DIR)/argocd-manage.sh apps
 
-argocd-sync-%: ## Sync specific application (e.g., make argocd-sync-ml-platform-local)
+argocd-sync-%: ## Sync specific application (e.g., make argocd-sync-data-platform-local)
 	@echo "$(GREEN)🔄 Syncing ArgoCD application: $*$(NC)"
-	@$(SCRIPTS_DIR)/argocd-manage.sh sync $*
+	@$(SCRIPTS_DIR)/management/argocd-manage.sh sync $*
+
+argocd-sync-all: ## Sync all ArgoCD applications
+	@echo "$(GREEN)🔄 Syncing all ArgoCD applications$(NC)"
+	@echo "===================================="
+	@argocd app list -o name | while read app; do \
+		if [ -n "$$app" ]; then \
+			echo "🔄 Syncing $$app..."; \
+			argocd app sync $$app || echo "⚠️  Failed to sync $$app"; \
+		fi \
+	done
+	@echo "$(GREEN)✅ All applications synced!$(NC)"
 
 argocd-health: ## Check ArgoCD health
 	@echo "$(BLUE)🏥 Checking ArgoCD health$(NC)"
@@ -390,5 +803,5 @@ argocd-help: ## Show ArgoCD-specific help
 	@echo ""
 	@echo "$(YELLOW)Examples:$(NC)"
 	@echo "  $(GREEN)make argocd-bootstrap ENV=local$(NC)"
-	@echo "  $(GREEN)make argocd-sync-ml-platform-local$(NC)"
-	@echo "  $(GREEN)make argocd-debug-ml-platform-prod$(NC)"
+	@echo "  $(GREEN)make argocd-sync-data-platform-local$(NC)"
+	@echo "  $(GREEN)make argocd-debug-data-platform-prod$(NC)"

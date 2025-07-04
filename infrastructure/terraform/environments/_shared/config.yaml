@@ -5,8 +5,11 @@ project_name: "ml-platform"
 common_tags:
   Project: "ml-platform"
   ManagedBy: "terraform"
-  Repository: "github.com/gigifokchiman/ml-platform"
+  Repository: "github.com_gigifokchiman_ml-platform"
   Team: "ml-engineering"
+  # Compliance labels for platform namespaces
+  team: "platform-engineering"
+  cost-center: "platform"
 
 # Default feature flags
 enable_monitoring: true

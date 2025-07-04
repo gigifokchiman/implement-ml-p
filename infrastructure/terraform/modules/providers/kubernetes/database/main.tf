@@ -13,6 +13,7 @@ resource "kubernetes_namespace" "database" {
     labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"      = "database"
       "app.kubernetes.io/component" = "database"
+      "workload-type"               = "database"
     })
   }
 }
@@ -127,6 +128,10 @@ resource "kubernetes_service" "postgres" {
   metadata {
     name      = "postgres"
     namespace = kubernetes_namespace.database.metadata[0].name
+    labels = {
+      "app.kubernetes.io/name"      = "postgres"
+      "app.kubernetes.io/component" = "database"
+    }
   }
 
   spec {

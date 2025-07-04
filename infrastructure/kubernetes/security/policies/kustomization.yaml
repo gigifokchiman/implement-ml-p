@@ -4,7 +4,6 @@ kind: Kustomization
 resources:
   - network-policies.yaml
   - rate-limiting.yaml
-  - audit-logging.yaml
   - app-level-security.yaml
 
 commonLabels:
