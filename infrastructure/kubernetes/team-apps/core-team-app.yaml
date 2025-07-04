@@ -11,10 +11,14 @@ spec:
   selector:
     matchLabels:
       app: core-sample-app
+      app.kubernetes.io/component: core-team
+      app.kubernetes.io/managed-by: argocd
   template:
     metadata:
       labels:
         app: core-sample-app
+        app.kubernetes.io/component: core-team
+        app.kubernetes.io/managed-by: argocd
         team: core
     spec:
       serviceAccountName: core-team-service-account
