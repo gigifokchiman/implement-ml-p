@@ -346,10 +346,11 @@ deploy-argocd-security: ## (ArgoCD) Deploy security policies via GitOps
 	@echo "$(BLUE)🚀 Deploying security policies via ArgoCD$(NC)"
 	@kubectl apply -f kubernetes/security/argocd-security-apps.yaml
 	@echo "$(YELLOW)⏳ Waiting for ArgoCD to sync applications...$(NC)"
-	@kubectl wait --for=condition=Synced --timeout=300s application/security-policies -n argocd || echo "⚠️  Manual sync may be required"
-	@kubectl wait --for=condition=Synced --timeout=300s application/tls-certificates -n argocd || echo "⚠️  Manual sync may be required"
-	@kubectl wait --for=condition=Synced --timeout=300s application/network-policies -n argocd || echo "⚠️  Manual sync may be required"
-	@echo "$(GREEN)✅ Security applications deployed via ArgoCD$(NC)"
+	@kubectl wait --for=jsonpath='{.status.health.status}'=Healthy --timeout=300s application/network-policies -n argocd || echo "⚠️  Manual sync may be required"
+	@kubectl wait --for=jsonpath='{.status.health.status}'=Healthy --timeout=300s application/team-namespaces -n argocd || echo "⚠️  Manual sync may be required"
+	@kubectl wait --for=jsonpath='{.status.health.status}'=Healthy --timeout=300s application/security-policies -n argocd || echo "⚠️  Manual sync may be required"
+	@kubectl wait --for=jsonpath='{.status.health.status}'=Healthy --timeout=300s application/tls-certificates -n argocd || echo "⚠️  Manual sync may be required"
+	@echo "$(GREEN)✅ Security applications setup via ArgoCD$(NC)"
 
 validate-security: ## Validate security configuration
 	@echo "$(BLUE)🔍 Validating security configuration$(NC)"
@@ -374,10 +375,9 @@ deploy-team-isolation: ## Deploy team isolation (quotas, RBAC)
 
 deploy-argocd-apps: ## (ArgoCD) Deploy ArgoCD applications
 	@echo "$(BLUE)📱 Setting up ArgoCD applications$(NC)"
-	@echo "🔐 Deploying security applications..."
-	@kubectl apply -f kubernetes/security/argocd-security-apps.yaml
 	@echo "🚀 Deploying base GitOps configuration..."
 	@kubectl apply -f kubernetes/base/gitops/argocd-projects.yaml
+	@kubectl wait --for=jsonpath='{.status.health.status}'=Healthy --timeout=300s application/network-policies -n argocd || echo "⚠️  Manual sync may be required"
 	@echo "$(GREEN)✅ ArgoCD applications deployed$(NC)"
 
 # Compliance and validation
@@ -698,10 +698,10 @@ deploy-argocd-local: ## (ArgoCD) Deploy all ArgoCD applications and setup
 	@$(MAKE) deploy-argocd-apps
 	@echo ""
 	@echo "🔄 Step 3: Waiting for applications to sync..."
-	@kubectl wait --for=condition=Synced --timeout=300s application/security-policies -n argocd || echo "⚠️  Manual sync may be required"
-	@kubectl wait --for=condition=Synced --timeout=300s application/network-policies -n argocd || echo "⚠️  Manual sync may be required"
-	@kubectl wait --for=condition=Synced --timeout=300s application/tls-certificates -n argocd || echo "⚠️  Manual sync may be required"
-	@kubectl wait --for=condition=Synced --timeout=300s application/team-namespaces -n argocd || echo "⚠️  Manual sync may be required"
+	@kubectl wait --for=jsonpath='{.status.health.status}'=Healthy --timeout=300s application/security-policies -n argocd || echo "⚠️  Manual sync may be required"
+	@kubectl wait --for=jsonpath='{.status.health.status}'=Healthy --timeout=300s application/network-policies -n argocd || echo "⚠️  Manual sync may be required"
+	@kubectl wait --for=jsonpath='{.status.health.status}'=Healthy --timeout=300s application/tls-certificates -n argocd || echo "⚠️  Manual sync may be required"
+	@kubectl wait --for=jsonpath='{.status.health.status}'=Healthy --timeout=300s application/team-namespaces -n argocd || echo "⚠️  Manual sync may be required"
 	@echo ""
 	@echo "$(GREEN)✅ Complete ArgoCD deployment finished$(NC)"
 	@echo ""
