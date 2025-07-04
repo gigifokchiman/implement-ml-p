@@ -1,0 +1,86 @@
+---
+# ML Team Resource Quota
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: ml-team-quota
+  namespace: app-ml-team
+  labels:
+    team: ml
+    app.kubernetes.io/part-of: gitops
+spec:
+  hard:
+    # CPU limits
+    requests.cpu: "20"
+    limits.cpu: "40"
+    # Memory limits
+    requests.memory: "64Gi"
+    limits.memory: "128Gi"
+    # Storage limits
+    requests.storage: "500Gi"
+    # Object limits
+    pods: "50"
+    services: "20"
+    configmaps: "30"
+    secrets: "20"
+    persistentvolumeclaims: "10"
+    replicationcontrollers: "0"
+    resourcequotas: "1"
+
+---
+# Data Team Resource Quota
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: data-team-quota
+  namespace: app-data-team
+  labels:
+    team: data
+    app.kubernetes.io/part-of: gitops
+spec:
+  hard:
+    # CPU limits
+    requests.cpu: "16"
+    limits.cpu: "32"
+    # Memory limits
+    requests.memory: "48Gi"
+    limits.memory: "96Gi"
+    # Storage limits
+    requests.storage: "1Ti"
+    # Object limits
+    pods: "40"
+    services: "15"
+    configmaps: "25"
+    secrets: "15"
+    persistentvolumeclaims: "20"
+    replicationcontrollers: "0"
+    resourcequotas: "1"
+
+---
+# Core Team Resource Quota
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: core-team-quota
+  namespace: app-core-team
+  labels:
+    team: core
+    app.kubernetes.io/part-of: gitops
+spec:
+  hard:
+    # CPU limits
+    requests.cpu: "8"
+    limits.cpu: "16"
+    # Memory limits
+    requests.memory: "24Gi"
+    limits.memory: "48Gi"
+    # Storage limits
+    requests.storage: "200Gi"
+    # Object limits
+    pods: "30"
+    services: "10"
+    configmaps: "20"
+    secrets: "10"
+    persistentvolumeclaims: "5"
+    replicationcontrollers: "0"
+    resourcequotas: "1"

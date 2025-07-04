@@ -1,0 +1,227 @@
+---
+# ML Team Service Account
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ml-team-service-account
+  namespace: app-ml-team
+  labels:
+    team: ml
+    app.kubernetes.io/part-of: gitops
+
+---
+# Data Team Service Account
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: data-team-service-account
+  namespace: app-data-team
+  labels:
+    team: data
+    app.kubernetes.io/part-of: gitops
+
+---
+# Core Team Service Account
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: core-team-service-account
+  namespace: app-core-team
+  labels:
+    team: core
+    app.kubernetes.io/part-of: gitops
+
+---
+# ML Team Namespace Role
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: ml-team-namespace-admin
+  namespace: app-ml-team
+  labels:
+    team: ml
+    app.kubernetes.io/part-of: gitops
+rules:
+  # Full access to namespace resources
+  - apiGroups: [ "" ]
+    resources: [ "pods", "services", "endpoints", "configmaps", "secrets", "persistentvolumeclaims" ]
+    verbs: [ "get", "list", "watch", "create", "update", "patch", "delete" ]
+  - apiGroups: [ "apps" ]
+    resources: [ "deployments", "replicasets", "statefulsets", "daemonsets" ]
+    verbs: [ "get", "list", "watch", "create", "update", "patch", "delete" ]
+  - apiGroups: [ "batch" ]
+    resources: [ "jobs", "cronjobs" ]
+    verbs: [ "get", "list", "watch", "create", "update", "patch", "delete" ]
+  - apiGroups: [ "networking.k8s.io" ]
+    resources: [ "ingresses", "networkpolicies" ]
+    verbs: [ "get", "list", "watch", "create", "update", "patch", "delete" ]
+  - apiGroups: [ "monitoring.coreos.com" ]
+    resources: [ "servicemonitors", "prometheusrules" ]
+    verbs: [ "get", "list", "watch", "create", "update", "patch", "delete" ]
+
+---
+# Data Team Namespace Role
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: data-team-namespace-admin
+  namespace: app-data-team
+  labels:
+    team: data
+    app.kubernetes.io/part-of: gitops
+rules:
+  # Full access to namespace resources
+  - apiGroups: [ "" ]
+    resources: [ "pods", "services", "endpoints", "configmaps", "secrets", "persistentvolumeclaims" ]
+    verbs: [ "get", "list", "watch", "create", "update", "patch", "delete" ]
+  - apiGroups: [ "apps" ]
+    resources: [ "deployments", "replicasets", "statefulsets", "daemonsets" ]
+    verbs: [ "get", "list", "watch", "create", "update", "patch", "delete" ]
+  - apiGroups: [ "batch" ]
+    resources: [ "jobs", "cronjobs" ]
+    verbs: [ "get", "list", "watch", "create", "update", "patch", "delete" ]
+  - apiGroups: [ "networking.k8s.io" ]
+    resources: [ "ingresses", "networkpolicies" ]
+    verbs: [ "get", "list", "watch", "create", "update", "patch", "delete" ]
+  - apiGroups: [ "monitoring.coreos.com" ]
+    resources: [ "servicemonitors", "prometheusrules" ]
+    verbs: [ "get", "list", "watch", "create", "update", "patch", "delete" ]
+
+---
+# Core Team Namespace Role
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: core-team-namespace-admin
+  namespace: app-core-team
+  labels:
+    team: core
+    app.kubernetes.io/part-of: gitops
+rules:
+  # Full access to namespace resources
+  - apiGroups: [ "" ]
+    resources: [ "pods", "services", "endpoints", "configmaps", "secrets", "persistentvolumeclaims" ]
+    verbs: [ "get", "list", "watch", "create", "update", "patch", "delete" ]
+  - apiGroups: [ "apps" ]
+    resources: [ "deployments", "replicasets", "statefulsets", "daemonsets" ]
+    verbs: [ "get", "list", "watch", "create", "update", "patch", "delete" ]
+  - apiGroups: [ "batch" ]
+    resources: [ "jobs", "cronjobs" ]
+    verbs: [ "get", "list", "watch", "create", "update", "patch", "delete" ]
+  - apiGroups: [ "networking.k8s.io" ]
+    resources: [ "ingresses", "networkpolicies" ]
+    verbs: [ "get", "list", "watch", "create", "update", "patch", "delete" ]
+  - apiGroups: [ "monitoring.coreos.com" ]
+    resources: [ "servicemonitors", "prometheusrules" ]
+    verbs: [ "get", "list", "watch", "create", "update", "patch", "delete" ]
+
+---
+# ML Team ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: app-ml-team-cross-namespace-read-binding
+  labels:
+    team: ml
+    app.kubernetes.io/part-of: gitops
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: app-ml-team-cross-namespace-read
+subjects:
+  - kind: ServiceAccount
+    name: ml-team-service-account
+    namespace: app-ml-team
+
+---
+# Data Team ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: app-data-team-storage-access-binding
+  labels:
+    team: data
+    app.kubernetes.io/part-of: gitops
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: app-data-team-storage-access
+subjects:
+  - kind: ServiceAccount
+    name: data-team-service-account
+    namespace: app-data-team
+
+---
+# Core Team ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: app-core-team-ingress-access-binding
+  labels:
+    team: core
+    app.kubernetes.io/part-of: gitops
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: app-core-team-ingress-access
+subjects:
+  - kind: ServiceAccount
+    name: core-team-service-account
+    namespace: app-core-team
+
+---
+# ML Team Namespace RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ml-team-namespace-admin-binding
+  namespace: app-ml-team
+  labels:
+    team: ml
+    app.kubernetes.io/part-of: gitops
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: ml-team-namespace-admin
+subjects:
+  - kind: ServiceAccount
+    name: ml-team-service-account
+    namespace: app-ml-team
+
+---
+# Data Team Namespace RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: data-team-namespace-admin-binding
+  namespace: app-data-team
+  labels:
+    team: data
+    app.kubernetes.io/part-of: gitops
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: data-team-namespace-admin
+subjects:
+  - kind: ServiceAccount
+    name: data-team-service-account
+    namespace: app-data-team
+
+---
+# Core Team Namespace RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: core-team-namespace-admin-binding
+  namespace: app-core-team
+  labels:
+    team: core
+    app.kubernetes.io/part-of: gitops
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: core-team-namespace-admin
+subjects:
+  - kind: ServiceAccount
+    name: core-team-service-account
+    namespace: app-core-team

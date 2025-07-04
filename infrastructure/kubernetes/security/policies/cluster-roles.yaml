@@ -1,0 +1,89 @@
+---
+# ML Team ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: app-ml-team-cross-namespace-read
+  labels:
+    team: ml
+    app.kubernetes.io/part-of: gitops
+rules:
+  # Read access to shared platform resources
+  - apiGroups: [ "" ]
+    resources: [ "services", "endpoints" ]
+    verbs: [ "get", "list", "watch" ]
+    resourceNames: [ "postgres", "redis", "minio" ]
+  # Read access to monitoring resources
+  - apiGroups: [ "monitoring.coreos.com" ]
+    resources: [ "servicemonitors", "prometheusrules" ]
+    verbs: [ "get", "list", "watch" ]
+  # Read access to storage classes
+  - apiGroups: [ "storage.k8s.io" ]
+    resources: [ "storageclasses" ]
+    verbs: [ "get", "list", "watch" ]
+  # Read access to ingress classes
+  - apiGroups: [ "networking.k8s.io" ]
+    resources: [ "ingressclasses" ]
+    verbs: [ "get", "list", "watch" ]
+
+---
+# Data Team ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: app-data-team-storage-access
+  labels:
+    team: data
+    app.kubernetes.io/part-of: gitops
+rules:
+  # Read access to shared platform resources
+  - apiGroups: [ "" ]
+    resources: [ "services", "endpoints" ]
+    verbs: [ "get", "list", "watch" ]
+    resourceNames: [ "postgres", "redis", "minio" ]
+  # Enhanced storage access for data team
+  - apiGroups: [ "" ]
+    resources: [ "persistentvolumes" ]
+    verbs: [ "get", "list", "watch" ]
+  - apiGroups: [ "storage.k8s.io" ]
+    resources: [ "storageclasses", "volumeattachments" ]
+    verbs: [ "get", "list", "watch" ]
+  # Read access to monitoring resources
+  - apiGroups: [ "monitoring.coreos.com" ]
+    resources: [ "servicemonitors", "prometheusrules" ]
+    verbs: [ "get", "list", "watch" ]
+  # Read access to ingress classes
+  - apiGroups: [ "networking.k8s.io" ]
+    resources: [ "ingressclasses" ]
+    verbs: [ "get", "list", "watch" ]
+
+---
+# Core Team ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: app-core-team-ingress-access
+  labels:
+    team: core
+    app.kubernetes.io/part-of: gitops
+rules:
+  # Read access to shared platform resources
+  - apiGroups: [ "" ]
+    resources: [ "services", "endpoints" ]
+    verbs: [ "get", "list", "watch" ]
+    resourceNames: [ "postgres", "redis", "minio" ]
+  # Enhanced ingress access for core team
+  - apiGroups: [ "networking.k8s.io" ]
+    resources: [ "ingressclasses", "ingresses" ]
+    verbs: [ "get", "list", "watch" ]
+  - apiGroups: [ "extensions" ]
+    resources: [ "ingresses" ]
+    verbs: [ "get", "list", "watch" ]
+  # Read access to monitoring resources
+  - apiGroups: [ "monitoring.coreos.com" ]
+    resources: [ "servicemonitors", "prometheusrules" ]
+    verbs: [ "get", "list", "watch" ]
+  # Read access to storage classes
+  - apiGroups: [ "storage.k8s.io" ]
+    resources: [ "storageclasses" ]
+    verbs: [ "get", "list", "watch" ]

@@ -1,0 +1,140 @@
+---
+# ML Team LimitRange
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: ml-team-limits
+  namespace: app-ml-team
+  labels:
+    team: ml
+    app.kubernetes.io/part-of: gitops
+spec:
+  limits:
+    # Default limits for pods
+    - type: Pod
+      default:
+        cpu: "2"
+        memory: "4Gi"
+      defaultRequest:
+        cpu: "500m"
+        memory: "1Gi"
+      max:
+        cpu: "8"
+        memory: "16Gi"
+      min:
+        cpu: "100m"
+        memory: "128Mi"
+    # Default limits for containers
+    - type: Container
+      default:
+        cpu: "1"
+        memory: "2Gi"
+      defaultRequest:
+        cpu: "250m"
+        memory: "512Mi"
+      max:
+        cpu: "4"
+        memory: "8Gi"
+      min:
+        cpu: "50m"
+        memory: "64Mi"
+    # PVC limits
+    - type: PersistentVolumeClaim
+      max:
+        storage: "100Gi"
+      min:
+        storage: "1Gi"
+
+---
+# Data Team LimitRange
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: data-team-limits
+  namespace: app-data-team
+  labels:
+    team: data
+    app.kubernetes.io/part-of: gitops
+spec:
+  limits:
+    # Default limits for pods
+    - type: Pod
+      default:
+        cpu: "1.5"
+        memory: "3Gi"
+      defaultRequest:
+        cpu: "400m"
+        memory: "768Mi"
+      max:
+        cpu: "6"
+        memory: "12Gi"
+      min:
+        cpu: "100m"
+        memory: "128Mi"
+    # Default limits for containers
+    - type: Container
+      default:
+        cpu: "750m"
+        memory: "1.5Gi"
+      defaultRequest:
+        cpu: "200m"
+        memory: "384Mi"
+      max:
+        cpu: "3"
+        memory: "6Gi"
+      min:
+        cpu: "50m"
+        memory: "64Mi"
+    # PVC limits
+    - type: PersistentVolumeClaim
+      max:
+        storage: "200Gi"
+      min:
+        storage: "1Gi"
+
+---
+# Core Team LimitRange
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: core-team-limits
+  namespace: app-core-team
+  labels:
+    team: core
+    app.kubernetes.io/part-of: gitops
+spec:
+  limits:
+    # Default limits for pods
+    - type: Pod
+      default:
+        cpu: "1"
+        memory: "2Gi"
+      defaultRequest:
+        cpu: "250m"
+        memory: "512Mi"
+      max:
+        cpu: "4"
+        memory: "8Gi"
+      min:
+        cpu: "100m"
+        memory: "128Mi"
+    # Default limits for containers
+    - type: Container
+      default:
+        cpu: "500m"
+        memory: "1Gi"
+      defaultRequest:
+        cpu: "125m"
+        memory: "256Mi"
+      max:
+        cpu: "2"
+        memory: "4Gi"
+      min:
+        cpu: "50m"
+        memory: "64Mi"
+    # PVC limits
+    - type: PersistentVolumeClaim
+      max:
+        storage: "50Gi"
+      min:
+        storage: "1Gi"
