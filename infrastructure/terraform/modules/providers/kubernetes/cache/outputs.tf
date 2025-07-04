@@ -2,8 +2,8 @@ output "connection" {
   description = "Cache connection details"
   value = {
     endpoint = "redis.${var.name}.svc.cluster.local"
-    port     = 6379
-    url      = "redis://redis.${var.name}.svc.cluster.local:6379"
+    port     = var.config.port
+    url      = "redis://redis.${var.name}.svc.cluster.local:${var.config.port}"
   }
   sensitive = true
 }

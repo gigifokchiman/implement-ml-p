@@ -32,21 +32,21 @@ output "service_access" {
       password = "Run: terraform output -raw argocd_admin_password"
     }
     grafana = {
-      command  = "kubectl port-forward svc/prometheus-grafana -n monitoring 3000:80"
+      command  = "kubectl port-forward svc/prometheus-grafana -n data-platform-monitoring 3000:80"
       url      = "http://localhost:3000"
       username = "admin"
       password = "Run: terraform output -raw grafana_admin_password"
     }
     postgres = {
-      command = "kubectl port-forward -n database svc/postgres 5432:5432"
+      command = "kubectl port-forward -n data-platform-database svc/postgres 5432:5432"
       url     = "postgresql://admin:password@localhost:5432/metadata"
     }
     redis = {
-      command = "kubectl port-forward -n cache svc/redis 6379:6379"
+      command = "kubectl port-forward -n data-platform-cache svc/redis 6379:6379"
       url     = "redis://localhost:6379"
     }
     minio = {
-      command  = "kubectl port-forward -n storage svc/minio 9001:9000"
+      command  = "kubectl port-forward -n data-platform-storage svc/minio 9001:9000"
       url      = "http://localhost:9001"
       username = "minioadmin"
       password = "minioadmin"

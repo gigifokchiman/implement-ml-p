@@ -90,6 +90,7 @@ variable "database_config" {
     encrypted      = optional(bool, false)
     username       = optional(string, "admin")
     database_name  = optional(string, "metadata")
+    port           = optional(number, 5432)
   })
   default = {}
 }
@@ -102,6 +103,7 @@ variable "cache_config" {
     node_type = optional(string, "local")
     num_nodes = optional(number, 1)
     encrypted = optional(bool, false)
+    port      = optional(number, 6379)
   })
   default = {}
 }
@@ -112,6 +114,7 @@ variable "storage_config" {
     versioning_enabled = optional(bool, false)
     encryption_enabled = optional(bool, false)
     lifecycle_enabled  = optional(bool, false)
+    port               = optional(number, 9000)
     buckets = optional(list(object({
       name   = string
       public = optional(bool, false)

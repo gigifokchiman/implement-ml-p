@@ -19,6 +19,7 @@ variable "database_config" {
     encrypted      = bool
     username       = string
     database_name  = string
+    port           = optional(number, 5432)
   })
 }
 
@@ -30,6 +31,7 @@ variable "cache_config" {
     node_type = string
     num_nodes = number
     encrypted = bool
+    port      = optional(number, 6379)
   })
 }
 
@@ -39,6 +41,7 @@ variable "storage_config" {
     versioning_enabled = bool
     encryption_enabled = bool
     lifecycle_enabled  = bool
+    port               = optional(number, 9000)
     buckets = list(object({
       name   = string
       public = bool

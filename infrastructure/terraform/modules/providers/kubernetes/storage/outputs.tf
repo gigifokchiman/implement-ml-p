@@ -1,7 +1,7 @@
 output "connection" {
   description = "Storage connection details"
   value = {
-    endpoint = "http://minio.${var.name}.svc.cluster.local:9000"
+    endpoint = "http://minio.${var.name}.svc.cluster.local:${var.config.port}"
     buckets  = { for bucket in var.config.buckets : bucket.name => bucket.name }
   }
   sensitive = true

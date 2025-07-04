@@ -14,6 +14,7 @@ variable "config" {
     versioning_enabled = bool
     encryption_enabled = bool
     lifecycle_enabled  = bool
+    port               = optional(number, 9000)
     buckets = list(object({
       name   = string
       public = bool

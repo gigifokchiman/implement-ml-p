@@ -41,40 +41,6 @@ locals {
   )
 }
 
-# KIND CLUSTER FOR ML PLATFORM
-resource "kind_cluster" "default" {
-  name           = "${local.shared_config.project_name}-local"
-  wait_for_ready = true
-
-  kind_config {
-    kind        = "Cluster"
-    api_version = "kind.x-k8s.io/v1alpha4"
-
-    node {
-      role = "control-plane"
-
-      kubeadm_config_patches = [
-        "kind: InitConfiguration\nnodeRegistration:\n  kubeletExtraArgs:\n    node-labels: \"ingress-ready=true\""
-      ]
-
-      extra_port_mappings {
-        container_port = 80
-        host_port      = 8080
-        protocol       = "TCP"
-      }
-      extra_port_mappings {
-        container_port = 443
-        host_port      = 8443
-        protocol       = "TCP"
-      }
-    }
-
-    node {
-      role = "worker"
-    }
-  }
-}
-
 # KIND CLUSTER FOR DATA PLATFORM
 resource "kind_cluster" "data_platform" {
   name           = "data-platform-local"
@@ -105,7 +71,7 @@ resource "kind_cluster" "data_platform" {
 
     node {
       role = "worker"
-      
+
       kubeadm_config_patches = [
         "kind: JoinConfiguration\nnodeRegistration:\n  kubeletExtraArgs:\n    node-labels: \"environment=local,cluster-name=data-platform-local,workload-type=data-processing\""
       ]
@@ -164,24 +130,26 @@ provider "aws" {
 # No storage class needed - using emptyDir volumes for local dev
 
 # ML Platform Composition
-module "ml_platform" {
-  source = "../../modules/compositions/ml-platform"
-
-  name        = "${local.shared_config.project_name}-local"
-  environment = "local"
-
-  database_config = var.database_config
-  cache_config    = var.cache_config
-  storage_config  = var.storage_config
-
-  tags = local.environment_config.common_tags
-
-  depends_on = [kind_cluster.data_platform]
-}
+# Commented out to avoid duplicate resource creation with data_platform
+# Both were creating the same namespaces in the same cluster
+# module "ml_platform" {
+#   source = "../../modules/compositions/ml-platform"
+#
+#   name        = "${local.shared_config.project_name}-local"
+#   environment = "local"
+#
+#   database_config = var.database_config
+#   cache_config    = var.cache_config
+#   storage_config  = var.storage_config
+#
+#   tags = local.environment_config.common_tags
+#
+#   depends_on = [kind_cluster.data_platform]
+# }
 
 # Data Platform Composition (separate cluster)
 module "data_platform" {
-  source = "../../modules/compositions/ml-platform"
+  source = "../../modules/compositions/data-platform"
 
   name        = "data-platform-local"
   environment = "local"
@@ -201,13 +169,14 @@ module "data_platform" {
 }
 
 # Storage Provisioner for Kind cluster
-module "storage_provisioner" {
-  source = "../../modules/providers/kubernetes/storage-provisioner"
-
-  tags = local.environment_config.common_tags
-
-  depends_on = [kind_cluster.data_platform]
-}
+# Note: Kind automatically installs local-path-provisioner, so we skip custom installation
+# module "storage_provisioner" {
+#   source = "../../modules/providers/kubernetes/storage-provisioner"
+#
+#   tags = local.environment_config.common_tags
+#
+#   depends_on = [kind_cluster.data_platform]
+# }
 
 # Generate random passwords
 resource "random_password" "argocd_admin" {
@@ -295,17 +264,6 @@ module "audit_logging" {
 }
 
 # OUTPUTS
-output "ml_platform_cluster_info" {
-  description = "ML Platform cluster connection information"
-  sensitive   = true
-  value = {
-    name                   = kind_cluster.default.name
-    endpoint               = kind_cluster.default.endpoint
-    kubeconfig_path        = kind_cluster.default.kubeconfig_path
-    cluster_ca_certificate = kind_cluster.default.cluster_ca_certificate
-  }
-}
-
 output "data_platform_cluster_info" {
   description = "Data Platform cluster connection information"
   sensitive   = true
@@ -315,17 +273,6 @@ output "data_platform_cluster_info" {
     kubeconfig_path        = kind_cluster.data_platform.kubeconfig_path
     cluster_ca_certificate = kind_cluster.data_platform.cluster_ca_certificate
   }
-}
-
-output "ml_platform_service_connections" {
-  description = "ML Platform service connection details"
-  value = {
-    database   = module.ml_platform.database
-    cache      = module.ml_platform.cache
-    storage    = module.ml_platform.storage
-    monitoring = module.ml_platform.monitoring
-  }
-  sensitive = true
 }
 
 output "data_platform_service_connections" {
@@ -351,24 +298,16 @@ output "development_urls" {
 output "useful_commands" {
   description = "Useful commands for local development"
   value = {
-    # ML Platform cluster commands
-    kubectl_context_ml         = "kubectl config use-context kind-${local.shared_config.project_name}-local"
-    port_forward_ml_db         = "kubectl --context kind-${local.shared_config.project_name}-local port-forward -n database svc/postgres 5432:5432"
-    port_forward_ml_redis      = "kubectl --context kind-${local.shared_config.project_name}-local port-forward -n cache svc/redis 6379:6379"
-    port_forward_ml_minio      = "kubectl --context kind-${local.shared_config.project_name}-local port-forward -n storage svc/minio 9001:9000"
-    port_forward_ml_grafana    = "kubectl --context kind-${local.shared_config.project_name}-local port-forward -n monitoring svc/prometheus-grafana 3000:80"
-    port_forward_ml_prometheus = "kubectl --context kind-${local.shared_config.project_name}-local port-forward -n monitoring svc/prometheus-server 9090:9090"
-    
-    # Data Platform cluster commands  
-    kubectl_context_data         = "kubectl config use-context kind-data-platform-local"
-    port_forward_data_db         = "kubectl --context kind-data-platform-local port-forward -n database svc/postgres 5433:5432"
-    port_forward_data_redis      = "kubectl --context kind-data-platform-local port-forward -n cache svc/redis 6380:6379"
-    port_forward_data_minio      = "kubectl --context kind-data-platform-local port-forward -n storage svc/minio 9002:9000"
-    port_forward_data_grafana    = "kubectl --context kind-data-platform-local port-forward -n monitoring svc/prometheus-grafana 3001:80"
-    port_forward_data_prometheus = "kubectl --context kind-data-platform-local port-forward -n monitoring svc/prometheus-server 9091:9090"
-    
+    # Data Platform cluster commands
+    kubectl_context         = "kubectl config use-context kind-data-platform-local"
+    port_forward_db         = "kubectl --context kind-data-platform-local port-forward -n data-platform-database svc/postgres 5432:5432"
+    port_forward_redis      = "kubectl --context kind-data-platform-local port-forward -n data-platform-cache svc/redis 6379:6379"
+    port_forward_minio      = "kubectl --context kind-data-platform-local port-forward -n data-platform-storage svc/minio 9000:9000"
+    port_forward_grafana    = "kubectl --context kind-data-platform-local port-forward -n data-platform-monitoring svc/prometheus-grafana 3000:80"
+    port_forward_prometheus = "kubectl --context kind-data-platform-local port-forward -n data-platform-monitoring svc/prometheus-server 9090:9090"
+
     # General info
-    list_clusters              = "kind get clusters"
-    minio_credentials          = "Access Key: admin, Secret: stored in secret 'minio-secret' in 'storage' namespace"
+    list_clusters       = "kind get clusters"
+    minio_credentials   = "Access Key: admin, Secret: stored in secret 'minio-secret' in 'data-platform-storage' namespace"
   }
 }

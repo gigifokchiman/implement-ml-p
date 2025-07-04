@@ -16,6 +16,7 @@ variable "config" {
     node_type = string
     num_nodes = number
     encrypted = bool
+    port      = optional(number, 6379)
   })
 }
 

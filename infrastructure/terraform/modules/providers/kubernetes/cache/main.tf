@@ -59,7 +59,7 @@ resource "kubernetes_deployment" "redis" {
           image = "redis:${var.config.version}"
 
           port {
-            container_port = 6379
+            container_port = var.config.port
           }
 
           volume_mount {
@@ -104,8 +104,8 @@ resource "kubernetes_service" "redis" {
     }
 
     port {
-      port        = 6379
-      target_port = 6379
+      port        = var.config.port
+      target_port = var.config.port
     }
   }
 }

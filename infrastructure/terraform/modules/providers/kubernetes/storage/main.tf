@@ -97,7 +97,7 @@ resource "kubernetes_deployment" "minio" {
           }
 
           port {
-            container_port = 9000
+            container_port = var.config.port
           }
 
           volume_mount {
@@ -142,8 +142,8 @@ resource "kubernetes_service" "minio" {
     }
 
     port {
-      port        = 9000
-      target_port = 9000
+      port        = var.config.port
+      target_port = var.config.port
     }
   }
 }
