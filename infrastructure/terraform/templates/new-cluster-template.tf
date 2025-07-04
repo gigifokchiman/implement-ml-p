@@ -27,19 +27,19 @@ terraform {
 variable "app_name" {
   description = "Name of the application"
   type        = string
-  default     = "REPLACE_WITH_APP_NAME"  # Change this
+  default     = "REPLACE_WITH_APP_NAME" # Change this
 }
 
 variable "http_port" {
   description = "HTTP port for ingress"
   type        = number
-  default     = 8100  # Change this to avoid conflicts
+  default     = 8100 # Change this to avoid conflicts
 }
 
 variable "https_port" {
   description = "HTTPS port for ingress"
   type        = number
-  default     = 8453  # Change this to avoid conflicts
+  default     = 8453 # Change this to avoid conflicts
 }
 
 variable "database_config" {

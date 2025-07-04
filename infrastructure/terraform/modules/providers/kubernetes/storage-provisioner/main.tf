@@ -248,7 +248,7 @@ resource "kubernetes_annotations" "remove_default_storageclass" {
   }
 
   depends_on = [time_sleep.wait_for_provisioner]
-  
+
   lifecycle {
     ignore_changes = all
   }

@@ -12,7 +12,7 @@ output "audit_policy_configmap" {
 
 output "setup_instructions" {
   description = "Instructions for enabling audit logging"
-  value = <<-EOF
+  value       = <<-EOF
     Audit policy created in ConfigMap: ${kubernetes_config_map.audit_policy.metadata[0].name}
     
     To enable audit logging:

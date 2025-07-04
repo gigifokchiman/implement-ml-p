@@ -19,8 +19,8 @@ output "secret_reader_service_account" {
 output "secret_retrieval_commands" {
   description = "Commands to securely retrieve secrets"
   value = {
-    argocd_password = "kubectl get secret platform-secrets -n secret-store -o jsonpath='{.data.argocd_admin_password}' | base64 -d"
-    grafana_password = "kubectl get secret platform-secrets -n secret-store -o jsonpath='{.data.grafana_admin_password}' | base64 -d"
+    argocd_password   = "kubectl get secret platform-secrets -n secret-store -o jsonpath='{.data.argocd_admin_password}' | base64 -d"
+    grafana_password  = "kubectl get secret platform-secrets -n secret-store -o jsonpath='{.data.grafana_admin_password}' | base64 -d"
     postgres_password = "kubectl get secret platform-secrets -n secret-store -o jsonpath='{.data.postgres_admin_password}' | base64 -d"
     minio_credentials = "kubectl get secret platform-secrets -n secret-store -o jsonpath='{.data.minio_access_key}' | base64 -d && echo ':' && kubectl get secret platform-secrets -n secret-store -o jsonpath='{.data.minio_secret_key}' | base64 -d"
   }

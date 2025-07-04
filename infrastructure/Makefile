@@ -749,3 +749,197 @@ help-argocd: ## Show ArgoCD-specific help
 	@echo "  $(GREEN)make deploy-argocd-local$(NC)              # Deploy complete ArgoCD setup"
 	@echo "  $(GREEN)make logs-argocd-security-policies$(NC)    # Show security-policies logs"
 	@echo "  $(GREEN)make debug-argocd-team-namespaces$(NC)     # Debug team-namespaces app"
+
+# =============================================================================
+# Team Application Deployment
+# =============================================================================
+
+deploy-team-apps: ## Deploy sample applications with monitoring for all teams
+	@echo "$(BLUE)🚀 Deploying Team Sample Applications$(NC)"
+	@echo "======================================"
+	@echo ""
+	@kubectl config use-context $(cluster_name)
+	@echo "📱 Deploying ML team sample app..."
+	@$(MAKE) deploy-ml-team-app
+	@echo ""
+	@echo "📊 Deploying Data team sample app..."
+	@$(MAKE) deploy-data-team-app
+	@echo ""
+	@echo "🌐 Deploying Core team sample app..."
+	@$(MAKE) deploy-core-team-app
+	@echo ""
+	@echo "$(GREEN)✅ All team applications deployed with monitoring$(NC)"
+	@echo ""
+	@echo "🔍 Verify with:"
+	@echo "  kubectl get pods,svc,servicemonitor -n app-ml-team"
+	@echo "  kubectl get pods,svc,servicemonitor -n app-data-team"
+	@echo "  kubectl get pods,svc,servicemonitor -n app-core-team"
+
+deploy-ml-team-app: ## Deploy ML team sample application with monitoring
+	@echo "$(BLUE)🤖 Deploying ML Team Application$(NC)"
+	@kubectl apply -f kubernetes/team-apps/ml-team-app.yaml
+
+deploy-data-team-app-old: ## Deploy Data team sample application with monitoring
+	@echo "$(BLUE)📊 Deploying Data Team Application$(NC)"
+	@cat <<'EOF' | kubectl apply -f -
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: data-sample-app
+  namespace: app-data-team
+  labels:
+    app: data-sample-app
+    team: data
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: data-sample-app
+  template:
+    metadata:
+      labels:
+        app: data-sample-app
+        team: data
+    spec:
+      serviceAccountName: data-team-service-account
+      containers:
+      - name: data-app
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+          name: http
+        - containerPort: 9090
+          name: metrics
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: data-sample-app
+  namespace: app-data-team
+  labels:
+    app: data-sample-app
+    team: data
+spec:
+  ports:
+  - port: 80
+    targetPort: 80
+    name: http
+  - port: 9090
+    targetPort: 9090
+    name: metrics
+  selector:
+    app: data-sample-app
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: data-team-apps
+  namespace: app-data-team
+  labels:
+    team: data
+    monitoring: prometheus
+spec:
+  selector:
+    matchLabels:
+      team: data
+  endpoints:
+  - port: metrics
+    path: /metrics
+    interval: 30s
+	EOF
+
+deploy-core-team-app: ## Deploy Core team sample application with monitoring
+	@echo "$(BLUE)🌐 Deploying Core Team Application$(NC)"
+	@cat <<'EOF' | kubectl apply -f -
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: core-sample-app
+  namespace: app-core-team
+  labels:
+    app: core-sample-app
+    team: core
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: core-sample-app
+  template:
+    metadata:
+      labels:
+        app: core-sample-app
+        team: core
+    spec:
+      serviceAccountName: core-team-service-account
+      containers:
+      - name: core-app
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+          name: http
+        - containerPort: 9090
+          name: metrics
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: core-sample-app
+  namespace: app-core-team
+  labels:
+    app: core-sample-app
+    team: core
+spec:
+  ports:
+  - port: 80
+    targetPort: 80
+    name: http
+  - port: 9090
+    targetPort: 9090
+    name: metrics
+  selector:
+    app: core-sample-app
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: core-team-apps
+  namespace: app-core-team
+  labels:
+    team: core
+    monitoring: prometheus
+spec:
+  selector:
+    matchLabels:
+      team: core
+  endpoints:
+  - port: metrics
+    path: /metrics
+    interval: 30s
+	EOF
+
+deploy-data-team-app: ## Deploy Data team sample application with monitoring
+	@echo "$(BLUE)📊 Deploying Data Team Application$(NC)"
+	@kubectl apply -f kubernetes/team-apps/data-team-app.yaml
+
+deploy-core-team-app: ## Deploy Core team sample application with monitoring
+	@echo "$(BLUE)🌐 Deploying Core Team Application$(NC)"
+	@kubectl apply -f kubernetes/team-apps/core-team-app.yaml
+
+remove-team-apps: ## Remove all team sample applications
+	@echo "$(YELLOW)🗑️  Removing Team Sample Applications$(NC)"
+	@kubectl delete -f kubernetes/team-apps/ --ignore-not-found=true
+	@echo "$(GREEN)✅ Team applications removed$(NC)"

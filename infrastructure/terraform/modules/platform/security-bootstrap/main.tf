@@ -37,7 +37,7 @@ resource "helm_release" "cert_manager" {
     value = "true"
   }
 
-  wait = true
+  wait          = true
   wait_for_jobs = true
 }
 
@@ -83,7 +83,7 @@ resource "helm_release" "nginx_ingress" {
 
   depends_on = [helm_release.cert_manager]
 
-  wait = true
+  wait          = true
   wait_for_jobs = true
 }
 
@@ -95,7 +95,7 @@ resource "kubernetes_manifest" "letsencrypt_issuer" {
     apiVersion = "cert-manager.io/v1"
     kind       = "ClusterIssuer"
     metadata = {
-      name = "letsencrypt-prod"
+      name   = "letsencrypt-prod"
       labels = var.common_labels
     }
     spec = {
@@ -123,7 +123,7 @@ resource "kubernetes_manifest" "letsencrypt_issuer" {
 
 # Wait for cert-manager CRDs to be available
 resource "time_sleep" "wait_for_cert_manager" {
-  depends_on = [helm_release.cert_manager]
+  depends_on      = [helm_release.cert_manager]
   create_duration = "90s"
 }
 
@@ -135,7 +135,7 @@ resource "kubernetes_manifest" "selfsigned_issuer" {
     apiVersion = "cert-manager.io/v1"
     kind       = "ClusterIssuer"
     metadata = {
-      name = "selfsigned"
+      name   = "selfsigned"
       labels = var.common_labels
     }
     spec = {
@@ -154,9 +154,9 @@ resource "kubernetes_labels" "cert_manager_namespace" {
     name = "cert-manager"
   }
   labels = merge(var.common_labels, {
-    "name" = "cert-manager"
-    "team" = "platform-engineering"
-    "cost-center" = "platform"
+    "name"                   = "cert-manager"
+    "team"                   = "platform-engineering"
+    "cost-center"            = "platform"
     "app.kubernetes.io/name" = "cert-manager"
   })
 
@@ -170,9 +170,9 @@ resource "kubernetes_labels" "ingress_nginx_namespace" {
     name = "ingress-nginx"
   }
   labels = merge(var.common_labels, {
-    "name" = "ingress-nginx"
-    "team" = "platform-engineering"
-    "cost-center" = "platform"
+    "name"                   = "ingress-nginx"
+    "team"                   = "platform-engineering"
+    "cost-center"            = "platform"
     "app.kubernetes.io/name" = "ingress-nginx"
   })
 

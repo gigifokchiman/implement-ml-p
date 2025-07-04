@@ -19,9 +19,9 @@ variable "tags" {
 variable "cert_manager_config" {
   description = "Configuration for cert-manager"
   type = object({
-    version                = string
-    enable_cluster_issuer  = bool
-    letsencrypt_email      = string
+    version               = string
+    enable_cluster_issuer = bool
+    letsencrypt_email     = string
   })
   default = {
     version               = "v1.13.2"
@@ -47,11 +47,11 @@ variable "nginx_config" {
 variable "argocd_config" {
   description = "Configuration for ArgoCD"
   type = object({
-    version           = string
-    enable_ui         = bool
-    admin_password    = string
-    enable_dex        = bool
-    enable_tls        = optional(bool, false)
+    version        = string
+    enable_ui      = bool
+    admin_password = string
+    enable_dex     = bool
+    enable_tls     = optional(bool, false)
   })
   default = {
     version        = "5.51.4"
@@ -65,17 +65,17 @@ variable "argocd_config" {
 variable "prometheus_config" {
   description = "Configuration for Prometheus Operator"
   type = object({
-    version                    = string
-    enable_grafana            = bool
-    grafana_admin_password    = string
-    storage_class             = string
-    retention_days            = string
+    version                = string
+    enable_grafana         = bool
+    grafana_admin_password = string
+    storage_class          = string
+    retention_days         = string
   })
   default = {
     version                = "55.5.0"
-    enable_grafana        = true
+    enable_grafana         = true
     grafana_admin_password = "admin"
-    storage_class         = ""
-    retention_days        = "15d"
+    storage_class          = ""
+    retention_days         = "15d"
   }
 }

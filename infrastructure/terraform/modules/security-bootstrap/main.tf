@@ -30,11 +30,11 @@ resource "random_password" "argocd_admin" {
 
 # 1. cert-manager
 resource "helm_release" "cert_manager" {
-  name       = "cert-manager"
-  repository = "https://charts.jetstack.io"
-  chart      = "cert-manager"
-  version    = var.cert_manager_config.version
-  namespace  = "cert-manager"
+  name             = "cert-manager"
+  repository       = "https://charts.jetstack.io"
+  chart            = "cert-manager"
+  version          = var.cert_manager_config.version
+  namespace        = "cert-manager"
   create_namespace = true
 
   set {
@@ -66,11 +66,11 @@ resource "helm_release" "cert_manager" {
 
 # 2. NGINX Ingress Controller
 resource "helm_release" "nginx_ingress" {
-  name       = "ingress-nginx"
-  repository = "https://kubernetes.github.io/ingress-nginx"
-  chart      = "ingress-nginx"
-  version    = "4.8.3"
-  namespace  = "ingress-nginx"
+  name             = "ingress-nginx"
+  repository       = "https://kubernetes.github.io/ingress-nginx"
+  chart            = "ingress-nginx"
+  version          = "4.8.3"
+  namespace        = "ingress-nginx"
   create_namespace = true
 
   values = [
@@ -105,6 +105,10 @@ resource "helm_release" "nginx_ingress" {
             memory = "256Mi"
           }
         }
+        admissionWebhooks = {
+          enabled = var.environment == "local" ? false : true
+          failurePolicy = "Ignore"
+        }
       }
     })
   ]
@@ -114,19 +118,19 @@ resource "helm_release" "nginx_ingress" {
 
 # Wait for cert-manager CRDs to be established
 resource "time_sleep" "wait_for_cert_manager" {
-  depends_on = [helm_release.cert_manager]
+  depends_on      = [helm_release.cert_manager]
   create_duration = "30s"
 }
 
 # 3. ClusterIssuers for cert-manager
 resource "kubernetes_manifest" "selfsigned_issuer" {
   count = var.cert_manager_config.enable_cluster_issuer ? 1 : 0
-  
+
   manifest = {
     apiVersion = "cert-manager.io/v1"
     kind       = "ClusterIssuer"
     metadata = {
-      name = "selfsigned"
+      name   = "selfsigned"
       labels = var.tags
     }
     spec = {
@@ -139,12 +143,12 @@ resource "kubernetes_manifest" "selfsigned_issuer" {
 
 resource "kubernetes_manifest" "letsencrypt_issuer" {
   count = var.cert_manager_config.enable_cluster_issuer && var.environment != "local" ? 1 : 0
-  
+
   manifest = {
     apiVersion = "cert-manager.io/v1"
     kind       = "ClusterIssuer"
     metadata = {
-      name = "letsencrypt-prod"
+      name   = "letsencrypt-prod"
       labels = var.tags
     }
     spec = {
@@ -172,11 +176,11 @@ resource "kubernetes_manifest" "letsencrypt_issuer" {
 
 # 4. ArgoCD
 resource "helm_release" "argocd" {
-  name       = "argocd"
-  repository = "https://argoproj.github.io/argo-helm"
-  chart      = "argo-cd"
-  version    = var.argocd_config.version
-  namespace  = "argocd"
+  name             = "argocd"
+  repository       = "https://argoproj.github.io/argo-helm"
+  chart            = "argo-cd"
+  version          = var.argocd_config.version
+  namespace        = "argocd"
   create_namespace = true
 
   values = [
@@ -197,11 +201,11 @@ resource "helm_release" "argocd" {
           type = var.environment == "local" ? "NodePort" : "ClusterIP"
         }
         ingress = {
-          enabled = var.environment != "local"
+          enabled          = var.environment != "local"
           ingressClassName = "nginx"
           annotations = {
-            "cert-manager.io/cluster-issuer" = var.environment == "local" ? "selfsigned" : "letsencrypt-prod"
-            "nginx.ingress.kubernetes.io/ssl-redirect" = "true"
+            "cert-manager.io/cluster-issuer"               = var.environment == "local" ? "selfsigned" : "letsencrypt-prod"
+            "nginx.ingress.kubernetes.io/ssl-redirect"     = "true"
             "nginx.ingress.kubernetes.io/backend-protocol" = "GRPC"
           }
           hosts = var.environment != "local" ? [
@@ -209,7 +213,7 @@ resource "helm_release" "argocd" {
               host = "argocd.${var.cluster_name}.example.com"
               paths = [
                 {
-                  path = "/"
+                  path     = "/"
                   pathType = "Prefix"
                 }
               ]
@@ -218,7 +222,7 @@ resource "helm_release" "argocd" {
           tls = var.environment != "local" ? [
             {
               secretName = "argocd-server-tls"
-              hosts = ["argocd.${var.cluster_name}.example.com"]
+              hosts      = ["argocd.${var.cluster_name}.example.com"]
             }
           ] : []
         }
@@ -265,17 +269,17 @@ resource "helm_release" "argocd" {
 
 # Wait for ArgoCD CRDs to be established
 resource "time_sleep" "wait_for_argocd" {
-  depends_on = [helm_release.argocd]
+  depends_on      = [helm_release.argocd]
   create_duration = "60s"
 }
 
 # 5. Prometheus Operator (kube-prometheus-stack)
 resource "helm_release" "prometheus" {
-  name       = "prometheus"
-  repository = "https://prometheus-community.github.io/helm-charts"
-  chart      = "kube-prometheus-stack"
-  version    = var.prometheus_config.version
-  namespace  = "monitoring"
+  name             = "prometheus"
+  repository       = "https://prometheus-community.github.io/helm-charts"
+  chart            = "kube-prometheus-stack"
+  version          = var.prometheus_config.version
+  namespace        = "monitoring"
   create_namespace = true
 
   values = [
@@ -286,13 +290,13 @@ resource "helm_release" "prometheus" {
       prometheus = {
         prometheusSpec = {
           serviceMonitorSelectorNilUsesHelmValues = false
-          ruleSelectorNilUsesHelmValues = false
-          retention = var.prometheus_config.retention_days
+          ruleSelectorNilUsesHelmValues           = false
+          retention                               = var.prometheus_config.retention_days
           storageSpec = var.prometheus_config.storage_class != "" ? {
             volumeClaimTemplate = {
               spec = {
                 storageClassName = var.prometheus_config.storage_class
-                accessModes = ["ReadWriteOnce"]
+                accessModes      = ["ReadWriteOnce"]
                 resources = {
                   requests = {
                     storage = "10Gi"
@@ -317,16 +321,16 @@ resource "helm_release" "prometheus" {
         }
       }
       grafana = {
-        enabled = var.prometheus_config.enable_grafana
+        enabled       = var.prometheus_config.enable_grafana
         adminPassword = var.prometheus_config.grafana_admin_password
         service = {
           type = var.environment == "local" ? "NodePort" : "ClusterIP"
         }
         ingress = {
-          enabled = var.environment != "local" && var.prometheus_config.enable_grafana
+          enabled          = var.environment != "local" && var.prometheus_config.enable_grafana
           ingressClassName = "nginx"
           annotations = {
-            "cert-manager.io/cluster-issuer" = var.environment == "local" ? "selfsigned" : "letsencrypt-prod"
+            "cert-manager.io/cluster-issuer"           = var.environment == "local" ? "selfsigned" : "letsencrypt-prod"
             "nginx.ingress.kubernetes.io/ssl-redirect" = "true"
           }
           hosts = var.environment != "local" ? [
@@ -334,7 +338,7 @@ resource "helm_release" "prometheus" {
               host = "grafana.${var.cluster_name}.example.com"
               paths = [
                 {
-                  path = "/"
+                  path     = "/"
                   pathType = "Prefix"
                 }
               ]
@@ -343,7 +347,7 @@ resource "helm_release" "prometheus" {
           tls = var.environment != "local" ? [
             {
               secretName = "grafana-tls"
-              hosts = ["grafana.${var.cluster_name}.example.com"]
+              hosts      = ["grafana.${var.cluster_name}.example.com"]
             }
           ] : []
         }

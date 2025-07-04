@@ -43,17 +43,17 @@ variable "cluster_config" {
 variable "helm_config" {
   description = "Helm configuration"
   type = object({
-    chart_version    = string
-    database_enabled = bool
-    cache_enabled    = bool
-    storage_enabled  = bool
+    chart_version      = string
+    database_enabled   = bool
+    cache_enabled      = bool
+    storage_enabled    = bool
     monitoring_enabled = bool
   })
   default = {
-    chart_version    = "0.1.0"
-    database_enabled = true
-    cache_enabled    = true
-    storage_enabled  = true
+    chart_version      = "0.1.0"
+    database_enabled   = true
+    cache_enabled      = true
+    storage_enabled    = true
     monitoring_enabled = true
   }
 }
@@ -112,8 +112,8 @@ resource "kubernetes_secret" "app_config" {
   }
 
   data = {
-    environment = var.environment
-    app_name    = var.app_name
+    environment  = var.environment
+    app_name     = var.app_name
     cluster_name = kind_cluster.app_cluster.name
   }
 
@@ -233,15 +233,15 @@ resource "kubernetes_config_map" "post_deploy_info" {
   }
 
   data = {
-    terraform_version = "1.6.0"
+    terraform_version  = "1.6.0"
     helm_chart_version = var.helm_config.chart_version
     deployment_time    = timestamp()
     cluster_endpoint   = kind_cluster.app_cluster.endpoint
     useful_commands = jsonencode({
-      helm_status   = "helm status ${var.app_name} -n ${kubernetes_namespace.app_namespace.metadata[0].name}"
-      helm_upgrade  = "helm upgrade ${var.app_name} ./chart -n ${kubernetes_namespace.app_namespace.metadata[0].name}"
-      kubectl_pods  = "kubectl get pods -n ${kubernetes_namespace.app_namespace.metadata[0].name}"
-      port_forward  = "kubectl port-forward -n ${kubernetes_namespace.app_namespace.metadata[0].name} svc/${var.app_name}-api 8080:8080"
+      helm_status  = "helm status ${var.app_name} -n ${kubernetes_namespace.app_namespace.metadata[0].name}"
+      helm_upgrade = "helm upgrade ${var.app_name} ./chart -n ${kubernetes_namespace.app_namespace.metadata[0].name}"
+      kubectl_pods = "kubectl get pods -n ${kubernetes_namespace.app_namespace.metadata[0].name}"
+      port_forward = "kubectl port-forward -n ${kubernetes_namespace.app_namespace.metadata[0].name} svc/${var.app_name}-api 8080:8080"
     })
   }
 
@@ -252,20 +252,20 @@ resource "kubernetes_config_map" "post_deploy_info" {
 output "cluster_info" {
   description = "Cluster information"
   value = {
-    name               = kind_cluster.app_cluster.name
-    endpoint           = kind_cluster.app_cluster.endpoint
-    kubeconfig_path    = kind_cluster.app_cluster.kubeconfig_path
+    name            = kind_cluster.app_cluster.name
+    endpoint        = kind_cluster.app_cluster.endpoint
+    kubeconfig_path = kind_cluster.app_cluster.kubeconfig_path
   }
 }
 
 output "helm_release_info" {
   description = "Helm release information"
   value = {
-    name      = helm_release.platform.name
-    namespace = helm_release.platform.namespace
-    version   = helm_release.platform.version
-    status    = helm_release.platform.status
-    chart     = helm_release.platform.chart
+    name        = helm_release.platform.name
+    namespace   = helm_release.platform.namespace
+    version     = helm_release.platform.version
+    status      = helm_release.platform.status
+    chart       = helm_release.platform.chart
     app_version = helm_release.platform.app_version
   }
 }
@@ -282,7 +282,7 @@ output "application_urls" {
 output "useful_commands" {
   description = "Useful commands for managing the deployment"
   value = {
-    kubectl_context    = "kubectl config use-context kind-${kind_cluster.app_cluster.name}"
+    kubectl_context   = "kubectl config use-context kind-${kind_cluster.app_cluster.name}"
     helm_status       = "helm status ${var.app_name} -n ${kubernetes_namespace.app_namespace.metadata[0].name}"
     helm_upgrade      = "helm upgrade ${var.app_name} ./chart -n ${kubernetes_namespace.app_namespace.metadata[0].name}"
     helm_rollback     = "helm rollback ${var.app_name} -n ${kubernetes_namespace.app_namespace.metadata[0].name}"

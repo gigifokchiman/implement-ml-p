@@ -37,7 +37,7 @@ resource "kubernetes_config_map" "audit_policy" {
   }
 
   data = {
-    "audit-policy.yaml" = file("${path.module}/audit-policy.yaml")
+    "audit-policy.yaml"     = file("${path.module}/audit-policy.yaml")
     "setup-instructions.md" = <<-EOF
       # Audit Logging Setup Instructions
       
@@ -101,7 +101,7 @@ resource "kubernetes_config_map" "audit_log_collector" {
           Match  kubernetes.audit
           Format json_lines
     EOF
-    
+
     "parsers.conf" = <<-EOF
       [PARSER]
           Name        json

@@ -43,9 +43,9 @@ resource "kubernetes_secret" "platform_secrets" {
   type = "Opaque"
 
   data = {
-    argocd_admin_password    = var.argocd_admin_password
-    grafana_admin_password   = var.grafana_admin_password
-    postgres_admin_password  = var.postgres_admin_password
+    argocd_admin_password   = var.argocd_admin_password
+    grafana_admin_password  = var.grafana_admin_password
+    postgres_admin_password = var.postgres_admin_password
     redis_password          = var.redis_password
     minio_access_key        = var.minio_access_key
     minio_secret_key        = var.minio_secret_key
