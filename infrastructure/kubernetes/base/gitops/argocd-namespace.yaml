@@ -4,6 +4,10 @@ metadata:
   name: argocd
   labels:
     name: argocd
+    team: platform-engineering
+    cost-center: platform
+    environment: local
+    workload-type: gitops
     app.kubernetes.io/part-of: gitops
     pod-security.kubernetes.io/enforce: baseline
     pod-security.kubernetes.io/audit: restricted
@@ -30,6 +34,10 @@ metadata:
   name: argocd-apps
   labels:
     name: argocd-apps
+    team: platform-engineering
+    cost-center: platform
+    environment: local
+    workload-type: gitops
     app.kubernetes.io/part-of: gitops
     pod-security.kubernetes.io/enforce: baseline
     pod-security.kubernetes.io/audit: restricted
