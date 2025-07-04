@@ -182,13 +182,13 @@ check_resource "clusterrole" "app-core-team-ingress-access" "cluster-wide" "App 
 # Check RoleBindings exist
 echo -e "\n${YELLOW}Checking RoleBindings:${NC}"
 if kubectl get namespace app-ml-team &>/dev/null; then
-    check_resource "rolebinding" "app-ml-team-admin-binding" "app-ml-team" "ML team RoleBinding"
+    check_resource "rolebinding" "ml-team-namespace-admin-binding" "app-ml-team" "ML team RoleBinding"
 fi
 if kubectl get namespace app-data-team &>/dev/null; then
-    check_resource "rolebinding" "app-data-team-admin-binding" "app-data-team" "Data team RoleBinding"
+    check_resource "rolebinding" "data-team-namespace-admin-binding" "app-data-team" "Data team RoleBinding"
 fi
 if kubectl get namespace app-core-team &>/dev/null; then
-    check_resource "rolebinding" "app-core-team-admin-binding" "app-core-team" "App team RoleBinding"
+    check_resource "rolebinding" "core-team-namespace-admin-binding" "app-core-team" "App team RoleBinding"
 fi
 
 echo ""
@@ -197,21 +197,21 @@ echo "---------------------------"
 
 # Test ML team permissions
 echo -e "\n${YELLOW}Testing ML Team RBAC:${NC}"
-test_rbac "system:serviceaccount:app-ml-team:default" "create" "pods" "app-ml-team" "true" "ML team can create pods in own namespace"
-test_rbac "system:serviceaccount:app-ml-team:default" "create" "pods" "app-data-team" "false" "ML team cannot create pods in data namespace"
-test_rbac "system:serviceaccount:app-ml-team:default" "create" "pods" "app-core-team" "false" "ML team cannot create pods in app namespace"
+test_rbac "system:serviceaccount:app-ml-team:ml-team-service-account" "create" "pods" "app-ml-team" "true" "ML team can create pods in own namespace"
+test_rbac "system:serviceaccount:app-ml-team:ml-team-service-account" "create" "pods" "app-data-team" "false" "ML team cannot create pods in data namespace"
+test_rbac "system:serviceaccount:app-ml-team:ml-team-service-account" "create" "pods" "app-core-team" "false" "ML team cannot create pods in app namespace"
 
 # Test Data team permissions
 echo -e "\n${YELLOW}Testing Data Team RBAC:${NC}"
-test_rbac "system:serviceaccount:app-data-team:default" "create" "pods" "app-data-team" "true" "Data team can create pods in own namespace"
-test_rbac "system:serviceaccount:app-data-team:default" "create" "pods" "app-ml-team" "false" "Data team cannot create pods in ML namespace"
-test_rbac "system:serviceaccount:app-data-team:default" "create" "pods" "app-core-team" "false" "Data team cannot create pods in app namespace"
+test_rbac "system:serviceaccount:app-data-team:data-team-service-account" "create" "pods" "app-data-team" "true" "Data team can create pods in own namespace"
+test_rbac "system:serviceaccount:app-data-team:data-team-service-account" "create" "pods" "app-ml-team" "false" "Data team cannot create pods in ML namespace"
+test_rbac "system:serviceaccount:app-data-team:data-team-service-account" "create" "pods" "app-core-team" "false" "Data team cannot create pods in app namespace"
 
 # Test App team permissions
 echo -e "\n${YELLOW}Testing App Team RBAC:${NC}"
-test_rbac "system:serviceaccount:app-core-team:default" "create" "pods" "app-core-team" "true" "App team can create pods in own namespace"
-test_rbac "system:serviceaccount:app-core-team:default" "create" "pods" "app-ml-team" "false" "App team cannot create pods in ML namespace"
-test_rbac "system:serviceaccount:app-core-team:default" "create" "pods" "app-data-team" "false" "App team cannot create pods in data namespace"
+test_rbac "system:serviceaccount:app-core-team:core-team-service-account" "create" "pods" "app-core-team" "true" "App team can create pods in own namespace"
+test_rbac "system:serviceaccount:app-core-team:core-team-service-account" "create" "pods" "app-ml-team" "false" "App team cannot create pods in ML namespace"
+test_rbac "system:serviceaccount:app-core-team:core-team-service-account" "create" "pods" "app-data-team" "false" "App team cannot create pods in data namespace"
 
 echo ""
 echo "5️⃣ Checking Network Policies..."

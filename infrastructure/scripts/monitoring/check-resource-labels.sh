@@ -115,7 +115,7 @@ echo "-----------------------------"
 # Define known namespaces by category
 TEAM_NAMESPACES="app-ml-team app-data-team app-core-team"
 # Platform namespaces with data-platform-local prefix (current naming convention)
-PLATFORM_NAMESPACES="data-platform-local-database data-platform-local-cache data-platform-local-storage data-platform-local-performance data-platform-local-security-scanning argocd secret-store audit-logging"
+PLATFORM_NAMESPACES="data-platform-local-database data-platform-local-cache data-platform-local-storage data-platform-local-performance data-platform-local-security-scanning argocd argocd-apps secret-store audit-logging"
 # Legacy platform namespaces (old naming convention)
 LEGACY_PLATFORM_NAMESPACES="monitoring database cache storage performance-monitoring security-scanning data-platform-monitoring data-platform-database data-platform-cache data-platform-storage data-platform-performance data-platform-security-scanning"
 SYSTEM_NAMESPACES="kube-system kube-public kube-node-lease local-path-storage default cert-manager ingress-nginx"
@@ -191,15 +191,15 @@ for ns in $TEAM_NAMESPACES; do
 
         case $ns in
             app-ml-team)
-                check_label "namespace" "$ns" "team" "ml-engineering" "Team label"
+                check_label "namespace" "$ns" "team" "ml" "Team label"
                 check_label "namespace" "$ns" "cost-center" "ml" "Cost center label"
                 ;;
             app-data-team)
-                check_label "namespace" "$ns" "team" "data-engineering" "Team label"
+                check_label "namespace" "$ns" "team" "data" "Team label"
                 check_label "namespace" "$ns" "cost-center" "data" "Cost center label"
                 ;;
             app-core-team)
-                check_label "namespace" "$ns" "team" "app-engineering" "Team label"
+                check_label "namespace" "$ns" "team" "core" "Team label"
                 check_label "namespace" "$ns" "cost-center" "app" "Cost center label"
                 ;;
         esac
