@@ -1,0 +1,52 @@
+# TLS Certificates for Applications
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: app-ml-team-tls
+  namespace: app-ml-team
+  labels:
+    app.kubernetes.io/name: app-ml-team-tls
+    app.kubernetes.io/component: security
+spec:
+  secretName: app-ml-team-tls
+  issuerRef:
+    name: selfsigned  # Use selfsigned for local, letsencrypt-prod for production
+    kind: ClusterIssuer
+  dnsNames:
+  - ml-app.local
+  - api.ml-app.local
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: app-data-team-tls
+  namespace: app-data-team
+  labels:
+    app.kubernetes.io/name: app-data-team-tls
+    app.kubernetes.io/component: security
+spec:
+  secretName: app-data-team-tls
+  issuerRef:
+    name: selfsigned  # Use selfsigned for local, letsencrypt-prod for production
+    kind: ClusterIssuer
+  dnsNames:
+  - data-app.local
+  - api.data-app.local
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: app-core-team-tls
+  namespace: app-core-team
+  labels:
+    app.kubernetes.io/name: app-core-team-tls
+    app.kubernetes.io/component: security
+spec:
+  secretName: app-core-team-tls
+  issuerRef:
+    name: selfsigned  # Use selfsigned for local, letsencrypt-prod for production
+    kind: ClusterIssuer
+  dnsNames:
+  - core-app.local
+  - api.core-app.local

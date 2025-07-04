@@ -1,0 +1,133 @@
+# Rate Limiting for Applications
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: app-ml-team-rate-limited
+  namespace: app-ml-team
+  labels:
+    app.kubernetes.io/name: app-ml-team-ingress
+    app.kubernetes.io/component: security
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/rate-limit: "10"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+    nginx.ingress.kubernetes.io/rate-limit-connections: "5"
+    nginx.ingress.kubernetes.io/limit-rps: "10"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - ml-app.local
+    - api.ml-app.local
+    secretName: app-ml-team-tls
+  rules:
+  - host: ml-app.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: ml-app-service
+            port:
+              number: 80
+  - host: api.ml-app.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: ml-api-service
+            port:
+              number: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: app-data-team-rate-limited
+  namespace: app-data-team
+  labels:
+    app.kubernetes.io/name: app-data-team-ingress
+    app.kubernetes.io/component: security
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/rate-limit: "15"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+    nginx.ingress.kubernetes.io/rate-limit-connections: "8"
+    nginx.ingress.kubernetes.io/limit-rps: "15"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - data-app.local
+    - api.data-app.local
+    secretName: app-data-team-tls
+  rules:
+  - host: data-app.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: data-app-service
+            port:
+              number: 80
+  - host: api.data-app.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: data-api-service
+            port:
+              number: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: app-core-team-rate-limited
+  namespace: app-core-team
+  labels:
+    app.kubernetes.io/name: app-core-team-ingress
+    app.kubernetes.io/component: security
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/rate-limit: "20"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+    nginx.ingress.kubernetes.io/rate-limit-connections: "10"
+    nginx.ingress.kubernetes.io/limit-rps: "20"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - core-app.local
+    - api.core-app.local
+    secretName: app-core-team-tls
+  rules:
+  - host: core-app.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: core-app-service
+            port:
+              number: 80
+  - host: api.core-app.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: core-api-service
+            port:
+              number: 80

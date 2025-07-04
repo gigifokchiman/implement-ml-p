@@ -1,0 +1,90 @@
+# Audit Logging Configuration
+---
+apiVersion: audit.k8s.io/v1
+kind: Policy
+metadata:
+  name: audit-policy
+rules:
+  # Log at RequestResponse level for gets, list, create, update, patch, delete of resources
+  - level: RequestResponse
+    resources:
+    - group: ""
+      resources: ["pods", "services", "secrets", "configmaps", "persistentvolumes", "persistentvolumeclaims"]
+    - group: "apps"
+      resources: ["deployments", "replicasets", "daemonsets", "statefulsets"]
+    - group: "extensions"
+      resources: ["deployments", "replicasets", "daemonsets"]
+    - group: "rbac.authorization.k8s.io"
+      resources: ["roles", "rolebindings", "clusterroles", "clusterrolebindings"]
+    - group: "networking.k8s.io"
+      resources: ["networkpolicies", "ingresses"]
+    - group: "policy"
+      resources: ["podsecuritypolicies"]
+    - group: "cert-manager.io"
+      resources: ["certificates", "certificaterequests", "issuers", "clusterissuers"]
+
+  # Log at Request level for all other resources
+  - level: Request
+    resources:
+    - group: ""
+      resources: ["nodes", "namespaces", "endpoints", "serviceaccounts"]
+    - group: "apps"
+      resources: ["*"]
+    - group: "extensions"
+      resources: ["*"]
+
+  # Log security-related events at RequestResponse level
+  - level: RequestResponse
+    users: ["system:serviceaccount:kube-system:*"]
+    verbs: ["create", "update", "patch", "delete"]
+
+  # Log failed requests
+  - level: Request
+    namespaces: ["app-ml-team", "app-data-team", "app-core-team"]
+    verbs: ["get", "list", "create", "update", "patch", "delete"]
+    resources:
+    - group: ""
+      resources: ["*"]
+
+  # Don't log requests to certain non-resource URLs
+  - level: None
+    nonResourceURLs:
+    - /healthz*
+    - /version
+    - /swagger*
+    - /api/v1/componentstatuses
+
+  # Don't log watch requests by the "system:kube-proxy" on endpoints or services
+  - level: None
+    users: ["system:kube-proxy"]
+    verbs: ["watch"]
+    resources:
+    - group: ""
+      resources: ["endpoints", "services"]
+
+  # Don't log authenticated requests to certain non-resource URLs
+  - level: None
+    userGroups: ["system:authenticated"]
+    nonResourceURLs:
+    - /api*
+    - /version
+
+  # Log the request body of configmap changes in kube-system
+  - level: Request
+    resources:
+    - group: ""
+      resources: ["configmaps"]
+    namespaces: ["kube-system"]
+
+  # Log configmap and secret changes in all other namespaces at the RequestResponse level
+  - level: RequestResponse
+    resources:
+    - group: ""
+      resources: ["secrets", "configmaps"]
+
+  # A catch-all rule to log all other requests at the Metadata level
+  - level: Metadata
+    # Long-running requests like watches that fall under this rule will not
+    # generate an audit event in RequestReceived
+    omitStages:
+      - RequestReceived

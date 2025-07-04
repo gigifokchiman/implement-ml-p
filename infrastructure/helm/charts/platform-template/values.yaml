@@ -1,0 +1,202 @@
+# Default values for platform-template
+# This is a YAML-formatted file.
+
+# Application configuration
+app:
+  name: "my-platform"
+  namespace: ""  # If empty, uses release namespace
+  version: "1.0.0"
+  environment: "local"
+
+# Ingress configuration  
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations: {}
+  hosts:
+    - host: "{{ .Values.app.name }}.local"
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+# Database configuration
+database:
+  enabled: true
+  # Uses Bitnami PostgreSQL chart
+  postgresql:
+    auth:
+      enablePostgresUser: true
+      postgresPassword: "changeme123"
+      username: "app_user"
+      password: "changeme123"
+      database: "app_db"
+    primary:
+      persistence:
+        enabled: false  # Use emptyDir for local dev
+      resources:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          cpu: 500m
+          memory: 512Mi
+
+# Cache configuration  
+cache:
+  enabled: true
+  # Uses Bitnami Redis chart
+  redis:
+    auth:
+      enabled: false  # Disable auth for local dev
+    master:
+      persistence:
+        enabled: false  # Use emptyDir for local dev
+      resources:
+        requests:
+          cpu: 100m
+          memory: 128Mi
+        limits:
+          cpu: 500m
+          memory: 256Mi
+
+# Storage configuration
+storage:
+  enabled: true
+  # Uses Bitnami MinIO chart
+  minio:
+    auth:
+      rootUser: "admin"
+      rootPassword: "changeme123"
+    defaultBuckets: "{{ .Values.app.name }}-data,{{ .Values.app.name }}-artifacts,{{ .Values.app.name }}-models"
+    persistence:
+      enabled: false  # Use emptyDir for local dev
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
+# Monitoring configuration
+monitoring:
+  enabled: true
+  # Uses Prometheus Community chart
+  prometheus:
+    server:
+      persistence:
+        enabled: false  # Use emptyDir for local dev
+      resources:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          cpu: 500m
+          memory: 1Gi
+    alertmanager:
+      enabled: false  # Disable for local dev
+    pushgateway:
+      enabled: false  # Disable for local dev
+    nodeExporter:
+      enabled: false  # Disable for local dev
+    kubeStateMetrics:
+      enabled: true
+
+# Application-specific services (customize these)
+services:
+  # Example API service
+  api:
+    enabled: true
+    image:
+      repository: "nginx"  # Replace with your image
+      tag: "alpine"
+      pullPolicy: IfNotPresent
+    port: 8080
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+    env: []
+
+  # Example worker service  
+  worker:
+    enabled: false
+    image:
+      repository: "busybox"  # Replace with your image
+      tag: "latest"
+      pullPolicy: IfNotPresent
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+    env: []
+
+# Network policies
+networkPolicies:
+  enabled: true
+  defaultDeny: true
+  allowDNS: true
+
+# Pod security policies  
+podSecurity:
+  enabled: true
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    fsGroup: 2000
+    seccompProfile:
+      type: RuntimeDefault
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+    readOnlyRootFilesystem: true
+
+# Horizontal Pod Autoscaler
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# Resource quotas
+resourceQuota:
+  enabled: true
+  hard:
+    requests.cpu: "2"
+    requests.memory: "4Gi"
+    limits.cpu: "4"
+    limits.memory: "8Gi"
+    persistentvolumeclaims: "10"
+    services: "10"
+
+# Service accounts
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+# RBAC
+rbac:
+  create: true
+  rules:
+    - apiGroups: [""]
+      resources: ["pods", "services", "endpoints"]
+      verbs: ["get", "list", "watch"]
+    - apiGroups: ["apps"]
+      resources: ["deployments", "replicasets"]
+      verbs: ["get", "list", "watch"]
+
+# Node selection
+nodeSelector: {}
+tolerations: []
+affinity: {}

@@ -46,7 +46,7 @@ brew update && brew upgrade
 | Kind       | 0.20+    | Local Kubernetes clusters | `brew install kind` or [Kind Releases](https://kind.sigs.k8s.io/docs/user/quick-start/#installation)    |
 | Terraform  | 1.0+     | Infrastructure as Code    | `brew install terraform` or [Terraform Downloads](https://www.terraform.io/downloads)                   |
 | kubectl    | 1.27+    | Kubernetes CLI            | `brew install kubectl` or [kubectl Install](https://kubernetes.io/docs/tasks/tools/)                    |
-| Kustomize  | 5.0+     | Kubernetes configuration  | `brew install kustomize` or [Kustomize Install](https://kubectl.docs\rnetes.io/installation/kustomize/) |
+| Kustomize  | 5.0+     | Kubernetes configuration  | `brew install kustomize` or [Kustomize Install](https://kubectl.docs.kubernetes.io/installation/kustomize/) |
 | Helm       | v3.18.3+ | Deploy to k8s             | `brew install helm`                                                                                     |
 
 
@@ -123,7 +123,7 @@ Deploy a single cluster with proper team boundaries:
 
 ```bash
 # Deploy the main ML platform cluster with comprehensive setup
-./infrastructure/scripts/deploy-local.sh --clean-first
+./infrastructure/scripts/deployment/deploy-local.sh --clean-first
 
 # This creates:
 # ✅ Single Kind cluster (ml-platform-local)
@@ -156,7 +156,7 @@ Implement enterprise-grade security using plain Kubernetes:
 
 ```bash
 # Deploy comprehensive security (TLS, audit, network policies, rate limiting)
-./deploy-kubernetes-security.sh
+./infrastructure/scripts/security/deploy-kubernetes-security.sh
 
 # This creates:
 # ✅ TLS termination at ingress with Let's Encrypt
@@ -253,10 +253,10 @@ Now add team-specific namespaces and resource controls:
 
 ```bash
 # Apply team isolation (resource quotas, RBAC)
-./deploy-single-cluster-isolation.sh
+./infrastructure/scripts/security/deploy-single-cluster-isolation.sh
 
 # Apply proper resource labeling  
-./apply-proper-labeling.sh
+./infrastructure/scripts/utilities/apply-proper-labeling.sh
 
 # This creates:
 # ✅ Team namespaces (ml-team, data-team, app-team)
@@ -276,11 +276,10 @@ Deploy ArgoCD and monitoring stack for GitOps workflow:
 
 ```bash
 # 1. Deploy ArgoCD + Prometheus (with CRDs)
-./deploy-argocd.sh
-
+./infrastructure/scripts/deployment/deploy-argocd.sh
 
 # 2. Now deploy team monitoring (CRDs are available)
-./deploy-team-monitoring.sh
+./infrastructure/scripts/monitoring/deploy-team-monitoring.sh
 
 # Access ArgoCD UI
 kubectl port-forward svc/argocd-server -n argocd 8080:443 &
@@ -291,7 +290,7 @@ kubectl port-forward svc/prometheus-grafana -n monitoring 3000:80 &
 echo "Grafana: http://localhost:3000 (admin/prom-operator)"
 
 # Configure ArgoCD applications for GitOps programatically or via GUI
-./setup-argocd-apps.sh
+./infrastructure/scripts/deployment/setup-argocd-apps.sh
 
 
 ```
@@ -410,7 +409,7 @@ kubectl get certificates --all-namespaces
 
 # Test network policies
 echo "Testing network isolation..."
-./view-federation.sh  # Check cluster status
+./infrastructure/scripts/utilities/view-federation.sh  # Check cluster status
 
 # Test audit logging
 kubectl logs -n kube-system -l k8s-app=fluent-bit-audit
@@ -499,7 +498,7 @@ echo ""
 
 # Your migration path is ready
 echo "🚀 Migration Path Ready:"
-echo "   • Federation scripts available: ./setup-federation.sh"
+echo "   • Federation scripts available: ./infrastructure/scripts/archive/setup-federation.sh"
 echo "   • Multi-cluster tested and working"
 echo "   • Can migrate gradually by team"
 echo "   • Keep shared services in main cluster"
@@ -548,13 +547,13 @@ cat > MY-PLATFORM-LEARNING.md << 'EOF'
 ### Key Commands Mastered
 ```bash
 # Deploy single cluster with team isolation
-./deploy-single-cluster-isolation.sh
+./infrastructure/scripts/security/deploy-single-cluster-isolation.sh
 
 # Apply comprehensive security
-./deploy-kubernetes-security.sh
+./infrastructure/scripts/security/deploy-kubernetes-security.sh
 
 # Test team boundaries
-kubectl auth can-i create pods --as=user:ml-engineer@company.com -n data-team
+kubectl auth can-i create pods --as=ml-engineer@company.com -n data-team
 
 # Query by team labels
 kubectl get pods -l team=ml-engineering --all-namespaces
@@ -649,7 +648,7 @@ terraform destroy -auto-approve
 kind delete cluster --name <app-name>-local
 
 # Retry deployment
-./scripts/deploy-new-app.sh <app-name> <port>
+./infrastructure/scripts/deployment/deploy-new-app.sh <app-name> <port>
 ```
 
 ### Port Conflicts
@@ -660,7 +659,7 @@ If you get port binding errors:
 lsof -i :8080
 
 # Use different ports
-./scripts/deploy-new-app.sh my-app 8090 8453
+./infrastructure/scripts/deployment/deploy-new-app.sh my-app 8090 8453
 ```
 
 ## 🆘 Getting Help
