@@ -16,6 +16,12 @@ resource "kubernetes_namespace" "storage" {
       "workload-type"               = "storage"
     })
   }
+
+  lifecycle {
+    ignore_changes = [
+      metadata[0].annotations
+    ]
+  }
 }
 
 resource "random_password" "minio_admin" {

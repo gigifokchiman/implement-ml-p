@@ -98,14 +98,11 @@ setup-storage-local: ## Install and configure local-path-provisioner - this solv
 	@kubectl apply -f kubernetes/storage/local-path-storage-class.yaml
 	@echo "$(GREEN)✅ Storage provisioner configured!$(NC)"
 
-setup-team-namespaces: ## Create team namespaces with proper labels
-	@echo "$(BLUE)👥 Setting up team namespaces$(NC)"
-	@kubectl apply -f kubernetes/team-isolation/team-namespaces.yaml
-	@echo "$(GREEN)✅ Team namespaces created!$(NC)"
 
 deploy-security-bootstrap-tf-local: ## (TF-LOCAL) Deploy security infrastructure in correct order
 	@echo "$(GREEN)🔐 Deploying security bootstrap infrastructure$(NC)"
 	@cd terraform/environments/local && terraform apply \
+		-target=module.storage_provisioner \
 		-target=module.security_bootstrap.helm_release.cert_manager \
 		-target=module.security_bootstrap.helm_release.nginx_ingress \
 		-target=module.security_bootstrap.time_sleep.wait_for_cert_manager \
@@ -124,6 +121,58 @@ deploy-security-bootstrap-tf-local: ## (TF-LOCAL) Deploy security infrastructure
 	@echo "$(GREEN)🔒 Applying remaining security bootstrap resources$(NC)"
 	@cd terraform/environments/local && terraform apply -target=module.security_bootstrap -auto-approve
 	@echo "$(GREEN)✅ Security bootstrap complete with GitOps and Monitoring$(NC)"
+
+deploy-tf-local: ## Complete local ML platform deployment with cleanup
+	@echo "$(GREEN)🚀 ML Platform Local Deployment$(NC)"
+	@echo "======================================"
+	@echo ""
+	@echo "📍 Working in: $(shell pwd)"
+	@echo ""
+	@echo "🧹 Cleaning up existing resources..."
+	@$(MAKE) clean-tf-local
+	@echo ""
+	@echo "✅ Cleanup complete"
+	@echo ""
+	@echo "🔧 Step 1: Setting up Terraform..."
+	@$(MAKE) init-tf-local
+	@echo "✅ Terraform provider setup complete"
+	@echo ""
+	@echo "🐳 Step 2: Creating data platform cluster..."
+	@$(MAKE) apply-cluster-tf-local
+	@echo ""
+	@echo "🔧 Configuring kubectl context..."
+	@$(MAKE) setup-kubectl-local
+	@echo ""
+	@echo "🔐 Step 3: Deploying security bootstrap (CRDs)..."
+	@$(MAKE) deploy-security-bootstrap-tf-local
+	@echo ""
+	@echo "🏗️  Step 4: Deploying platform services..."
+	@$(MAKE) apply-tf-local
+	@echo ""
+	@echo "✅ Step 5: Verifying deployment..."
+	@kubectl get pods --all-namespaces | grep -E "(postgres|redis|minio|prometheus|grafana)" || true
+	@kubectl get pvc --all-namespaces
+	@echo ""
+	@echo "$(GREEN)🎉 Data Platform deployment completed successfully!$(NC)"
+	@echo ""
+	@echo "🔗 To access services, use these port-forward commands:"
+	@echo "  kubectl port-forward -n database svc/postgres 5432:5432"
+	@echo "  kubectl port-forward -n cache svc/redis 6379:6379"
+	@echo "  kubectl port-forward -n storage svc/minio 9001:9000"
+	@echo "  kubectl port-forward -n monitoring svc/prometheus-grafana 3000:80"
+	@echo "  kubectl port-forward -n argocd svc/argocd-server 8080:443"
+	@echo ""
+	@echo "🌐 Service endpoints:"
+	@echo "  Database: postgresql://admin:password@localhost:5432/metadata"
+	@echo "  Cache: redis://localhost:6379"
+	@echo "  Storage: http://localhost:9001 (minioadmin/minioadmin)"
+	@echo "  Grafana: http://localhost:3000 (admin/admin)"
+	@echo "  ArgoCD: https://localhost:8080 (admin/admin123)"
+	@echo ""
+	@echo "📚 Next: Deploy ArgoCD applications with 'make deploy-argocd-apps'"
+
+# Local development workflow (calls scripts - kept for compatibility)
+local-up: deploy-tf-local ## Deploy local platform (full deployment)
 
 # Development environment targets
 init-dev: ## (TF-DEV) Initialize dev environment (TF $(TF_VERSION_DEV))
@@ -186,13 +235,6 @@ deploy-dev-full: ## Complete dev environment deployment with cleanup
 	@echo "  1. Configure kubectl: aws eks update-kubeconfig --region us-west-2 --name data-platform-dev"
 	@echo "  2. Deploy applications: make deploy-dev-apps"
 	@echo "  3. Setup monitoring: make deploy-monitoring"
-
-deploy-dev-quick: ## Quick dev deployment (no cleanup)
-	@echo "$(GREEN)⚡ Quick Dev Environment Deployment$(NC)"
-	@echo "===================================="
-	@$(MAKE) init-dev
-	@$(MAKE) apply-dev
-	@echo "$(GREEN)✅ Quick dev deployment completed!$(NC)"
 
 # Staging environment targets
 init-staging: ## (TF-STAGING) Initialize staging environment (TF $(TF_VERSION_STAGING))
@@ -270,87 +312,9 @@ test: ## Run infrastructure tests
 	@echo "$(BLUE)🧪 Running infrastructure tests$(NC)"
 	@cd tests && ./run-all.sh
 
-# CI/CD deployment workflows
-deploy-cicd-local: init-local apply-cluster-local setup-kubectl apply-local ## Full local deployment (CI/CD)
-	@echo "$(GREEN)✅ Complete local ML platform deployed$(NC)"
-
-deploy-cicd-dev: init-dev apply-dev ## Full dev deployment (CI/CD)
-	@echo "$(GREEN)✅ Complete dev environment deployed$(NC)"
-
-deploy-cicd-staging: init-staging apply-staging ## Full staging deployment (CI/CD)
-	@echo "$(GREEN)✅ Complete staging environment deployed$(NC)"
-
-deploy-cicd-prod: init-prod apply-prod ## Full production deployment (CI/CD)
-	@echo "$(GREEN)✅ Complete production environment deployed$(NC)"
-
-# Complete local deployment (replaces deploy-local.sh)
-deploy-tf-local: ## Complete local ML platform deployment with cleanup
-	@echo "$(GREEN)🚀 ML Platform Local Deployment$(NC)"
-	@echo "======================================"
-	@echo ""
-	@echo "📍 Working in: $(shell pwd)"
-	@echo ""
-	@echo "🧹 Cleaning up existing resources..."
-	@$(MAKE) clean-tf-local
-	@echo ""
-	@echo "✅ Cleanup complete"
-	@echo ""
-	@echo "🔧 Step 1: Setting up Terraform..."
-	@$(MAKE) init-tf-local
-	@echo "✅ Terraform provider setup complete"
-	@echo ""
-	@echo "🐳 Step 2: Creating data platform cluster..."
-	@$(MAKE) apply-cluster-tf-local
-	@echo ""
-	@echo "🔧 Configuring kubectl context..."
-	@$(MAKE) setup-kubectl-local
-	@echo ""
-	# @echo "💾 Step 3: Setting up storage provisioner..."
-	# @$(MAKE) setup-storage-local
-	@echo ""
-	@echo "🔐 Step 4: Deploying security bootstrap (CRDs)..."
-	@$(MAKE) deploy-security-bootstrap-tf-local
-	@echo ""
-	@echo "🏗️  Step 5: Deploying others..."
-	@$(MAKE) apply-tf-local
-	@echo ""
-	@echo "✅ Step 6: Verifying deployment..."
-	@kubectl get pods --all-namespaces | grep -E "(postgres|redis|minio|prometheus|grafana)" || true
-	@kubectl get pvc --all-namespaces
-	@echo ""
-	@echo "$(GREEN)🎉 Data Platform deployment completed successfully!$(NC)"
-	@echo ""
-	@echo "🔗 To access services, use these port-forward commands:"
-	@echo "  kubectl port-forward -n database svc/postgres 5432:5432"
-	@echo "  kubectl port-forward -n cache svc/redis 6379:6379"
-	@echo "  kubectl port-forward -n storage svc/minio 9001:9000"
-	@echo "  kubectl port-forward -n monitoring svc/prometheus-grafana 3000:80"
-	@echo "  kubectl port-forward -n argocd svc/argocd-server 8080:443"
-	@echo ""
-	@echo "🌐 Service endpoints:"
-	@echo "  Database: postgresql://admin:password@localhost:5432/metadata"
-	@echo "  Cache: redis://localhost:6379"
-	@echo "  Storage: http://localhost:9001 (minioadmin/minioadmin)"
-	@echo "  Grafana: http://localhost:3000 (admin/admin)"
-	@echo "  ArgoCD: https://localhost:8080 (admin/admin123)"
-	@echo ""
-	@echo "📚 Next: Deploy ArgoCD applications with 'make deploy-argocd-apps'"
-
-# Local development workflow (calls scripts - kept for compatibility)
-local-up: deploy-tf-local ## Deploy local platform (full deployment)
-
-deep-clean: ## Deep security cleanup (repository files + infrastructure)
-	@echo "$(RED)💣 Running deep security cleanup$(NC)"
-	@$(MAKE) tf-clean
-	@$(SCRIPTS_DIR)/management/cleanup-infrastructure.sh
-
 # =============================================================================
 # Security - Hybrid Infrastructure + GitOps
 # =============================================================================
-deploy-tf-security-only: ## (TF) Deploy security infrastructure via Terraform only
-	@echo "$(BLUE)🔧 Deploying security infrastructure via Terraform$(NC)"
-	@cd terraform/environments/local && terraform apply -target=module.security_bootstrap -auto-approve
-	@echo "$(GREEN)✅ Security infrastructure deployed$(NC)"
 
 deploy-argocd-security: ## (ArgoCD) Deploy security policies via GitOps
 	@echo "$(BLUE)🚀 Deploying security policies via ArgoCD$(NC)"
@@ -362,27 +326,6 @@ deploy-argocd-security: ## (ArgoCD) Deploy security policies via GitOps
 	@kubectl wait --for=jsonpath='{.status.health.status}'=Healthy --timeout=300s application/tls-certificates -n argocd || echo "⚠️  Manual sync may be required"
 	@echo "$(GREEN)✅ Security applications setup via ArgoCD$(NC)"
 
-validate-security: ## Validate security configuration
-	@echo "$(BLUE)🔍 Validating security configuration$(NC)"
-	@$(SCRIPTS_DIR)/security/validate-security.sh
-
-deploy-security-full: terraform-security-bootstrap argocd-deploy-security ## Deploy complete security stack (hybrid)
-	@echo "$(GREEN)🎉 Complete security stack deployed!$(NC)"
-	@echo ""
-	@echo "🔐 Security Features Deployed:"
-	@echo "  - Infrastructure: cert-manager, ingress-nginx (Terraform)"
-	@echo "  - Policies: NetworkPolicies, TLS certificates (ArgoCD)"
-	@echo "  - Validation: Security testing scripts"
-
-deploy-team-isolation: ## Deploy team isolation (quotas, RBAC)
-	@echo "$(BLUE)👥 Deploying team isolation$(NC)"
-	@$(SCRIPTS_DIR)/security/deploy-single-cluster-isolation.sh
-
-# GitOps and monitoring
-# deploy-argocd: ## Deploy ArgoCD for GitOps
-# 	@echo "$(BLUE)🚀 Deploying ArgoCD$(NC)"
-# 	@$(SCRIPTS_DIR)/deployment/deploy-argocd.sh
-
 deploy-argocd-apps: ## (ArgoCD) Deploy ArgoCD applications
 	@echo "$(BLUE)📱 Setting up ArgoCD applications$(NC)"
 	@echo "🚀 Deploying base GitOps configuration..."
@@ -390,26 +333,6 @@ deploy-argocd-apps: ## (ArgoCD) Deploy ArgoCD applications
 	@kubectl wait --for=jsonpath='{.status.health.status}'=Healthy --timeout=300s application/ml-platform -n argocd || echo "⚠️  Manual sync may be required"
 	@kubectl wait --for=jsonpath='{.status.health.status}'=Healthy --timeout=300s application/ml-platform-infrastructure -n argocd || echo "⚠️  Manual sync may be required"
 	@echo "$(GREEN)✅ ArgoCD applications deployed$(NC)"
-
-# Compliance and validation
-check-labels: ## Check resource label compliance
-	@echo "$(BLUE)🔍 Checking resource label compliance$(NC)"
-	@$(SCRIPTS_DIR)/monitoring/check-resource-labels.sh
-
-audit-logs: ## View Kubernetes audit logs
-	@echo "$(BLUE)📋 Kubernetes Audit Logs$(NC)"
-	@echo "=========================="
-	@docker exec data-platform-local-control-plane cat /var/log/kubernetes/audit.log 2>/dev/null | tail -20 || echo "Audit logs not available (cluster may not have audit logging enabled)"
-
-audit-logs-follow: ## Follow Kubernetes audit logs in real-time
-	@echo "$(BLUE)📋 Following Kubernetes Audit Logs$(NC)"
-	@echo "Press Ctrl+C to stop"
-	@docker exec data-platform-local-control-plane tail -f /var/log/kubernetes/audit.log 2>/dev/null || echo "Audit logs not available"
-
-# Development utilities
-show-status: ## Show infrastructure status
-	@echo "$(BLUE)📊 Infrastructure Status$(NC)"
-	@$(SCRIPTS_DIR)/utilities/show-infrastructure.sh
 
 port-forward: ## Setup port forwarding for all services
 	@echo "$(BLUE)🔗 Setting up port forwarding$(NC)"
@@ -429,14 +352,16 @@ kill-port-forward: ## Kill all port forwarding processes
 	@pkill -f "kubectl port-forward" || true
 	@echo "$(GREEN)✅ Port forwards stopped$(NC)"
 
-# Complete platform setup
-deploy-platform: deploy-local deploy-security deploy-team-isolation deploy-argocd deploy-monitoring ## Deploy complete platform stack
-	@echo "$(GREEN)🎉 Complete ML platform deployed!$(NC)"
-	@echo ""
-	@echo "$(BLUE)🔗 Access services:$(NC)"
-	@echo "  ArgoCD: kubectl port-forward svc/argocd-server -n argocd 8080:443 > /dev/null 2>&1 &"
-	@echo "  Grafana: kubectl port-forward svc/prometheus-grafana -n monitoring 3000:80 > /dev/null 2>&1 &"
-	@echo "  MinIO: kubectl port-forward -n storage svc/minio 9001:9000  > /dev/null 2>&1 &"
+audit-logs-follow: ## Follow Kubernetes audit logs in real-time
+	@echo "$(BLUE)📋 Following Kubernetes Audit Logs$(NC)"
+	@echo "Press Ctrl+C to stop"
+	@docker exec data-platform-local-control-plane tail -f /var/log/kubernetes/audit.log 2>/dev/null || echo "Audit logs not available"
+
+# Development utilities
+show-status: ## Show infrastructure status
+	@echo "$(BLUE)📊 Infrastructure Status$(NC)"
+	@$(SCRIPTS_DIR)/utilities/show-infrastructure.sh
+
 
 # Module targets
 plan-module-%: ## Plan specific module (e.g., make plan-module-database ENV=local)

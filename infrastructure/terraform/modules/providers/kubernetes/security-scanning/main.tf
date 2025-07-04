@@ -21,6 +21,12 @@ resource "kubernetes_namespace" "security_scanning" {
       "pod-security.kubernetes.io/warn"    = "baseline"
     })
   }
+
+  lifecycle {
+    ignore_changes = [
+      metadata[0].annotations
+    ]
+  }
 }
 
 # Trivy vulnerability database

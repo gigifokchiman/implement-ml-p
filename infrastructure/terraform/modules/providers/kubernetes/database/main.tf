@@ -16,6 +16,12 @@ resource "kubernetes_namespace" "database" {
       "workload-type"               = "database"
     })
   }
+
+  lifecycle {
+    ignore_changes = [
+      metadata[0].annotations
+    ]
+  }
 }
 
 # No PVC for local dev - using emptyDir

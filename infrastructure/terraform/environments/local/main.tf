@@ -115,18 +115,18 @@ resource "kind_cluster" "data_platform" {
 
 # Provider configurations for ML Platform cluster
 provider "kubernetes" {
-  host                   = kind_cluster.default.endpoint
-  cluster_ca_certificate = base64decode(kind_cluster.default.cluster_ca_certificate)
-  client_certificate     = base64decode(kind_cluster.default.client_certificate)
-  client_key             = base64decode(kind_cluster.default.client_key)
+  host                   = kind_cluster.data_platform.endpoint
+  cluster_ca_certificate = base64decode(kind_cluster.data_platform.cluster_ca_certificate)
+  client_certificate     = base64decode(kind_cluster.data_platform.client_certificate)
+  client_key             = base64decode(kind_cluster.data_platform.client_key)
 }
 
 provider "helm" {
   kubernetes {
-    host                   = kind_cluster.default.endpoint
-    cluster_ca_certificate = base64decode(kind_cluster.default.cluster_ca_certificate)
-    client_certificate     = base64decode(kind_cluster.default.client_certificate)
-    client_key             = base64decode(kind_cluster.default.client_key)
+    host                   = kind_cluster.data_platform.endpoint
+    cluster_ca_certificate = base64decode(kind_cluster.data_platform.cluster_ca_certificate)
+    client_certificate     = base64decode(kind_cluster.data_platform.client_certificate)
+    client_key             = base64decode(kind_cluster.data_platform.client_key)
   }
 }
 
@@ -176,7 +176,7 @@ module "ml_platform" {
 
   tags = local.environment_config.common_tags
 
-  depends_on = [kind_cluster.default]
+  depends_on = [kind_cluster.data_platform]
 }
 
 # Data Platform Composition (separate cluster)
@@ -198,6 +198,15 @@ module "data_platform" {
     kubernetes = kubernetes.data_platform
     helm       = helm.data_platform
   }
+}
+
+# Storage Provisioner for Kind cluster
+module "storage_provisioner" {
+  source = "../../modules/providers/kubernetes/storage-provisioner"
+
+  tags = local.environment_config.common_tags
+
+  depends_on = [kind_cluster.data_platform]
 }
 
 # Generate random passwords

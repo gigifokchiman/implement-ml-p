@@ -242,21 +242,21 @@ make init-tf-local && make apply-tf-local
 - **Storage**: MinIO object storage with pre-created buckets (ml-artifacts, data-lake, model-registry, etc.)
 - **Local Path Provisioner**: Dynamic volume provisioning for persistent workloads
 
-### Step 1.3: Deploy Kubernetes-Native Security (15 minutes)
+### Step 1.3: Deploy ArgoCD
 
 **🎯 Security Without Service Mesh Complexity**
 
-Implement enterprise-grade security using plain Kubernetes:
+Implement enterprise-grade security using plain Kubernetes + applications
 
 ```bash
 # Deploy app-level security
 make deploy-argocd-local
 
-
 # This creates:
 # ✅ Network policies for team isolation
 # ✅ Rate limiting per team and endpoint
 # ✅ Application-level security middleware
+# ✅ Team namespaces (ml-team, data-team, app-team)
 
 
 # Debugging why the application cannot be synced
@@ -298,62 +298,22 @@ kubectl port-forward -n storage svc/minio 9001:9000 &
 # Storage: http://localhost:9001 (minioadmin/minioadmin)
 ```
 
-
-
-### Step 1.3: Deploy Team Isolation (15 minutes)
-
-Now add team-specific namespaces and resource controls:
+### Step 1.3: Checkers and testing
 
 ```bash
-# Apply team isolation (resource quotas, RBAC)
-./infrastructure/scripts/security/deploy-single-cluster-isolation.sh
+# Check team isolation compliance (validates deployment)
+./infrastructure/scripts/security/check-single-cluster-isolation.sh
 
 # Check that labels are properly applied (for compliance)
 ./infrastructure/scripts/monitoring/check-resource-labels.sh
-
-# This creates:
-# ✅ Team namespaces (ml-team, data-team, app-team)
-# ✅ Resource quotas and limits per team
-# ✅ RBAC policies for team boundaries
-# ✅ Proper node and resource labeling
 
 # Verify team isolation
 kubectl get namespaces --show-labels
 kubectl get resourcequota --all-namespaces
 kubectl get nodes --show-labels
+
+# if you wann
 ```
-
-**🚀 GitOps Setup with ArgoCD (20 minutes)**
-
-Deploy ArgoCD and monitoring stack for GitOps workflow:
-
-```bash
-# 1. Deploy ArgoCD + Prometheus (with CRDs)
-./infrastructure/scripts/deployment/deploy-argocd.sh
-
-# 2. Now deploy team monitoring (CRDs are available)
-./infrastructure/scripts/monitoring/deploy-team-monitoring.sh
-
-# Access ArgoCD UI
-kubectl port-forward svc/argocd-server -n argocd 8080:443 &
-echo "ArgoCD: https://localhost:8080 (admin/<password from script>)"
-
-# Access Grafana
-kubectl port-forward svc/prometheus-grafana -n monitoring 3000:80 &
-echo "Grafana: http://localhost:3000 (admin/prom-operator)"
-
-# Configure ArgoCD applications for GitOps programatically or via GUI
-./infrastructure/scripts/deployment/setup-argocd-apps.sh
-
-
-```
-
-**📊 What ArgoCD Manages:**
-
-- ✅ Team monitoring (ServiceMonitors, PrometheusRules)
-- ✅ Security policies and network policies
-- ✅ Team isolation configurations
-- ✅ GitOps-based application deployments
 
 **🎯 Key Learning Points:**
 
@@ -460,43 +420,77 @@ pkill -f "kubectl port-forward"
 Validate that your security controls are working:
 
 ```bash
-# Test TLS certificates (if ingress deployed)
+# Test TLS certificates (if cert-manager deployed)
 kubectl get certificates --all-namespaces
 
-# Test network policies
+# Test network policies and team isolation
 echo "Testing network isolation..."
-./infrastructure/scripts/utilities/view-federation.sh  # Check cluster status
+kubectl get networkpolicies --all-namespaces
 
-# Test audit logging
-kubectl logs -n kube-system -l k8s-app=fluent-bit-audit
+# Validate team RBAC boundaries
+kubectl auth can-i create pods --as=system:serviceaccount:app-ml-team:default -n app-ml-team
+kubectl auth can-i create pods --as=system:serviceaccount:app-ml-team:default -n app-data-team
 
-# Test rate limiting (if ingress configured)
-# curl -k https://ml-api.company.com/api/ml/inference  # Should work
-# for i in {1..15}; do curl -k https://ml-api.company.com/api/ml/inference; done  # Should hit rate limit
+# Test resource quotas enforcement
+kubectl get resourcequota --all-namespaces
+kubectl describe resourcequota -n app-ml-team
+
+# Test security scanning results (if deployed)
+kubectl get vulnerabilityreports --all-namespaces 2>/dev/null || echo "Security scanning not deployed"
+
+# Validate cluster security posture
+./infrastructure/scripts/security/check-single-cluster-isolation.sh
 ```
 
 ### Step 3.2: Team Monitoring & Alerting (10 minutes)
 
 ```bash
-# Check team-specific monitoring
-kubectl get servicemonitors --all-namespaces
-kubectl get prometheusrules --all-namespaces
+# Check team-specific monitoring (if Prometheus deployed)
+kubectl get servicemonitors --all-namespaces 2>/dev/null || echo "Prometheus CRDs not installed"
+kubectl get prometheusrules --all-namespaces 2>/dev/null || echo "Prometheus CRDs not installed"
 
-# Access monitoring
-kubectl port-forward -n monitoring svc/prometheus-server 9090:9090 &
-kubectl port-forward -n monitoring svc/prometheus-grafana 3000:80 &
+# Apply monitoring configs if missing
+if kubectl get crd servicemonitors.monitoring.coreos.com &>/dev/null; then
+    kubectl apply -f kubernetes/monitoring/namespace-monitoring.yaml
+    kubectl apply -f kubernetes/monitoring/team-dashboards.yaml
+    echo "Team monitoring configs applied ✅"
+fi
 
-# Test team metrics queries
-echo "Prometheus: http://localhost:9090"
-echo "Grafana: http://localhost:3000"
+# Check basic cluster monitoring
+kubectl top nodes 2>/dev/null || echo "Metrics server not deployed"
+kubectl top pods --all-namespaces | head -10 2>/dev/null || echo "Metrics server not deployed"
+
+# Validate resource usage per team
 echo ""
-echo "Try these Prometheus queries:"
-echo "- sum(rate(container_cpu_usage_seconds_total[5m])) by (namespace)"
-echo "- sum(container_memory_working_set_bytes) by (namespace) / 1024^3"
-echo "- count(kube_pod_info) by (namespace)"
+echo "📊 Team Resource Usage:"
+echo "======================"
+for ns in app-ml-team app-data-team app-core-team; do
+    if kubectl get namespace $ns &>/dev/null; then
+        echo "Namespace: $ns"
+        kubectl describe resourcequota -n $ns 2>/dev/null || echo "  No resource quota found"
+        echo ""
+    fi
+done
 
-# Clean up
-pkill -f "kubectl port-forward"
+# Test monitoring stack (if deployed)
+if kubectl get pods -n monitoring &>/dev/null; then
+    echo "🔍 Monitoring stack found - testing access..."
+    kubectl port-forward -n monitoring svc/prometheus-server 9090:9090 &
+    kubectl port-forward -n monitoring svc/prometheus-grafana 3000:80 &
+    
+    echo "Prometheus: http://localhost:9090"
+    echo "Grafana: http://localhost:3000"
+    echo ""
+    echo "Try these Prometheus queries:"
+    echo "- sum(rate(container_cpu_usage_seconds_total[5m])) by (namespace)"
+    echo "- sum(container_memory_working_set_bytes) by (namespace) / 1024^3"
+    echo "- count(kube_pod_info) by (namespace)"
+    
+    sleep 5
+    pkill -f "kubectl port-forward"
+else
+    echo "⚠️  Monitoring stack not deployed - using basic kubectl commands"
+fi
 ```
 
 ## 🛠️ Phase 4: Production Readiness (30 minutes)

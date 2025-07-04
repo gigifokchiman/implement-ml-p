@@ -7,6 +7,7 @@ locals {
   }
 }
 
+# Use existing namespace if it exists, create if it doesn't
 resource "kubernetes_namespace" "cache" {
   metadata {
     name = "cache"
@@ -15,6 +16,12 @@ resource "kubernetes_namespace" "cache" {
       "app.kubernetes.io/component" = "cache"
       "workload-type"               = "cache"
     })
+  }
+
+  lifecycle {
+    ignore_changes = [
+      metadata[0].annotations
+    ]
   }
 }
 

@@ -21,6 +21,12 @@ resource "kubernetes_namespace" "performance_monitoring" {
       "pod-security.kubernetes.io/warn"    = "baseline"
     })
   }
+
+  lifecycle {
+    ignore_changes = [
+      metadata[0].annotations
+    ]
+  }
 }
 
 # Jaeger for Distributed Tracing
