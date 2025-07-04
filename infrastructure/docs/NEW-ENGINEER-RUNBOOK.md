@@ -256,7 +256,6 @@ Implement enterprise-grade security using plain Kubernetes + applications
 ```bash
 # Deploy app-level security
 make deploy-argocd-security
-make deploy-team-isolation
 
 # This creates:
 # ✅ Network policies for team isolation
@@ -298,7 +297,6 @@ kubectl get namespaces --show-labels
 kubectl get resourcequota --all-namespaces
 kubectl get nodes --show-labels
 
-# if you wann
 ```
 
 **🎯 Key Learning Points:**
@@ -316,13 +314,14 @@ Deploy applications to each team namespace with proper constraints:
 
 ```bash
 # Deploy ML workload (already created in ml-team namespace)
-kubectl get pods -n ml-team -o wide
-kubectl describe quota ml-team-quota -n ml-team
+kubectl describe quota ml-team-quota -n app-ml-team
 
 # Test resource quotas work - this should fail (exceeds quota)
-kubectl run test-quota --image=nginx -n ml-team --dry-run=client -o yaml | \
-kubectl set resources --local -f - --requests=cpu=25 --dry-run=client -o yaml | \
+kubectl run test-quota --image=nginx -n app-ml-team --dry-run=client -o yaml | \
+kubectl set resources --local -f - --requests=cpu=10 --dry-run=client -o yaml | \
 kubectl apply --dry-run=client -f -
+
+kubectl get pods -n app-ml-team -o wide
 
 # Or test with a simpler approach - create a pod that exceeds quota
 cat <<EOF | kubectl apply --dry-run=client -f -
