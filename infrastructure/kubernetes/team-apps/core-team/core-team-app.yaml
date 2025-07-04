@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: core-sample-app
+  namespace: app-core-team
+  labels:
+    app: core-sample-app
+    team: core
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: core-sample-app
+  template:
+    metadata:
+      labels:
+        app: core-sample-app
+        team: core
+    spec:
+      serviceAccountName: core-team-service-account
+      containers:
+      - name: core-app
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+          name: http
+        - containerPort: 9090
+          name: metrics
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: core-sample-app
+  namespace: app-core-team
+  labels:
+    app: core-sample-app
+    team: core
+spec:
+  ports:
+  - port: 80
+    targetPort: 80
+    name: http
+  - port: 9090
+    targetPort: 9090
+    name: metrics
+  selector:
+    app: core-sample-app
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: core-team-apps
+  namespace: app-core-team
+  labels:
+    team: core
+    monitoring: prometheus
+spec:
+  selector:
+    matchLabels:
+      team: core
+  endpoints:
+  - port: metrics
+    path: /metrics
+    interval: 30s

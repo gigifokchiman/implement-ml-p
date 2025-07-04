@@ -1,0 +1,25 @@
+---
+# Core Team Application
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: core-team-application
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: core-team-application
+    app.kubernetes.io/component: applications
+spec:
+  project: ml-platform
+  source:
+    repoURL: https://github.com/gigifokchiman/implement-ml-p.git
+    targetRevision: HEAD
+    path: infrastructure/kubernetes/team-apps/core-team
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: app-core-team
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

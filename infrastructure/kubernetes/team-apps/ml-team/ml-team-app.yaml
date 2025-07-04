@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ml-sample-app
+  namespace: app-ml-team
+  labels:
+    app: ml-sample-app
+    team: ml
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ml-sample-app
+  template:
+    metadata:
+      labels:
+        app: ml-sample-app
+        team: ml
+    spec:
+      serviceAccountName: ml-team-service-account
+      containers:
+      - name: ml-app
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+          name: http
+        - containerPort: 9090
+          name: metrics
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ml-sample-app
+  namespace: app-ml-team
+  labels:
+    app: ml-sample-app
+    team: ml
+spec:
+  ports:
+  - port: 80
+    targetPort: 80
+    name: http
+  - port: 9090
+    targetPort: 9090
+    name: metrics
+  selector:
+    app: ml-sample-app
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: ml-team-apps
+  namespace: app-ml-team
+  labels:
+    team: ml
+    monitoring: prometheus
+spec:
+  selector:
+    matchLabels:
+      team: ml
+  endpoints:
+  - port: metrics
+    path: /metrics
+    interval: 30s

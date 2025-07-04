@@ -1,0 +1,11 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ml-team-app.yaml
+  - data-team-app.yaml
+  - core-team-app.yaml
+
+commonLabels:
+  app.kubernetes.io/managed-by: argocd
+  app.kubernetes.io/component: team-applications
