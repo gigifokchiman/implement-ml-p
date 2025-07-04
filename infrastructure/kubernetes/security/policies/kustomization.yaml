@@ -5,6 +5,10 @@ resources:
   - network-policies.yaml
   - rate-limiting.yaml
   - app-level-security.yaml
+  - resource-quotas.yaml
+  - cluster-roles.yaml
+  - rbac-bindings.yaml
+  - limit-ranges.yaml
 
 commonLabels:
   app.kubernetes.io/component: security
