@@ -377,7 +377,8 @@ deploy-argocd-apps: ## (ArgoCD) Deploy ArgoCD applications
 	@echo "$(BLUE)📱 Setting up ArgoCD applications$(NC)"
 	@echo "🚀 Deploying base GitOps configuration..."
 	@kubectl apply -f kubernetes/base/gitops/argocd-projects.yaml
-	@kubectl wait --for=jsonpath='{.status.health.status}'=Healthy --timeout=300s application/network-policies -n argocd || echo "⚠️  Manual sync may be required"
+	@kubectl wait --for=jsonpath='{.status.health.status}'=Healthy --timeout=300s application/ml-platform -n argocd || echo "⚠️  Manual sync may be required"
+	@kubectl wait --for=jsonpath='{.status.health.status}'=Healthy --timeout=300s application/ml-platform-infrastructure -n argocd || echo "⚠️  Manual sync may be required"
 	@echo "$(GREEN)✅ ArgoCD applications deployed$(NC)"
 
 # Compliance and validation
@@ -697,48 +698,34 @@ deploy-argocd-local: ## (ArgoCD) Deploy all ArgoCD applications and setup
 	@echo "📱 Step 2: Deploying ArgoCD applications..."
 	@$(MAKE) deploy-argocd-apps
 	@echo ""
-	@echo "🔄 Step 3: Waiting for applications to sync..."
-	@kubectl wait --for=jsonpath='{.status.health.status}'=Healthy --timeout=300s application/security-policies -n argocd || echo "⚠️  Manual sync may be required"
-	@kubectl wait --for=jsonpath='{.status.health.status}'=Healthy --timeout=300s application/network-policies -n argocd || echo "⚠️  Manual sync may be required"
-	@kubectl wait --for=jsonpath='{.status.health.status}'=Healthy --timeout=300s application/tls-certificates -n argocd || echo "⚠️  Manual sync may be required"
-	@kubectl wait --for=jsonpath='{.status.health.status}'=Healthy --timeout=300s application/team-namespaces -n argocd || echo "⚠️  Manual sync may be required"
-	@echo ""
-	@echo "$(GREEN)✅ Complete ArgoCD deployment finished$(NC)"
-	@echo ""
-	@echo "$(GREEN)🎉 ArgoCD deployment completed!$(NC)"
 	@echo ""
 	@echo "🔗 Access ArgoCD:"
 	@echo "  URL: https://localhost:8080"
 	@echo "  Username: admin"
-	@echo "  Password: Run 'make argocd-password' to get securely"
+	@echo "  Password: Run 'make get-password-argocd-local' to get securely"
 	@echo ""
 	@echo "📚 Next steps:"
-	@echo "  1. Access ArgoCD UI at https://localhost:8080"
-	@echo "  2. Get password: make argocd-password"
-	@echo "  3. Sync applications: make argocd-sync-all"
-	@echo "  4. Check application status: make argocd-status"
+	@echo "  1. Set up port forwarding: make port-forward-argocd-local"
+	@echo "  2. Access ArgoCD UI at https://localhost:8080"
+	@echo "  3. Get password: make get-password-argocd-local"
+	@echo "  4. View ArgoCD help: make help-argocd"
+	@echo "  5. Check application logs: make logs-argocd-APP_NAME"
 	@echo ""
 	@echo "💡 Security: Passwords are stored securely in Kubernetes secrets"
 	@echo "💡 To stop port forward: pkill -f 'kubectl port-forward'"
 
-argocd-bootstrap: ## Bootstrap ArgoCD for GitOps (ENV=local)
-	@echo "$(BLUE)🚀 Bootstrapping ArgoCD for $(ENV) environment$(NC)"
-	@$(SCRIPTS_DIR)/management/bootstrap-argocd.sh $(ENV)
+port-forward-argocd-local: ## Set up port forwarding to ArgoCD UI
+	@echo "$(BLUE)🌐 Setting up port forwarding to ArgoCD UI$(NC)"
+	@echo "$(YELLOW)⚠️  This will run in the foreground. Press Ctrl+C to stop.$(NC)"
+	@echo "$(GREEN)🚀 ArgoCD UI will be available at: https://localhost:8080$(NC)"
+	@kubectl port-forward svc/argocd-server -n argocd 8080:443
 
-argocd-dashboard: ## Open ArgoCD dashboard
-	@echo "$(BLUE)📊 Opening ArgoCD dashboard$(NC)"
-	@$(SCRIPTS_DIR)/argocd-manage.sh dashboard
-
-argocd-login: ## Login to ArgoCD CLI
-	@echo "$(BLUE)🔐 Logging into ArgoCD$(NC)"
-	@$(SCRIPTS_DIR)/management/argocd-login.sh
-
-argocd-password: ## Get ArgoCD admin password (secure)
+get-password-argocd-local: ## Get ArgoCD admin password (secure)
 	@echo "$(BLUE)🔑 ArgoCD admin password:$(NC)"
 	@$(SCRIPTS_DIR)/management/get-secret.sh argocd_admin_password || echo "Password not found - run 'terraform apply' first"
 	@echo ""
 
-get-secret: ## Get any platform secret (Usage: make get-secret SECRET=argocd_admin_password)
+get-secret-argocd-local: ## Get any platform secret (Usage: make get-secret SECRET=argocd_admin_password)
 	@if [ -z "$(SECRET)" ]; then \
 		echo "$(RED)❌ SECRET variable required. Usage: make get-secret SECRET=argocd_admin_password$(NC)"; \
 		$(SCRIPTS_DIR)/management/get-secret.sh; \
@@ -746,62 +733,34 @@ get-secret: ## Get any platform secret (Usage: make get-secret SECRET=argocd_adm
 		$(SCRIPTS_DIR)/management/get-secret.sh $(SECRET); \
 	fi
 
-argocd-apps: ## List all ArgoCD applications
-	@echo "$(BLUE)📋 ArgoCD Applications$(NC)"
-	@$(SCRIPTS_DIR)/argocd-manage.sh list
-
-argocd-status: ## Show status of all applications
-	@echo "$(BLUE)📊 ArgoCD Applications Status$(NC)"
-	@$(SCRIPTS_DIR)/argocd-manage.sh apps
-
-argocd-sync-%: ## Sync specific application (e.g., make argocd-sync-data-platform-local)
-	@echo "$(GREEN)🔄 Syncing ArgoCD application: $*$(NC)"
-	@$(SCRIPTS_DIR)/management/argocd-manage.sh sync $*
-
-argocd-sync-all: ## Sync all ArgoCD applications
-	@echo "$(GREEN)🔄 Syncing all ArgoCD applications$(NC)"
-	@echo "===================================="
-	@argocd app list -o name | while read app; do \
-		if [ -n "$$app" ]; then \
-			echo "🔄 Syncing $$app..."; \
-			argocd app sync $$app || echo "⚠️  Failed to sync $$app"; \
-		fi \
-	done
-	@echo "$(GREEN)✅ All applications synced!$(NC)"
-
-argocd-health: ## Check ArgoCD health
-	@echo "$(BLUE)🏥 Checking ArgoCD health$(NC)"
-	@$(SCRIPTS_DIR)/argocd-manage.sh health
-
-argocd-logs-%: ## Show logs for specific application
+logs-argocd-%: ## Show logs for specific application
 	@echo "$(BLUE)📋 Logs for application: $*$(NC)"
-	@$(SCRIPTS_DIR)/argocd-manage.sh logs $*
+	@$(SCRIPTS_DIR)/management/argocd-manage.sh logs $*
 
-argocd-debug-%: ## Debug specific application issues
+debug-argocd-%: ## Debug specific application issues
 	@echo "$(BLUE)🔍 Debugging application: $*$(NC)"
-	@$(SCRIPTS_DIR)/argocd-manage.sh debug $*
+	@$(SCRIPTS_DIR)/management/argocd-manage.sh debug $*
 
 # ArgoCD help
-argocd-help: ## Show ArgoCD-specific help
+help-argocd: ## Show ArgoCD-specific help
 	@echo "$(BLUE)🚀 ArgoCD GitOps Commands$(NC)"
 	@echo ""
 	@echo "$(YELLOW)Setup Commands:$(NC)"
-	@echo "  $(GREEN)make argocd-bootstrap ENV=local$(NC)  Bootstrap ArgoCD"
-	@echo "  $(GREEN)make argocd-login$(NC)               Login to ArgoCD CLI"
-	@echo "  $(GREEN)make argocd-dashboard$(NC)           Open ArgoCD UI"
+	@echo "  $(GREEN)make deploy-argocd-local$(NC)        Deploy ArgoCD and applications"
+	@echo "  $(GREEN)make port-forward-argocd-local$(NC)  Set up port forwarding"
+	@echo "  $(GREEN)make get-password-argocd-local$(NC)  Get admin password"
 	@echo ""
 	@echo "$(YELLOW)Application Management:$(NC)"
-	@echo "  $(GREEN)make argocd-apps$(NC)                List all applications"
-	@echo "  $(GREEN)make argocd-status$(NC)              Show all app status"
-	@echo "  $(GREEN)make argocd-sync-APP$(NC)            Sync specific app"
-	@echo "  $(GREEN)make argocd-logs-APP$(NC)            Show app logs"
-	@echo "  $(GREEN)make argocd-debug-APP$(NC)           Debug app issues"
+	@echo "  $(GREEN)make deploy-argocd-apps$(NC)         Deploy ArgoCD applications"
+	@echo "  $(GREEN)make deploy-argocd-security$(NC)     Deploy security policies"
+	@echo "  $(GREEN)make logs-argocd-APP$(NC)            Show app logs"
+	@echo "  $(GREEN)make debug-argocd-APP$(NC)           Debug app issues"
 	@echo ""
 	@echo "$(YELLOW)System Commands:$(NC)"
-	@echo "  $(GREEN)make argocd-health$(NC)              Check ArgoCD health"
-	@echo "  $(GREEN)make argocd-password$(NC)            Get admin password"
+	@echo "  $(GREEN)make get-secret-argocd-local$(NC)    Get any platform secret"
+	@echo "  $(GREEN)make help-argocd$(NC)                Show this help"
 	@echo ""
 	@echo "$(YELLOW)Examples:$(NC)"
-	@echo "  $(GREEN)make argocd-bootstrap ENV=local$(NC)"
-	@echo "  $(GREEN)make argocd-sync-data-platform-local$(NC)"
-	@echo "  $(GREEN)make argocd-debug-data-platform-prod$(NC)"
+	@echo "  $(GREEN)make deploy-argocd-local$(NC)              # Deploy complete ArgoCD setup"
+	@echo "  $(GREEN)make logs-argocd-security-policies$(NC)    # Show security-policies logs"
+	@echo "  $(GREEN)make debug-argocd-team-namespaces$(NC)     # Debug team-namespaces app"

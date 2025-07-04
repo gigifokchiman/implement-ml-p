@@ -1,0 +1,57 @@
+# Kubernetes Audit Policy for ML Platform
+# This policy logs security-relevant events for compliance and monitoring
+apiVersion: audit.k8s.io/v1
+kind: Policy
+rules:
+  # Log all security-related events at RequestResponse level
+  - level: RequestResponse
+    namespaces: [ "kube-system", "argocd", "secret-store" ]
+    resources:
+      - group: ""
+        resources: [ "secrets", "configmaps", "serviceaccounts" ]
+      - group: "rbac.authorization.k8s.io"
+        resources: [ "roles", "rolebindings", "clusterroles", "clusterrolebindings" ]
+
+  # Log team namespace activities at Request level
+  - level: Request
+    namespaces: [ "app-ml-team", "app-data-team", "app-core-team" ]
+    resources:
+      - group: ""
+        resources: [ "pods", "services", "persistentvolumeclaims" ]
+      - group: "apps"
+        resources: [ "deployments", "statefulsets" ]
+
+  # Log platform infrastructure changes
+  - level: RequestResponse
+    namespaces: [ "monitoring", "database", "cache", "storage" ]
+    verbs: [ "create", "update", "patch", "delete" ]
+    resources:
+      - group: ""
+        resources: [ "pods", "services", "persistentvolumeclaims", "configmaps" ]
+
+  # Log certificate and security operations
+  - level: RequestResponse
+    resources:
+      - group: "cert-manager.io"
+        resources: [ "certificates", "issuers", "clusterissuers" ]
+      - group: "networking.k8s.io"
+        resources: [ "networkpolicies" ]
+
+  # Log ArgoCD application operations
+  - level: Request
+    namespaces: [ "argocd" ]
+    resources:
+      - group: "argoproj.io"
+        resources: [ "applications", "appprojects" ]
+
+  # Exclude routine read operations to reduce noise
+  - level: None
+    verbs: [ "get", "list", "watch" ]
+    resources:
+      - group: ""
+        resources: [ "events", "nodes", "nodes/status", "pods/log", "pods/status" ]
+
+  # Log everything else at Metadata level for general monitoring
+  - level: Metadata
+    omitStages:
+      - RequestReceived
