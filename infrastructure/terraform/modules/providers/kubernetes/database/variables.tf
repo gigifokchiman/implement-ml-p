@@ -19,6 +19,7 @@ variable "config" {
     encrypted      = bool
     username       = string
     database_name  = string
+    port           = optional(number, 5432)
   })
 }
 

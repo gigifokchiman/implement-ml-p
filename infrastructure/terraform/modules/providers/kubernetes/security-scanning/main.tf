@@ -11,7 +11,7 @@ locals {
 # Namespace for security scanning
 resource "kubernetes_namespace" "security_scanning" {
   metadata {
-    name = "security-scanning"
+    name = var.name
     labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"             = "security-scanning"
       "app.kubernetes.io/component"        = "security"
@@ -35,7 +35,7 @@ resource "kubernetes_persistent_volume_claim" "trivy_cache" {
 
   metadata {
     name      = "trivy-cache"
-    namespace = kubernetes_namespace.security_scanning.metadata[0].name
+    namespace = var.name
     labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"      = "trivy"
       "app.kubernetes.io/component" = "cache"
@@ -58,7 +58,7 @@ resource "kubernetes_deployment" "trivy_server" {
 
   metadata {
     name      = "trivy-server"
-    namespace = kubernetes_namespace.security_scanning.metadata[0].name
+    namespace = var.name
     labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"      = "trivy"
       "app.kubernetes.io/component" = "server"
@@ -186,7 +186,7 @@ resource "kubernetes_service" "trivy_server" {
 
   metadata {
     name      = "trivy-server"
-    namespace = kubernetes_namespace.security_scanning.metadata[0].name
+    namespace = var.name
     labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"      = "trivy"
       "app.kubernetes.io/component" = "server"
@@ -216,7 +216,7 @@ resource "kubernetes_cron_job_v1" "image_scanner" {
 
   metadata {
     name      = "trivy-image-scanner"
-    namespace = kubernetes_namespace.security_scanning.metadata[0].name
+    namespace = var.name
     labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"      = "trivy"
       "app.kubernetes.io/component" = "scanner"
@@ -300,7 +300,7 @@ resource "kubernetes_deployment" "falco" {
 
   metadata {
     name      = "falco"
-    namespace = kubernetes_namespace.security_scanning.metadata[0].name
+    namespace = var.name
     labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"      = "falco"
       "app.kubernetes.io/component" = "runtime-security"
@@ -402,7 +402,7 @@ resource "kubernetes_service_account" "falco" {
 
   metadata {
     name      = "falco"
-    namespace = kubernetes_namespace.security_scanning.metadata[0].name
+    namespace = var.name
     labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"      = "falco"
       "app.kubernetes.io/component" = "runtime-security"
@@ -462,7 +462,7 @@ resource "kubernetes_cluster_role_binding" "falco" {
   subject {
     kind      = "ServiceAccount"
     name      = kubernetes_service_account.falco[0].metadata[0].name
-    namespace = kubernetes_namespace.security_scanning.metadata[0].name
+    namespace = var.name
   }
 }
 
@@ -472,7 +472,7 @@ resource "kubernetes_service" "falco" {
 
   metadata {
     name      = "falco"
-    namespace = kubernetes_namespace.security_scanning.metadata[0].name
+    namespace = var.name
     labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"      = "falco"
       "app.kubernetes.io/component" = "runtime-security"

@@ -11,7 +11,7 @@ locals {
 # Namespace for performance monitoring
 resource "kubernetes_namespace" "performance_monitoring" {
   metadata {
-    name = "performance-monitoring"
+    name = var.name
     labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"             = "performance-monitoring"
       "app.kubernetes.io/component"        = "observability"
@@ -35,7 +35,7 @@ resource "kubernetes_deployment" "jaeger" {
 
   metadata {
     name      = "jaeger"
-    namespace = kubernetes_namespace.performance_monitoring.metadata[0].name
+    namespace = var.name
     labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"      = "jaeger"
       "app.kubernetes.io/component" = "tracing"
@@ -144,7 +144,7 @@ resource "kubernetes_deployment" "jaeger" {
         volume {
           name = "jaeger-storage"
           persistent_volume_claim {
-            claim_name = kubernetes_persistent_volume_claim.jaeger_storage[0].metadata[0].name
+            claim_name = "jaeger-storage"
           }
         }
       }
@@ -158,7 +158,7 @@ resource "kubernetes_persistent_volume_claim" "jaeger_storage" {
 
   metadata {
     name      = "jaeger-storage"
-    namespace = kubernetes_namespace.performance_monitoring.metadata[0].name
+    namespace = var.name
     labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"      = "jaeger"
       "app.kubernetes.io/component" = "storage"
@@ -181,7 +181,7 @@ resource "kubernetes_service" "jaeger" {
 
   metadata {
     name      = "jaeger"
-    namespace = kubernetes_namespace.performance_monitoring.metadata[0].name
+    namespace = var.name
     labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"      = "jaeger"
       "app.kubernetes.io/component" = "tracing"
@@ -228,7 +228,7 @@ resource "kubernetes_deployment" "otel_collector" {
 
   metadata {
     name      = "otel-collector"
-    namespace = kubernetes_namespace.performance_monitoring.metadata[0].name
+    namespace = var.name
     labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"      = "otel-collector"
       "app.kubernetes.io/component" = "metrics"
@@ -331,7 +331,7 @@ resource "kubernetes_config_map" "otel_collector_config" {
 
   metadata {
     name      = "otel-collector-config"
-    namespace = kubernetes_namespace.performance_monitoring.metadata[0].name
+    namespace = var.name
     labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"      = "otel-collector"
       "app.kubernetes.io/component" = "config"
@@ -427,7 +427,7 @@ resource "kubernetes_service_account" "otel_collector" {
 
   metadata {
     name      = "otel-collector"
-    namespace = kubernetes_namespace.performance_monitoring.metadata[0].name
+    namespace = var.name
     labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"      = "otel-collector"
       "app.kubernetes.io/component" = "metrics"
@@ -481,7 +481,7 @@ resource "kubernetes_cluster_role_binding" "otel_collector" {
   subject {
     kind      = "ServiceAccount"
     name      = kubernetes_service_account.otel_collector[0].metadata[0].name
-    namespace = kubernetes_namespace.performance_monitoring.metadata[0].name
+    namespace = var.name
   }
 }
 
@@ -491,7 +491,7 @@ resource "kubernetes_service" "otel_collector" {
 
   metadata {
     name      = "otel-collector"
-    namespace = kubernetes_namespace.performance_monitoring.metadata[0].name
+    namespace = var.name
     labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"      = "otel-collector"
       "app.kubernetes.io/component" = "metrics"
@@ -543,7 +543,7 @@ resource "kubernetes_deployment" "elasticsearch" {
 
   metadata {
     name      = "elasticsearch"
-    namespace = kubernetes_namespace.performance_monitoring.metadata[0].name
+    namespace = var.name
     labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"      = "elasticsearch"
       "app.kubernetes.io/component" = "search"
@@ -632,7 +632,7 @@ resource "kubernetes_deployment" "elasticsearch" {
         volume {
           name = "elasticsearch-storage"
           persistent_volume_claim {
-            claim_name = kubernetes_persistent_volume_claim.elasticsearch_storage[0].metadata[0].name
+            claim_name = "elasticsearch-storage"
           }
         }
       }
@@ -646,7 +646,7 @@ resource "kubernetes_persistent_volume_claim" "elasticsearch_storage" {
 
   metadata {
     name      = "elasticsearch-storage"
-    namespace = kubernetes_namespace.performance_monitoring.metadata[0].name
+    namespace = var.name
     labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"      = "elasticsearch"
       "app.kubernetes.io/component" = "storage"
@@ -669,7 +669,7 @@ resource "kubernetes_service" "elasticsearch" {
 
   metadata {
     name      = "elasticsearch"
-    namespace = kubernetes_namespace.performance_monitoring.metadata[0].name
+    namespace = var.name
     labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"      = "elasticsearch"
       "app.kubernetes.io/component" = "search"
@@ -704,7 +704,7 @@ resource "kubernetes_deployment" "kibana" {
 
   metadata {
     name      = "kibana"
-    namespace = kubernetes_namespace.performance_monitoring.metadata[0].name
+    namespace = var.name
     labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"      = "kibana"
       "app.kubernetes.io/component" = "visualization"
@@ -780,7 +780,7 @@ resource "kubernetes_service" "kibana" {
 
   metadata {
     name      = "kibana"
-    namespace = kubernetes_namespace.performance_monitoring.metadata[0].name
+    namespace = var.name
     labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"      = "kibana"
       "app.kubernetes.io/component" = "visualization"

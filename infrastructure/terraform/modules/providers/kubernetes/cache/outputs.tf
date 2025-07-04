@@ -1,9 +1,9 @@
 output "connection" {
   description = "Cache connection details"
   value = {
-    endpoint = "${kubernetes_service.redis.metadata[0].name}.${kubernetes_namespace.cache.metadata[0].name}.svc.cluster.local"
+    endpoint = "redis.${var.name}.svc.cluster.local"
     port     = 6379
-    url      = "redis://${kubernetes_service.redis.metadata[0].name}.${kubernetes_namespace.cache.metadata[0].name}.svc.cluster.local:6379"
+    url      = "redis://redis.${var.name}.svc.cluster.local:6379"
   }
   sensitive = true
 }

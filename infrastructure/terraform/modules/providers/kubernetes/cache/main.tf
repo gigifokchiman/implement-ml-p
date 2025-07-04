@@ -10,7 +10,7 @@ locals {
 # Use existing namespace if it exists, create if it doesn't
 resource "kubernetes_namespace" "cache" {
   metadata {
-    name = "cache"
+    name = var.name
     labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"      = "cache"
       "app.kubernetes.io/component" = "cache"
@@ -30,7 +30,7 @@ resource "kubernetes_namespace" "cache" {
 resource "kubernetes_deployment" "redis" {
   metadata {
     name      = "redis"
-    namespace = kubernetes_namespace.cache.metadata[0].name
+    namespace = var.name
     labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"      = "redis"
       "app.kubernetes.io/component" = "cache"
@@ -91,7 +91,7 @@ resource "kubernetes_deployment" "redis" {
 resource "kubernetes_service" "redis" {
   metadata {
     name      = "redis"
-    namespace = kubernetes_namespace.cache.metadata[0].name
+    namespace = var.name
     labels = {
       "app.kubernetes.io/name"      = "redis"
       "app.kubernetes.io/component" = "cache"

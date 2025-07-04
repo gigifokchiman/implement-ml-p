@@ -9,7 +9,7 @@ locals {
 
 resource "kubernetes_namespace" "storage" {
   metadata {
-    name = "storage"
+    name = var.name
     labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"      = "storage"
       "app.kubernetes.io/component" = "storage"
@@ -32,7 +32,7 @@ resource "random_password" "minio_admin" {
 resource "kubernetes_secret" "minio" {
   metadata {
     name      = "minio-secret"
-    namespace = kubernetes_namespace.storage.metadata[0].name
+    namespace = var.name
   }
 
   data = {
@@ -46,7 +46,7 @@ resource "kubernetes_secret" "minio" {
 resource "kubernetes_deployment" "minio" {
   metadata {
     name      = "minio"
-    namespace = kubernetes_namespace.storage.metadata[0].name
+    namespace = var.name
     labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"      = "minio"
       "app.kubernetes.io/component" = "storage"
@@ -129,7 +129,7 @@ resource "kubernetes_deployment" "minio" {
 resource "kubernetes_service" "minio" {
   metadata {
     name      = "minio"
-    namespace = kubernetes_namespace.storage.metadata[0].name
+    namespace = var.name
     labels = {
       "app.kubernetes.io/name"      = "minio"
       "app.kubernetes.io/component" = "storage"
@@ -154,7 +154,7 @@ resource "kubernetes_job" "create_buckets" {
 
   metadata {
     name      = "create-bucket-${var.config.buckets[count.index].name}"
-    namespace = kubernetes_namespace.storage.metadata[0].name
+    namespace = var.name
   }
 
   spec {

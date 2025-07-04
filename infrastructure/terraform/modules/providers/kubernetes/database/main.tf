@@ -7,9 +7,14 @@ locals {
   }
 }
 
+resource "random_password" "postgres_password" {
+  length  = 16
+  special = false
+}
+
 resource "kubernetes_namespace" "database" {
   metadata {
-    name = "database"
+    name = var.name
     labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"      = "database"
       "app.kubernetes.io/component" = "database"
@@ -29,12 +34,12 @@ resource "kubernetes_namespace" "database" {
 resource "kubernetes_secret" "postgres" {
   metadata {
     name      = "postgres-secret"
-    namespace = kubernetes_namespace.database.metadata[0].name
+    namespace = var.name
   }
 
   data = {
     username = var.config.username
-    password = "admin123" # TODO: Generate random password
+    password = random_password.postgres_password.result
     database = var.config.database_name
   }
 }
@@ -42,7 +47,7 @@ resource "kubernetes_secret" "postgres" {
 resource "kubernetes_deployment" "postgres" {
   metadata {
     name      = "postgres"
-    namespace = kubernetes_namespace.database.metadata[0].name
+    namespace = var.name
     labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"      = "postgres"
       "app.kubernetes.io/component" = "database"
@@ -101,7 +106,7 @@ resource "kubernetes_deployment" "postgres" {
           }
 
           port {
-            container_port = 5432
+            container_port = var.config.port
           }
 
           volume_mount {
@@ -133,7 +138,7 @@ resource "kubernetes_deployment" "postgres" {
 resource "kubernetes_service" "postgres" {
   metadata {
     name      = "postgres"
-    namespace = kubernetes_namespace.database.metadata[0].name
+    namespace = var.name
     labels = {
       "app.kubernetes.io/name"      = "postgres"
       "app.kubernetes.io/component" = "database"
@@ -146,8 +151,8 @@ resource "kubernetes_service" "postgres" {
     }
 
     port {
-      port        = 5432
-      target_port = 5432
+      port        = var.config.port
+      target_port = var.config.port
     }
   }
 }

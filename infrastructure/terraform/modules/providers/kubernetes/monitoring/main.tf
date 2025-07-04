@@ -7,9 +7,14 @@ locals {
   }
 }
 
+resource "random_password" "grafana_admin_password" {
+  length  = 16
+  special = false
+}
+
 resource "kubernetes_namespace" "monitoring" {
   metadata {
-    name = "monitoring"
+    name = var.name
     labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"      = "monitoring"
       "app.kubernetes.io/component" = "monitoring"
@@ -24,8 +29,8 @@ resource "helm_release" "prometheus" {
   name       = "prometheus"
   repository = "https://prometheus-community.github.io/helm-charts"
   chart      = "kube-prometheus-stack"
-  version    = "55.0.0"
-  namespace  = kubernetes_namespace.monitoring.metadata[0].name
+  version    = var.config.prometheus_version
+  namespace  = var.name
 
   values = [
     yamlencode({
@@ -63,7 +68,7 @@ resource "helm_release" "prometheus" {
         enabled = var.config.enable_grafana
         admin = {
           user     = "admin"
-          password = "admin123"
+          password = random_password.grafana_admin_password.result
         }
         persistence = {
           enabled = true
