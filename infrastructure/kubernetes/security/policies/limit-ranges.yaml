@@ -10,14 +10,8 @@ metadata:
     app.kubernetes.io/part-of: gitops
 spec:
   limits:
-    # Default limits for pods
+    # Resource limits for pods
     - type: Pod
-      default:
-        cpu: "2"
-        memory: "4Gi"
-      defaultRequest:
-        cpu: "500m"
-        memory: "1Gi"
       max:
         cpu: "8"
         memory: "16Gi"
@@ -57,14 +51,8 @@ metadata:
     app.kubernetes.io/part-of: gitops
 spec:
   limits:
-    # Default limits for pods
+    # Resource limits for pods
     - type: Pod
-      default:
-        cpu: "1.5"
-        memory: "3Gi"
-      defaultRequest:
-        cpu: "400m"
-        memory: "768Mi"
       max:
         cpu: "6"
         memory: "12Gi"
@@ -104,14 +92,8 @@ metadata:
     app.kubernetes.io/part-of: gitops
 spec:
   limits:
-    # Default limits for pods
+    # Resource limits for pods
     - type: Pod
-      default:
-        cpu: "1"
-        memory: "2Gi"
-      defaultRequest:
-        cpu: "250m"
-        memory: "512Mi"
       max:
         cpu: "4"
         memory: "8Gi"
