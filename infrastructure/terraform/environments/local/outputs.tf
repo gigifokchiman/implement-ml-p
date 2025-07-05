@@ -23,11 +23,11 @@ output "kubeconfig" {
 }
 
 # Kind-specific Information
-# output "kind_cluster_info" {
-#   description = "Kind-specific cluster information"
-#   value       = module.data_platform.kind_cluster_info
-#   sensitive   = true
-# }
+output "kind_cluster_info" {
+  description = "Kind-specific cluster information"
+  value       = module.data_platform.kind_cluster_info
+  sensitive   = true
+}
 
 # Platform Services
 output "database" {

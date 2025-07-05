@@ -96,8 +96,10 @@ output "monitoring_dashboards" {
 output "security" {
   description = "Security policies status"
   value = length(module.security) > 0 ? module.security[0].security_policies : {
-    enabled = false
-    message = "Security disabled for local environment"
+    pod_security_enabled     = false
+    pod_security_standard    = "baseline"
+    network_policies_enabled = false
+    secured_namespaces       = []
   }
 }
 
@@ -115,19 +117,36 @@ output "backup" {
 
 output "security_scanning" {
   description = "Security scanning endpoints and configuration"
-  value = {
-    scanner_endpoints      = module.security_scanning.scanner_endpoints
-    vulnerability_database = module.security_scanning.vulnerability_database
-    scan_reports_location  = module.security_scanning.scan_reports_location
+  value = length(module.security_scanning) > 0 ? {
+    scanner_endpoints      = module.security_scanning[0].scanner_endpoints
+    vulnerability_database = module.security_scanning[0].vulnerability_database
+    scan_reports_location  = module.security_scanning[0].scan_reports_location
+    enabled                = true
+    message                = "Security scanning enabled"
+  } : {
+    scanner_endpoints      = {}
+    vulnerability_database = {}
+    scan_reports_location  = ""
+    enabled                = false
+    message                = "Security scanning disabled"
   }
 }
 
 output "performance_monitoring" {
   description = "Performance monitoring endpoints and dashboards"
-  value = {
-    apm_endpoints     = module.performance_monitoring.apm_endpoints
-    tracing_endpoints = module.performance_monitoring.tracing_endpoints
-    metrics_endpoints = module.performance_monitoring.metrics_endpoints
-    dashboards        = module.performance_monitoring.dashboards
+  value = length(module.performance_monitoring) > 0 ? {
+    apm_endpoints     = module.performance_monitoring[0].apm_endpoints
+    tracing_endpoints = module.performance_monitoring[0].tracing_endpoints
+    metrics_endpoints = module.performance_monitoring[0].metrics_endpoints
+    dashboards        = module.performance_monitoring[0].dashboards
+    enabled           = true
+    message           = "Performance monitoring enabled"
+  } : {
+    apm_endpoints     = {}
+    tracing_endpoints = {}
+    metrics_endpoints = {}
+    dashboards        = []
+    enabled           = false
+    message           = "Performance monitoring disabled"
   }
 }

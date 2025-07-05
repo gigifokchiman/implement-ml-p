@@ -1,5 +1,5 @@
 # ML Platform Composition Module
-# Orchestrates all platform components
+# Orchestrates all platform components using dependency injection and service discovery
 
 terraform {
   required_providers {
@@ -16,6 +16,32 @@ terraform {
       source  = "kind.local/gigifokchiman/kind"
       version = "0.1.0"
     }
+  }
+}
+
+# Cross-cutting concerns for platform
+module "platform_cross_cutting" {
+  source = "../../shared/cross-cutting"
+  
+  platform_name     = var.name
+  environment       = var.environment
+  module_name       = "data-platform-composition"
+  service_name      = var.name
+  component_type    = "platform"
+  service_type      = "infrastructure"
+  service_tier      = "core"
+  security_level    = "high"
+  namespace         = "default"
+  
+  base_tags = var.tags
+  
+  logging_config = {
+    enabled = true
+    level   = var.environment == "local" ? "debug" : "info"
+  }
+  
+  monitoring_config = {
+    enabled = var.enable_monitoring
   }
 }
 
@@ -38,7 +64,24 @@ module "cluster" {
   team_configurations = var.team_configurations
   port_mappings       = var.port_mappings
 
-  tags = var.tags
+  tags = module.platform_cross_cutting.standard_tags
+}
+
+# Cluster interface for dependency injection
+module "cluster_interface" {
+  source = "../../shared/interfaces/cluster"
+  
+  cluster_outputs = {
+    cluster_name     = module.cluster.cluster_name
+    cluster_endpoint = module.cluster.cluster_endpoint
+    cluster_version  = var.kubernetes_version
+    vpc_id           = try(module.cluster.vpc_id, null)
+    private_subnets  = try(module.cluster.private_subnets, null)
+    public_subnets   = try(module.cluster.public_subnets, null)
+    security_groups  = try(module.cluster.security_groups, null)
+    iam_roles        = try(module.cluster.iam_roles, null)
+    tags             = module.platform_cross_cutting.standard_tags
+  }
 }
 
 module "database" {
@@ -86,23 +129,17 @@ module "storage" {
 }
 
 module "monitoring" {
-  count  = var.environment != "local" ? 1 : 0
+  count  = var.enable_monitoring ? 1 : 0
   source = "../../platform/monitoring"
 
   name        = "${var.name}-monitoring"
   environment = var.environment
-  config = {
-    enable_prometheus   = true
-    enable_grafana      = true
-    enable_alertmanager = var.environment != "local"
-    storage_size        = var.environment == "local" ? "5Gi" : "20Gi"
-    retention_days      = var.environment == "local" ? 3 : 30
-  }
+  config = var.monitoring_config
   tags = var.tags
 }
 
 module "security" {
-  count  = var.environment != "local" ? 1 : 0
+  count  = var.enable_security_policies ? 1 : 0
   source = "../../platform/security"
 
   name        = "${var.name}-security"
@@ -118,56 +155,35 @@ module "security" {
 }
 
 module "backup" {
-  count  = var.environment != "local" ? 1 : 0
+  count  = var.enable_backup ? 1 : 0
   source = "../../platform/backup"
 
   name        = "${var.name}-backup"
   environment = var.environment
-  config = {
-    backup_schedule     = var.environment == "prod" ? "0 2 * * *" : "0 3 * * 0" # Daily for prod, weekly for others
-    retention_days      = var.environment == "prod" ? 30 : 7
-    enable_cross_region = var.environment == "prod"
-    enable_encryption   = true
-  }
+  config = var.backup_config
   tags = var.tags
 }
 
 module "security_scanning" {
+  count  = var.enable_security_scanning ? 1 : 0
   source = "../../platform/security-scanning"
 
   name        = "${var.name}-security-scanning"
   environment = var.environment
-  config = {
-    enable_image_scanning   = var.environment != "local"
-    enable_vulnerability_db = var.environment != "local" # Disable for local due to filesystem issues
-    enable_runtime_scanning = var.environment != "local"
-    enable_compliance_check = var.environment == "prod"
-    scan_schedule           = var.environment == "prod" ? "0 1 * * *" : "0 2 * * 0" # Daily for prod, weekly for others
-    severity_threshold      = var.environment == "prod" ? "HIGH" : "MEDIUM"
-    enable_notifications    = var.environment != "local"
-    webhook_url             = var.security_webhook_url
-  }
+  config = merge(var.security_scanning_config, {
+    webhook_url = var.security_webhook_url
+  })
   namespaces = ["database", "cache", "storage", "monitoring", "security-scanning"]
   tags       = var.tags
 }
 
 module "performance_monitoring" {
+  count  = var.enable_performance_monitoring ? 1 : 0
   source = "../../platform/performance-monitoring"
 
   name        = "${var.name}-performance"
   environment = var.environment
-  config = {
-    enable_apm               = var.environment != "local"
-    enable_distributed_trace = var.environment != "local"
-    enable_custom_metrics    = var.environment != "local" # Disable OTEL collector for local
-    enable_log_aggregation   = var.environment != "local"
-    enable_alerting          = var.environment != "local"
-    retention_days           = var.environment == "prod" ? 90 : 30
-    sampling_rate            = var.environment == "prod" ? 0.05 : 0.1 # 5% for prod, 10% for others
-    trace_storage_size       = var.environment == "local" ? "5Gi" : "20Gi"
-    metrics_storage_size     = var.environment == "local" ? "10Gi" : "50Gi"
-    log_storage_size         = var.environment == "local" ? "20Gi" : "100Gi"
-  }
+  config = var.performance_config
   namespaces = ["database", "cache", "storage", "monitoring", "security-scanning", "performance-monitoring"]
   tags       = var.tags
 }
@@ -181,42 +197,32 @@ module "secret_store" {
   use_aws     = var.use_aws
   
   # AWS uses Secrets Manager, Local uses Kubernetes secrets
-  config = {
-    enable_rotation    = var.environment == "prod"
-    rotation_days      = var.environment == "prod" ? 30 : 90
-    enable_encryption  = var.environment != "local"
-    kms_key_id         = var.use_aws ? module.cluster.aws_cluster_outputs.kms_key_id : null
-  }
+  config = merge(var.secret_store_config, {
+    kms_key_id = var.use_aws && can(module.cluster.aws_cluster_outputs.kms_key_id) ? module.cluster.aws_cluster_outputs.kms_key_id : null
+  })
 
   tags = var.tags
 }
 
-# Security Bootstrap - Certificate management, RBAC, Pod Security
+# Security Bootstrap - Certificate management, RBAC, Pod Security (dependency injected)
 module "security_bootstrap" {
   source = "../../platform/security-bootstrap"
 
-  name        = "${var.name}-security-bootstrap"
-  environment = var.environment
+  name         = "${var.name}-security-bootstrap"
+  environment  = var.environment
   cluster_name = module.cluster.cluster_name
   
-  config = {
-    enable_cert_manager     = true
-    enable_pod_security     = var.environment != "local"
-    enable_network_policies = var.environment != "local"
-    enable_rbac            = true
-    enable_argocd          = true  # Enable ArgoCD by default
-    cert_manager_version   = "v1.13.2"
-    argocd_version         = "5.51.6"
-    pod_security_standard  = var.environment == "prod" ? "restricted" : "baseline"
-  }
+  # Dependency injection - inject cluster interface
+  cluster_info = module.cluster_interface.cluster_interface
+  
+  config = var.security_config
 
-  tags = var.tags
-  depends_on = [module.cluster]
+  tags = module.platform_cross_cutting.standard_tags
 }
 
 # Audit Logging - Compliance and security monitoring
 module "audit_logging" {
-  count  = var.environment != "local" ? 1 : 0
+  count  = var.enable_audit_logging ? 1 : 0
   source = "../../platform/audit-logging"
 
   name        = "${var.name}-audit"
@@ -232,4 +238,72 @@ module "audit_logging" {
 
   tags = var.tags
   depends_on = [module.cluster]
+}
+
+# Security interface for service discovery
+module "security_interface" {
+  source = "../../shared/interfaces/security"
+  
+  security_outputs = {
+    cert_manager_enabled     = module.security_bootstrap.security_info.cert_manager_enabled
+    cert_manager_namespace   = module.security_bootstrap.security_info.cert_manager_namespace
+    cluster_issuer          = module.security_bootstrap.security_info.cluster_issuer
+    ingress_class           = module.security_bootstrap.security_info.ingress_class
+    ingress_namespace       = module.security_bootstrap.security_info.ingress_namespace
+    argocd_enabled          = module.security_bootstrap.security_info.argocd_enabled
+    argocd_namespace        = module.security_bootstrap.security_info.argocd_namespace
+    pod_security_enabled    = module.security_bootstrap.security_info.pod_security_enabled
+    network_policies_enabled = module.security_bootstrap.security_info.network_policies_enabled
+    rbac_enabled            = module.security_bootstrap.security_info.rbac_enabled
+  }
+}
+
+# Service Discovery Registry
+module "service_registry" {
+  source = "../../shared/service-registry"
+  
+  platform_name = var.name
+  environment   = var.environment
+  
+  cluster_service = module.cluster_interface.cluster_interface
+  security_service = module.security_interface.security_interface
+  
+  additional_services = {
+    database = {
+      name     = "database"
+      type     = "database"
+      status   = "ready"
+      metadata = {
+        engine = var.database_config.engine
+        version = var.database_config.version
+      }
+    }
+    cache = {
+      name     = "cache"
+      type     = "cache"
+      status   = "ready"
+      metadata = {
+        engine = var.cache_config.engine
+        version = var.cache_config.version
+      }
+    }
+    storage = {
+      name     = "storage"
+      type     = "storage"
+      status   = "ready"
+      metadata = {
+        versioning = tostring(var.storage_config.versioning_enabled)
+        encryption = tostring(var.storage_config.encryption_enabled)
+      }
+    }
+    monitoring = var.enable_monitoring ? {
+      name     = "monitoring"
+      type     = "observability"
+      status   = "ready"
+      metadata = {
+        prometheus = tostring(var.monitoring_config.enable_prometheus)
+        grafana = tostring(var.monitoring_config.enable_grafana)
+      }
+    } : null
+  }
 }

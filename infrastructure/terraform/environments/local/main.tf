@@ -149,6 +149,13 @@ module "data_platform" {
   # enable_efs       = var.enable_efs
   enable_gpu_nodes = var.enable_gpu_nodes
 
+  enable_monitoring            = var.enable_monitoring
+  enable_audit_logging         = var.enable_audit_logging
+  enable_security_policies     = var.enable_security_policies
+  enable_backup               = var.enable_backup
+  enable_security_scanning     = var.enable_security_scanning
+  enable_performance_monitoring = var.enable_performance_monitoring
+
   # Team configurations
   team_configurations = var.team_namespaces
 
@@ -195,6 +202,14 @@ module "data_platform" {
   # Security and compliance
   allowed_cidr_blocks = ["0.0.0.0/0"]  # vs var.allowed_cidr_blocks in dev (relaxed for local)
   # aws_region         = var.region     # Not applicable for Kind
+
+  # Environment-specific configurations (moved from composition layer)
+  security_config           = var.security_config
+  monitoring_config         = var.monitoring_config
+  performance_config        = var.performance_config
+  security_scanning_config  = var.security_scanning_config
+  secret_store_config       = var.secret_store_config
+  backup_config             = var.backup_config
 
   tags = local.common_tags
 }

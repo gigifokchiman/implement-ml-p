@@ -44,3 +44,8 @@ output "configuration" {
   description = "Security bootstrap configuration summary"
   value       = local.security_bootstrap_info
 }
+
+output "security_info" {
+  description = "Complete security bootstrap information for service discovery"
+  value       = local.security_bootstrap_info
+}

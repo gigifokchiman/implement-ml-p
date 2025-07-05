@@ -90,6 +90,42 @@ variable "enable_gpu_nodes" {
   default     = false
 }
 
+variable "enable_monitoring" {
+  description = "Enable monitoring stack"
+  type        = bool
+  default     = true
+}
+
+variable "enable_security_policies" {
+  description = "Enable additional security policies"
+  type        = bool
+  default     = true
+}
+
+variable "enable_backup" {
+  description = "Enable backup services"
+  type        = bool
+  default     = true
+}
+
+variable "enable_audit_logging" {
+  description = "Enable audit logging"
+  type        = bool
+  default     = true
+}
+
+variable "enable_security_scanning" {
+  description = "Enable security scanning services"
+  type        = bool
+  default     = true
+}
+
+variable "enable_performance_monitoring" {
+  description = "Enable performance monitoring services"
+  type        = bool
+  default     = true
+}
+
 variable "team_configurations" {
   description = "Team-specific configurations"
   type = map(object({
@@ -191,6 +227,92 @@ variable "security_webhook_url" {
   description = "Webhook URL for security notifications (optional)"
   type        = string
   default     = null
+}
+
+# Environment-specific configuration objects (moved from inline logic)
+variable "security_config" {
+  description = "Security configuration"
+  type = object({
+    enable_cert_manager        = optional(bool, true)
+    enable_pod_security        = optional(bool, true)
+    enable_network_policies    = optional(bool, true)
+    enable_rbac               = optional(bool, true)
+    enable_argocd             = optional(bool, true)
+    enable_letsencrypt_issuer = optional(bool, false)
+    enable_selfsigned_issuer  = optional(bool, true)
+    cert_manager_version      = optional(string, "v1.13.2")
+    argocd_version           = optional(string, "5.51.6")
+    pod_security_standard    = optional(string, "baseline")
+    ingress_service_type     = optional(string, "LoadBalancer")
+    ingress_host_port_enabled = optional(string, "false")
+    argocd_service_type      = optional(string, "LoadBalancer")
+    argocd_insecure          = optional(string, "false")
+  })
+  default = {}
+}
+
+variable "monitoring_config" {
+  description = "Monitoring configuration"
+  type = object({
+    enable_prometheus   = optional(bool, true)
+    enable_grafana      = optional(bool, true)
+    enable_alertmanager = optional(bool, true)
+    storage_size        = optional(string, "20Gi")
+    retention_days      = optional(number, 30)
+  })
+  default = {}
+}
+
+variable "performance_config" {
+  description = "Performance monitoring configuration"
+  type = object({
+    enable_apm               = optional(bool, true)
+    enable_distributed_trace = optional(bool, true)
+    enable_custom_metrics    = optional(bool, true)
+    enable_log_aggregation   = optional(bool, true)
+    enable_alerting          = optional(bool, true)
+    retention_days           = optional(number, 90)
+    sampling_rate            = optional(number, 0.05)
+    trace_storage_size       = optional(string, "20Gi")
+    metrics_storage_size     = optional(string, "50Gi")
+    log_storage_size         = optional(string, "100Gi")
+  })
+  default = {}
+}
+
+variable "security_scanning_config" {
+  description = "Security scanning configuration"
+  type = object({
+    enable_image_scanning   = optional(bool, true)
+    enable_vulnerability_db = optional(bool, true)
+    enable_runtime_scanning = optional(bool, true)
+    enable_compliance_check = optional(bool, true)
+    scan_schedule           = optional(string, "0 1 * * *")
+    severity_threshold      = optional(string, "HIGH")
+    enable_notifications    = optional(bool, true)
+  })
+  default = {}
+}
+
+variable "secret_store_config" {
+  description = "Secret store configuration"
+  type = object({
+    enable_rotation    = optional(bool, true)
+    rotation_days      = optional(number, 30)
+    enable_encryption  = optional(bool, true)
+  })
+  default = {}
+}
+
+variable "backup_config" {
+  description = "Backup configuration"
+  type = object({
+    backup_schedule     = optional(string, "0 2 * * *")
+    retention_days      = optional(number, 30)
+    enable_cross_region = optional(bool, true)
+    enable_encryption   = optional(bool, true)
+  })
+  default = {}
 }
 
 variable "tags" {
