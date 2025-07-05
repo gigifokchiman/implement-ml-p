@@ -1,3 +1,45 @@
+# Cluster Infrastructure
+output "cluster" {
+  description = "Cluster information"
+  value       = module.cluster.cluster_info
+  sensitive   = true
+}
+
+output "cluster_name" {
+  description = "Cluster name"
+  value       = module.cluster.cluster_name
+}
+
+output "cluster_endpoint" {
+  description = "Cluster endpoint"
+  value       = module.cluster.cluster_endpoint
+}
+
+output "cluster_provider" {
+  description = "Cluster provider type (aws or kind)"
+  value       = module.cluster.provider_type
+}
+
+output "kubeconfig" {
+  description = "Kubeconfig for cluster access"
+  value       = module.cluster.kubeconfig
+  sensitive   = true
+}
+
+# AWS-specific outputs (when using AWS)
+output "aws_cluster_info" {
+  description = "AWS-specific cluster information"
+  value       = module.cluster.aws_cluster_outputs
+  sensitive   = true
+}
+
+# Kind-specific outputs (when using Kind)
+output "kind_cluster_info" {
+  description = "Kind-specific cluster information"
+  value       = module.cluster.kind_cluster_outputs
+  sensitive   = true
+}
+
 output "database" {
   description = "Database connection details"
   value       = module.database.connection

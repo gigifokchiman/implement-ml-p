@@ -41,100 +41,11 @@ locals {
   )
 }
 
-# KIND CLUSTER FOR DATA PLATFORM
-resource "kind_cluster" "data_platform" {
-  name           = "data-platform-local"
-  wait_for_ready = true
+# KIND CLUSTER IS NOW MANAGED BY THE DATA PLATFORM COMPOSITION
+# The cluster configuration is handled by the platform/cluster module
 
-  kind_config {
-    kind        = "Cluster"
-    api_version = "kind.x-k8s.io/v1alpha4"
-
-    node {
-      role = "control-plane"
-
-      kubeadm_config_patches = [
-        <<-EOT
-        kind: InitConfiguration
-        nodeRegistration:
-          kubeletExtraArgs:
-            node-labels: "ingress-ready=true,environment=local,cluster-name=data-platform-local,node-role=control-plane"
-          taints:
-          - key: node-role.kubernetes.io/control-plane
-            effect: NoSchedule
-        ---
-        kind: ClusterConfiguration
-        scheduler:
-          extraArgs:
-            bind-address: "0.0.0.0"
-        controllerManager:
-          extraArgs:
-            bind-address: "0.0.0.0"
-        EOT
-      ]
-
-      extra_port_mappings {
-        container_port = 80
-        host_port      = 8090
-        protocol       = "TCP"
-      }
-      extra_port_mappings {
-        container_port = 443
-        host_port      = 8453
-        protocol       = "TCP"
-      }
-    }
-
-    node {
-      role = "worker"
-
-      kubeadm_config_patches = [
-        <<-EOT
-        kind: JoinConfiguration
-        nodeRegistration:
-          kubeletExtraArgs:
-            node-labels: "environment=local,cluster-name=data-platform-local,node-role=core-services,service-type=infrastructure"
-        EOT
-      ]
-    }
-  }
-}
-
-# Provider configurations for ML Platform cluster
-provider "kubernetes" {
-  host                   = kind_cluster.data_platform.endpoint
-  cluster_ca_certificate = base64decode(kind_cluster.data_platform.cluster_ca_certificate)
-  client_certificate     = base64decode(kind_cluster.data_platform.client_certificate)
-  client_key             = base64decode(kind_cluster.data_platform.client_key)
-}
-
-provider "helm" {
-  kubernetes {
-    host                   = kind_cluster.data_platform.endpoint
-    cluster_ca_certificate = base64decode(kind_cluster.data_platform.cluster_ca_certificate)
-    client_certificate     = base64decode(kind_cluster.data_platform.client_certificate)
-    client_key             = base64decode(kind_cluster.data_platform.client_key)
-  }
-}
-
-# Provider configurations for Data Platform cluster
-provider "kubernetes" {
-  alias                  = "data_platform"
-  host                   = kind_cluster.data_platform.endpoint
-  cluster_ca_certificate = base64decode(kind_cluster.data_platform.cluster_ca_certificate)
-  client_certificate     = base64decode(kind_cluster.data_platform.client_certificate)
-  client_key             = base64decode(kind_cluster.data_platform.client_key)
-}
-
-provider "helm" {
-  alias = "data_platform"
-  kubernetes {
-    host                   = kind_cluster.data_platform.endpoint
-    cluster_ca_certificate = base64decode(kind_cluster.data_platform.cluster_ca_certificate)
-    client_certificate     = base64decode(kind_cluster.data_platform.client_certificate)
-    client_key             = base64decode(kind_cluster.data_platform.client_key)
-  }
-}
+# Provider configurations will be handled by the data platform composition
+# The cluster information comes from the platform/cluster module outputs
 
 # Stub AWS provider configuration (unused in local environment)
 # Required because child modules reference AWS provider even with count = 0
@@ -168,25 +79,40 @@ provider "aws" {
 #   depends_on = [kind_cluster.data_platform]
 # }
 
-# Data Platform Composition (separate cluster)
+# Data Platform Composition using the new modular approach
 module "data_platform" {
   source = "../../modules/compositions/data-platform"
 
-  name        = "data-platform-local"
-  environment = "local"
+  name               = "data-platform"
+  cluster_name      = "data-platform-local"
+  environment       = "local"
+  use_aws          = false  # Use Kind cluster
+  kubernetes_version = "1.28"
 
+  # Node groups configuration (will be adapted for Kind)
+  node_groups = {
+    core_services = {
+      instance_types = ["local"]
+      capacity_type  = "ON_DEMAND"
+      min_size       = 1
+      max_size       = 1
+      desired_size   = 1
+      ami_type       = "local"
+      disk_size      = 50
+      labels = {
+        node-role    = "core-services"
+        service-type = "infrastructure"
+      }
+      taints = {}
+    }
+  }
+
+  # Platform services configuration for local development
   database_config = var.database_config
   cache_config    = var.cache_config
   storage_config  = var.storage_config
 
   tags = local.environment_config.common_tags
-
-  depends_on = [kind_cluster.data_platform]
-
-  providers = {
-    kubernetes = kubernetes.data_platform
-    helm       = helm.data_platform
-  }
 }
 
 # Storage Provisioner for Kind cluster
@@ -288,12 +214,28 @@ module "audit_logging" {
 output "data_platform_cluster_info" {
   description = "Data Platform cluster connection information"
   sensitive   = true
-  value = {
-    name                   = kind_cluster.data_platform.name
-    endpoint               = kind_cluster.data_platform.endpoint
-    kubeconfig_path        = kind_cluster.data_platform.kubeconfig_path
-    cluster_ca_certificate = kind_cluster.data_platform.cluster_ca_certificate
-  }
+  value       = module.data_platform.cluster
+}
+
+output "cluster_name" {
+  description = "Cluster name"
+  value       = module.data_platform.cluster_name
+}
+
+output "cluster_endpoint" {
+  description = "Cluster endpoint"
+  value       = module.data_platform.cluster_endpoint
+}
+
+output "cluster_provider" {
+  description = "Cluster provider type"
+  value       = module.data_platform.cluster_provider
+}
+
+output "kind_cluster_info" {
+  description = "Kind-specific cluster information"
+  value       = module.data_platform.kind_cluster_info
+  sensitive   = true
 }
 
 output "data_platform_service_connections" {
@@ -310,9 +252,11 @@ output "data_platform_service_connections" {
 output "development_urls" {
   description = "Local development URLs"
   value = {
+    frontend   = try(module.data_platform.kind_cluster_info.port_mappings.http, "http://localhost:8080")
     grafana    = "http://localhost:3000" # Port forward required: kubectl port-forward -n monitoring svc/prometheus-grafana 3000:80
     prometheus = "http://localhost:9090" # Port forward required: kubectl port-forward -n monitoring svc/prometheus-server 9090:9090
     minio      = "http://localhost:9001" # Port forward required: kubectl port-forward -n storage svc/minio 9001:9000
+    registry   = try(module.data_platform.kind_cluster_info.local_registry_url, "localhost:5001")
   }
 }
 
@@ -320,15 +264,16 @@ output "useful_commands" {
   description = "Useful commands for local development"
   value = {
     # Data Platform cluster commands
-    kubectl_context         = "kubectl config use-context kind-data-platform-local"
-    port_forward_db         = "kubectl --context kind-data-platform-local port-forward -n data-platform-database svc/postgres 5432:5432"
-    port_forward_redis      = "kubectl --context kind-data-platform-local port-forward -n data-platform-cache svc/redis 6379:6379"
-    port_forward_minio      = "kubectl --context kind-data-platform-local port-forward -n data-platform-storage svc/minio 9000:9000"
-    port_forward_grafana    = "kubectl --context kind-data-platform-local port-forward -n data-platform-monitoring svc/prometheus-grafana 3000:80"
-    port_forward_prometheus = "kubectl --context kind-data-platform-local port-forward -n data-platform-monitoring svc/prometheus-server 9090:9090"
+    kubectl_context         = "kubectl config use-context kind-${module.data_platform.cluster_name}"
+    port_forward_db         = "kubectl --context kind-${module.data_platform.cluster_name} port-forward -n data-platform-database svc/postgres 5432:5432"
+    port_forward_redis      = "kubectl --context kind-${module.data_platform.cluster_name} port-forward -n data-platform-cache svc/redis 6379:6379"
+    port_forward_minio      = "kubectl --context kind-${module.data_platform.cluster_name} port-forward -n data-platform-storage svc/minio 9000:9000"
+    port_forward_grafana    = "kubectl --context kind-${module.data_platform.cluster_name} port-forward -n data-platform-monitoring svc/prometheus-grafana 3000:80"
+    port_forward_prometheus = "kubectl --context kind-${module.data_platform.cluster_name} port-forward -n data-platform-monitoring svc/prometheus-server 9090:9090"
 
     # General info
     list_clusters     = "kind get clusters"
+    registry_catalog  = "curl http://localhost:5001/v2/_catalog"
     minio_credentials = "Access Key: admin, Secret: stored in secret 'minio-secret' in 'data-platform-storage' namespace"
   }
 }

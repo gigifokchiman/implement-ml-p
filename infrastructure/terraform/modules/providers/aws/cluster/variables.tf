@@ -1,18 +1,13 @@
+# AWS EKS Cluster Provider Variables
+
 variable "name" {
-  description = "Platform name"
+  description = "Cluster name"
   type        = string
 }
 
-variable "cluster_name" {
-  description = "Cluster name (defaults to platform name if not specified)"
+variable "environment" {
+  description = "Environment name"
   type        = string
-  default     = ""
-}
-
-variable "use_aws" {
-  description = "Use AWS EKS instead of local Kind cluster"
-  type        = bool
-  default     = false
 }
 
 variable "kubernetes_version" {
@@ -22,13 +17,13 @@ variable "kubernetes_version" {
 }
 
 variable "vpc_cidr" {
-  description = "VPC CIDR block (AWS only)"
+  description = "VPC CIDR block"
   type        = string
   default     = "10.0.0.0/16"
 }
 
 variable "node_groups" {
-  description = "Node groups configuration"
+  description = "EKS node groups configuration"
   type = map(object({
     instance_types = list(string)
     capacity_type  = string
@@ -63,7 +58,7 @@ variable "node_groups" {
 }
 
 variable "access_entries" {
-  description = "EKS access entries (AWS only)"
+  description = "EKS access entries"
   type = map(object({
     kubernetes_groups = list(string)
     principal_arn     = string
@@ -79,15 +74,39 @@ variable "access_entries" {
 }
 
 variable "enable_efs" {
-  description = "Enable EFS for persistent storage (AWS only)"
+  description = "Enable EFS for persistent storage"
   type        = bool
   default     = false
+}
+
+variable "efs_throughput" {
+  description = "EFS provisioned throughput in MiB/s"
+  type        = number
+  default     = 100
 }
 
 variable "enable_gpu_nodes" {
   description = "Enable GPU node group"
   type        = bool
   default     = false
+}
+
+variable "gpu_node_config" {
+  description = "GPU node group configuration"
+  type = object({
+    instance_types = list(string)
+    min_size       = number
+    max_size       = number
+    desired_size   = number
+    disk_size      = number
+  })
+  default = {
+    instance_types = ["g4dn.xlarge"]
+    min_size       = 0
+    max_size       = 2
+    desired_size   = 0
+    disk_size      = 100
+  }
 }
 
 variable "team_configurations" {
@@ -104,72 +123,6 @@ variable "team_configurations" {
     allowed_registries = list(string)
   }))
   default = {}
-}
-
-variable "environment" {
-  description = "Environment name"
-  type        = string
-}
-
-variable "database_config" {
-  description = "Database configuration"
-  type = object({
-    engine         = string
-    version        = string
-    instance_class = string
-    storage_size   = number
-    multi_az       = bool
-    encrypted      = bool
-    username       = string
-    database_name  = string
-    port           = optional(number, 5432)
-  })
-}
-
-variable "cache_config" {
-  description = "Cache configuration"
-  type = object({
-    engine    = string
-    version   = string
-    node_type = string
-    num_nodes = number
-    encrypted = bool
-    port      = optional(number, 6379)
-  })
-}
-
-variable "storage_config" {
-  description = "Storage configuration"
-  type = object({
-    versioning_enabled = bool
-    encryption_enabled = bool
-    lifecycle_enabled  = bool
-    port               = optional(number, 9000)
-    buckets = list(object({
-      name   = string
-      public = bool
-    }))
-  })
-}
-
-# Legacy AWS-specific variables (now handled by cluster module, kept for compatibility)
-
-variable "allowed_cidr_blocks" {
-  description = "CIDR blocks allowed to access resources"
-  type        = list(string)
-  default     = []
-}
-
-variable "aws_region" {
-  description = "AWS region (for AWS environments)"
-  type        = string
-  default     = ""
-}
-
-variable "security_webhook_url" {
-  description = "Webhook URL for security notifications (optional)"
-  type        = string
-  default     = null
 }
 
 variable "tags" {

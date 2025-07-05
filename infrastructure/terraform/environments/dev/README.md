@@ -1,9 +1,7 @@
-# Development Environment
+# Development Environment - AWS EKS
 
-This directory provides a unified Terraform configuration that can deploy either:
-
-1. **Kind Cluster** (local development)
-2. **AWS EKS** (cloud development)
+This directory contains a production-ready Terraform configuration for the development environment using the official
+AWS EKS module.
 
 **Last Updated:** January 2025  
 **Repository:** https://github.com/gigifokchiman/implement-ml-p

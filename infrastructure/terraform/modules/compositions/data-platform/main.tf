@@ -12,7 +12,32 @@ terraform {
     aws = {
       source = "hashicorp/aws"
     }
+    kind = {
+      source  = "kind.local/gigifokchiman/kind"
+      version = "0.1.0"
+    }
   }
+}
+
+# Cluster Infrastructure
+module "cluster" {
+  source = "../../platform/cluster"
+
+  name               = var.cluster_name != "" ? var.cluster_name : var.name
+  environment        = var.environment
+  use_aws           = var.use_aws
+  kubernetes_version = var.kubernetes_version
+  vpc_cidr          = var.vpc_cidr
+
+  node_groups    = var.node_groups
+  access_entries = var.access_entries
+  
+  enable_efs       = var.enable_efs
+  enable_gpu_nodes = var.enable_gpu_nodes
+  
+  team_configurations = var.team_configurations
+
+  tags = var.tags
 }
 
 module "database" {
@@ -23,9 +48,9 @@ module "database" {
   config      = var.database_config
   tags        = var.tags
 
-  # AWS-specific variables (passed through when not local)
-  vpc_id                = var.vpc_id
-  subnet_ids            = var.subnet_ids
+  # AWS-specific variables (passed through from cluster when using AWS)
+  vpc_id                = module.cluster.vpc_id
+  subnet_ids            = module.cluster.private_subnets
   allowed_cidr_blocks   = var.allowed_cidr_blocks
   backup_retention_days = 7
   deletion_protection   = var.environment == "prod"
@@ -40,8 +65,8 @@ module "cache" {
   tags        = var.tags
 
   # AWS-specific variables
-  vpc_id              = var.vpc_id
-  subnet_ids          = var.subnet_ids
+  vpc_id              = module.cluster.vpc_id
+  subnet_ids          = module.cluster.private_subnets
   allowed_cidr_blocks = var.allowed_cidr_blocks
 }
 
@@ -55,6 +80,8 @@ module "storage" {
 
   # AWS-specific variables
   region = var.aws_region
+  
+  depends_on = [module.cluster]
 }
 
 module "monitoring" {
