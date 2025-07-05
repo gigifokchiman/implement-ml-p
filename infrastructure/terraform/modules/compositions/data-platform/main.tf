@@ -204,7 +204,9 @@ module "security_bootstrap" {
     enable_pod_security     = var.environment != "local"
     enable_network_policies = var.environment != "local"
     enable_rbac            = true
+    enable_argocd          = true  # Enable ArgoCD by default
     cert_manager_version   = "v1.13.2"
+    argocd_version         = "5.51.6"
     pod_security_standard  = var.environment == "prod" ? "restricted" : "baseline"
   }
 

@@ -22,7 +22,9 @@ variable "config" {
     enable_pod_security     = optional(bool, true)
     enable_network_policies = optional(bool, true)
     enable_rbac            = optional(bool, true)
+    enable_argocd          = optional(bool, true)
     cert_manager_version   = optional(string, "v1.13.2")
+    argocd_version         = optional(string, "5.51.6")
     pod_security_standard  = optional(string, "baseline")
   })
   default = {
@@ -30,7 +32,9 @@ variable "config" {
     enable_pod_security     = true
     enable_network_policies = true
     enable_rbac            = true
+    enable_argocd          = true
     cert_manager_version   = "v1.13.2"
+    argocd_version         = "5.51.6"
     pod_security_standard  = "baseline"
   }
 }

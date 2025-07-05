@@ -277,6 +277,46 @@ resource "kubernetes_labels" "ingress_nginx_namespace" {
   depends_on = [helm_release.nginx_ingress]
 }
 
+# ArgoCD for GitOps (optional, environment-dependent)
+resource "helm_release" "argocd" {
+  count = var.config.enable_argocd ? 1 : 0
+  
+  name             = "argocd"
+  repository       = "https://argoproj.github.io/argo-helm"
+  chart            = "argo-cd"
+  version          = var.config.argocd_version
+  namespace        = "argocd"
+  create_namespace = true
+
+  set {
+    name  = "server.service.type"
+    value = var.environment == "local" ? "ClusterIP" : "LoadBalancer"
+  }
+
+  set {
+    name  = "server.insecure"
+    value = var.environment == "local" ? "true" : "false"
+  }
+
+  set {
+    name  = "configs.params.server.insecure"
+    value = var.environment == "local" ? "true" : "false"
+  }
+
+  depends_on = [helm_release.cert_manager, helm_release.nginx_ingress]
+
+  wait          = true
+  wait_for_jobs = true
+}
+
+# Wait for ArgoCD CRDs to be established
+resource "time_sleep" "wait_for_argocd" {
+  count = var.config.enable_argocd ? 1 : 0
+  
+  create_duration = "60s"
+  depends_on     = [helm_release.argocd]
+}
+
 # Output configuration
 locals {
   security_bootstrap_info = {
@@ -286,5 +326,6 @@ locals {
     pod_security_enabled = var.config.enable_pod_security
     network_policies_enabled = var.config.enable_network_policies
     rbac_enabled = var.config.enable_rbac
+    argocd_enabled = var.config.enable_argocd
   }
 }

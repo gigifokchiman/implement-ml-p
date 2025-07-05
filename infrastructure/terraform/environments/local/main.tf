@@ -78,22 +78,20 @@ data "external" "environment_check" {
   ]
 }
 
-# Docker Provider for Kind cluster support
-# Use detected Docker socket path
+# Local only
 provider "docker" {
   host = data.external.environment_check.result.socket_path
 }
 
 # Locals
 locals {
-  name_prefix = "${var.cluster_name}-${var.environment}"
+  name_prefix = "${var.cluster_name}"
 
   common_tags = {
     "Environment" = var.environment
     "Project"     = "data-platform"
     "ManagedBy"   = "terraform"
   }
-
 
   # Node groups configuration with GPU support (adapted for Kind)
   node_groups = merge(
@@ -154,7 +152,7 @@ module "data_platform" {
   # Team configurations
   team_configurations = var.team_namespaces
 
-  # Port mappings for Kind cluster (Kind-specific feature)
+  # Local only
   port_mappings = var.port_mappings
 
   # Platform services configuration

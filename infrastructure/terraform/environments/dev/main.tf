@@ -33,10 +33,10 @@ provider "aws" {
 
 # Locals
 locals {
-  name_prefix = "${var.cluster_name}-${var.environment}"
+  name_prefix = "${var.cluster_name}"
 
   common_tags = {
-    "Environment" = local.environment
+    "Environment" = var.environment
     "Project"     = "data-platform"
     "ManagedBy"   = "terraform"
   }
@@ -100,8 +100,7 @@ module "data_platform" {
   # Team configurations
   team_configurations = var.team_namespaces
 
-#   # Port mappings for Kind cluster (Kind-specific feature)
-#   port_mappings = var.port_mappings
+
 
   # Platform services configuration
   database_config = {
