@@ -83,7 +83,7 @@ clean-all-local: ## (TF-LOCAL) Complete cleanup including Docker
 # Target-specific terraform operations
 apply-cluster-tf-local: ## (TF-LOCAL) Apply only the data platform cluster
 	@echo "$(BLUE)🐳 Creating data platform cluster$(NC)"
-	@cd terraform/environments/local && terraform apply -target=kind_cluster.data_platform -auto-approve
+	@cd terraform/environments/local && terraform apply -target=module.data_platform.module.cluster -auto-approve
 
 # kubectl context setup
 setup-kubectl-local: ## Configure kubectl context for local cluster
@@ -109,23 +109,20 @@ setup-storage-local: ## Install and configure local-path-provisioner - this solv
 deploy-security-bootstrap-tf-local: ## (TF-LOCAL) Deploy security infrastructure in correct order
 	@echo "$(GREEN)🔐 Deploying security bootstrap infrastructure$(NC)"
 	@cd terraform/environments/local && terraform apply \
-		-target=module.security_bootstrap.helm_release.cert_manager \
-		-target=module.security_bootstrap.helm_release.nginx_ingress \
-		-target=module.security_bootstrap.time_sleep.wait_for_cert_manager \
+		-target=module.data_platform.module.security_bootstrap.module.certificate_management.module.kubernetes_cert_manager.helm_release.cert_manager \
+		-target=module.data_platform.module.security_bootstrap.module.certificate_management.module.kubernetes_cert_manager.helm_release.nginx_ingress \
+		-target=module.data_platform.module.security_bootstrap.module.certificate_management.module.kubernetes_cert_manager.time_sleep.wait_for_cert_manager \
 		-auto-approve
 	@echo "$(YELLOW)⏳ Waiting for CRDs...$(NC)"
 	@kubectl wait --for=condition=established --timeout=60s crd/clusterissuers.cert-manager.io
 	@echo "$(GREEN)📋 Deploying ClusterIssuers and ArgoCD$(NC)"
 	@cd terraform/environments/local && terraform apply \
-		-target=module.security_bootstrap.kubernetes_manifest.selfsigned_issuer \
-		-target=module.security_bootstrap.kubernetes_manifest.letsencrypt_issuer \
-		-target=module.security_bootstrap.helm_release.argocd \
-		-target=module.security_bootstrap.helm_release.prometheus \
+		-target=module.data_platform.module.security_bootstrap \
 		-auto-approve
 	@echo "$(YELLOW)⏳ Waiting for ArgoCD to be ready...$(NC)"
 	@kubectl wait --for=condition=ready pod -n argocd -l app.kubernetes.io/name=argocd-server --timeout=300s || echo "⚠️  ArgoCD may need more time"
 	@echo "$(GREEN)🔒 Applying remaining security bootstrap resources$(NC)"
-	@cd terraform/environments/local && terraform apply -target=module.security_bootstrap -auto-approve
+	@cd terraform/environments/local && terraform apply -target=module.data_platform.module.security_bootstrap -auto-approve
 	@echo "$(GREEN)✅ Security bootstrap complete with GitOps and Monitoring$(NC)"
 
 deploy-tf-local: ## Complete local ML platform deployment with cleanup
@@ -202,7 +199,7 @@ cleanup-dev: ## Clean up dev terraform cache
 	@cd terraform/environments/dev && rm -rf .terraform .terraform.lock.hcl
 
 # Complete dev deployment
-deploy-dev-full: ## Complete dev environment deployment with cleanup
+deploy-dev-local: ## Complete dev environment deployment with cleanup
 	@echo "$(GREEN)🚀 ML Platform Dev Deployment$(NC)"
 	@echo "=================================="
 	@echo ""
@@ -225,11 +222,12 @@ deploy-dev-full: ## Complete dev environment deployment with cleanup
 	@echo ""
 	@echo "🔐 Step 3: Deploying security bootstrap (CRDs)..."
 	@cd terraform/environments/dev && terraform apply \
-		-target=module.security_bootstrap.helm_release.cert_manager \
-		-target=module.security_bootstrap.helm_release.nginx_ingress \
-		-auto-approve || echo "⚠️  Security bootstrap may need manual configuration"
+		-target=module.data_platform.module.security_bootstrap.module.certificate_management.module.kubernetes_cert_manager \
+		-auto-approve
 	@kubectl wait --for=condition=established --timeout=60s crd/clusterissuers.cert-manager.io || echo "⚠️  CRDs not ready"
-	@cd terraform/environments/dev && terraform apply -target=module.security_bootstrap -auto-approve || echo "⚠️  Complete security bootstrap manually"
+	@cd terraform/environments/dev && terraform apply \
+		-target=module.data_platform.module.security_bootstrap.module.certificate_management \
+		-auto-approve
 	@echo ""
 	@echo "✅ Step 4: Verifying deployment..."
 	@kubectl get nodes || echo "⚠️  Cluster not ready yet"
@@ -341,7 +339,7 @@ deploy-team-isolation: ## Deploy team isolation (namespaces, RBAC, quotas, monit
 	@echo "🎯 Team Isolation Summary:"
 	@echo "   • 3 Team namespaces: app-ml-team, app-data-team, app-core-team"
 	@echo "   • Resource quotas enforced per team"
-	@echo "   • RBAC isolation with service account permissions"  
+	@echo "   • RBAC isolation with service account permissions"
 	@echo "   • Network policies for team isolation"
 	@echo "   • ServiceMonitors for Prometheus monitoring"
 	@echo ""
@@ -369,12 +367,18 @@ remove-team-isolation: ## Remove team isolation resources (DESTRUCTIVE!)
 deploy-argocd-security: ## (ArgoCD) Deploy security policies via GitOps
 	@echo "$(BLUE)🚀 Deploying security policies via ArgoCD$(NC)"
 	@kubectl config use-context $(cluster_name)
-	@kubectl apply -f kubernetes/security/argocd-security-apps.yaml
-	@echo "$(YELLOW)⏳ Waiting for ArgoCD to sync applications...$(NC)"
-	@kubectl wait --for=jsonpath='{.status.health.status}'=Healthy --timeout=300s application/network-policies -n argocd || echo "⚠️  Manual sync may be required"
-	@kubectl wait --for=jsonpath='{.status.health.status}'=Healthy --timeout=300s application/security-policies -n argocd || echo "⚠️  Manual sync may be required"
-	@kubectl wait --for=jsonpath='{.status.health.status}'=Healthy --timeout=300s application/tls-certificates -n argocd || echo "⚠️  Manual sync may be required"
-	@echo "$(GREEN)✅ Security applications setup via ArgoCD$(NC)"
+	@if kubectl get namespace argocd >/dev/null 2>&1; then \
+		echo "$(GREEN)✅ ArgoCD found, deploying security applications$(NC)"; \
+		kubectl apply -f kubernetes/security/argocd-security-apps.yaml; \
+		echo "$(YELLOW)⏳ Waiting for ArgoCD to sync applications...$(NC)"; \
+		kubectl wait --for=jsonpath='{.status.health.status}'=Healthy --timeout=300s application/network-policies -n argocd || echo "⚠️  Manual sync may be required"; \
+		kubectl wait --for=jsonpath='{.status.health.status}'=Healthy --timeout=300s application/security-policies -n argocd || echo "⚠️  Manual sync may be required"; \
+		kubectl wait --for=jsonpath='{.status.health.status}'=Healthy --timeout=300s application/tls-certificates -n argocd || echo "⚠️  Manual sync may be required"; \
+		echo "$(GREEN)✅ Security applications setup via ArgoCD$(NC)"; \
+	else \
+		echo "$(YELLOW)⚠️  ArgoCD not found - skipping GitOps security deployment$(NC)"; \
+		echo "$(BLUE)💡 ArgoCD is disabled for local environments$(NC)"; \
+	fi
 
 deploy-argocd-apps: ## (ArgoCD) Deploy ArgoCD applications
 	@echo "$(BLUE)📱 Setting up ArgoCD applications$(NC)"
@@ -779,157 +783,6 @@ deploy-ml-team-app: ## Deploy ML team sample application with monitoring
 	@echo "$(BLUE)🤖 Deploying ML Team Application$(NC)"
 	@kubectl apply -f kubernetes/team-apps/ml-team-app.yaml
 
-deploy-data-team-app-old: ## Deploy Data team sample application with monitoring
-	@echo "$(BLUE)📊 Deploying Data Team Application$(NC)"
-	@cat <<'EOF' | kubectl apply -f -
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: data-sample-app
-  namespace: app-data-team
-  labels:
-    app: data-sample-app
-    team: data
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: data-sample-app
-  template:
-    metadata:
-      labels:
-        app: data-sample-app
-        team: data
-    spec:
-      serviceAccountName: data-team-service-account
-      containers:
-      - name: data-app
-        image: nginx:alpine
-        ports:
-        - containerPort: 80
-          name: http
-        - containerPort: 9090
-          name: metrics
-        resources:
-          requests:
-            cpu: 100m
-            memory: 128Mi
-          limits:
-            cpu: 500m
-            memory: 256Mi
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: data-sample-app
-  namespace: app-data-team
-  labels:
-    app: data-sample-app
-    team: data
-spec:
-  ports:
-  - port: 80
-    targetPort: 80
-    name: http
-  - port: 9090
-    targetPort: 9090
-    name: metrics
-  selector:
-    app: data-sample-app
----
-apiVersion: monitoring.coreos.com/v1
-kind: ServiceMonitor
-metadata:
-  name: data-team-apps
-  namespace: app-data-team
-  labels:
-    team: data
-    monitoring: prometheus
-spec:
-  selector:
-    matchLabels:
-      team: data
-  endpoints:
-  - port: metrics
-    path: /metrics
-    interval: 30s
-	EOF
-
-deploy-core-team-app: ## Deploy Core team sample application with monitoring
-	@echo "$(BLUE)🌐 Deploying Core Team Application$(NC)"
-	@cat <<'EOF' | kubectl apply -f -
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: core-sample-app
-  namespace: app-core-team
-  labels:
-    app: core-sample-app
-    team: core
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: core-sample-app
-  template:
-    metadata:
-      labels:
-        app: core-sample-app
-        team: core
-    spec:
-      serviceAccountName: core-team-service-account
-      containers:
-      - name: core-app
-        image: nginx:alpine
-        ports:
-        - containerPort: 80
-          name: http
-        - containerPort: 9090
-          name: metrics
-        resources:
-          requests:
-            cpu: 100m
-            memory: 128Mi
-          limits:
-            cpu: 500m
-            memory: 256Mi
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: core-sample-app
-  namespace: app-core-team
-  labels:
-    app: core-sample-app
-    team: core
-spec:
-  ports:
-  - port: 80
-    targetPort: 80
-    name: http
-  - port: 9090
-    targetPort: 9090
-    name: metrics
-  selector:
-    app: core-sample-app
----
-apiVersion: monitoring.coreos.com/v1
-kind: ServiceMonitor
-metadata:
-  name: core-team-apps
-  namespace: app-core-team
-  labels:
-    team: core
-    monitoring: prometheus
-spec:
-  selector:
-    matchLabels:
-      team: core
-  endpoints:
-  - port: metrics
-    path: /metrics
-    interval: 30s
-	EOF
 
 deploy-data-team-app: ## Deploy Data team sample application with monitoring
 	@echo "$(BLUE)📊 Deploying Data Team Application$(NC)"
