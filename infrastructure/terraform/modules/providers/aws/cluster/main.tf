@@ -20,7 +20,7 @@ terraform {
 
 locals {
   name_prefix = "${var.name}-${var.environment}"
-  
+
   common_tags = merge(var.tags, {
     "cluster-name" = var.name
     "environment"  = var.environment
@@ -68,6 +68,25 @@ module "vpc" {
   tags = local.common_tags
 }
 
+# KMS Key for encryption
+module "kms" {
+  source = "../kms"
+
+  name        = local.name_prefix
+  environment = var.environment
+  description = "KMS key for ${local.name_prefix} cluster encryption"
+
+  # Allow EKS service to use the key
+  service_principals = [
+    "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/aws-service-role/eks.amazonaws.com/AWSServiceRoleForAmazonEKS",
+    "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/aws-service-role/eks-nodegroup.amazonaws.com/AWSServiceRoleForAmazonEKSNodegroup"
+  ]
+
+  aliases = ["alias/${local.name_prefix}-cluster"]
+
+  tags = local.common_tags
+}
+
 # EKS Cluster
 module "eks" {
   source  = "terraform-aws-modules/eks/aws"
@@ -80,9 +99,15 @@ module "eks" {
   subnet_ids                     = module.vpc.private_subnets
   cluster_endpoint_public_access = true
 
+  # Enable encryption at rest using KMS
+  cluster_encryption_config = {
+    provider_key_arn = module.kms.key_arn
+    resources        = ["secrets"]
+  }
+
   # Access management
   enable_cluster_creator_admin_permissions = true
-  
+
   # Additional access entries
   access_entries = var.access_entries
 
@@ -117,9 +142,9 @@ module "eks" {
       max_size     = config.max_size
       desired_size = config.desired_size
 
-      ami_type       = config.ami_type
-      disk_size      = config.disk_size
-      
+      ami_type  = config.ami_type
+      disk_size = config.disk_size
+
       labels = merge(
         {
           node-role   = name
@@ -167,12 +192,12 @@ module "eks" {
 # IAM Module for additional IRSA roles
 module "eks_iam" {
   source = "./iam"
-  
+
   cluster_name            = local.name_prefix
   environment             = var.environment
   cluster_oidc_issuer_url = module.eks.cluster_oidc_issuer_url
   tags                    = local.common_tags
-  
+
   depends_on = [module.eks]
 }
 
@@ -181,9 +206,9 @@ resource "aws_efs_file_system" "eks_storage" {
   count = var.enable_efs ? 1 : 0
 
   creation_token = "${local.name_prefix}-efs"
-  
-  performance_mode = "generalPurpose"
-  throughput_mode  = "provisioned"
+
+  performance_mode                = "generalPurpose"
+  throughput_mode                 = "provisioned"
   provisioned_throughput_in_mibps = var.efs_throughput
 
   encrypted = true

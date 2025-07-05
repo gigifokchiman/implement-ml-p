@@ -1,4 +1,9 @@
 # Development Environment Variables
+variable "environment" {
+  description = "environment"
+  type        = string
+  default     = "dev"
+}
 
 variable "region" {
   description = "AWS region"
@@ -41,6 +46,24 @@ variable "enable_gpu_nodes" {
   description = "Enable GPU node group"
   type        = bool
   default     = false
+}
+
+variable "gpu_node_config" {
+  description = "GPU node group configuration"
+  type = object({
+    instance_types = list(string)
+    min_size       = number
+    max_size       = number
+    desired_size   = number
+    disk_size      = number
+  })
+  default = {
+    instance_types = ["g4dn.xlarge"]
+    min_size       = 0
+    max_size       = 3
+    desired_size   = 1
+    disk_size      = 100
+  }
 }
 
 variable "node_groups_config" {

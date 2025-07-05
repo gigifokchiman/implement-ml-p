@@ -113,13 +113,23 @@ output "irsa_iam_role_arns" {
   value       = try(module.eks_iam.irsa_role_arns, {})
 }
 
+output "kms_key_id" {
+  description = "KMS key ID for encryption"
+  value       = module.kms.key_id
+}
+
+output "kms_key_arn" {
+  description = "KMS key ARN for encryption"
+  value       = module.kms.key_arn
+}
+
 # Useful Commands
 output "useful_commands" {
   description = "Useful commands for this cluster"
   value = {
-    kubectl_config     = "aws eks update-kubeconfig --region ${data.aws_region.current.name} --name ${module.eks.cluster_name}"
-    get_nodes         = "kubectl get nodes -o wide"
-    get_node_groups   = "kubectl get nodes --show-labels"
-    ecr_login         = "aws ecr get-login-password --region ${data.aws_region.current.name} | docker login --username AWS --password-stdin ${aws_ecr_repository.main.repository_url}"
+    kubectl_config  = "aws eks update-kubeconfig --region ${data.aws_region.current.name} --name ${module.eks.cluster_name}"
+    get_nodes       = "kubectl get nodes -o wide"
+    get_node_groups = "kubectl get nodes --show-labels"
+    ecr_login       = "aws ecr get-login-password --region ${data.aws_region.current.name} | docker login --username AWS --password-stdin ${aws_ecr_repository.main.repository_url}"
   }
 }

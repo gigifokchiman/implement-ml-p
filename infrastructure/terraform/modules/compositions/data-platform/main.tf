@@ -36,6 +36,7 @@ module "cluster" {
   enable_gpu_nodes = var.enable_gpu_nodes
   
   team_configurations = var.team_configurations
+  port_mappings       = var.port_mappings
 
   tags = var.tags
 }
@@ -169,4 +170,64 @@ module "performance_monitoring" {
   }
   namespaces = ["database", "cache", "storage", "monitoring", "security-scanning", "performance-monitoring"]
   tags       = var.tags
+}
+
+# Secret Store - Essential for credential management
+module "secret_store" {
+  source = "../../platform/secret-store"
+
+  name        = "${var.name}-secrets"
+  environment = var.environment
+  use_aws     = var.use_aws
+  
+  # AWS uses Secrets Manager, Local uses Kubernetes secrets
+  config = {
+    enable_rotation    = var.environment == "prod"
+    rotation_days      = var.environment == "prod" ? 30 : 90
+    enable_encryption  = var.environment != "local"
+    kms_key_id         = var.use_aws ? module.cluster.aws_cluster_outputs.kms_key_id : null
+  }
+
+  tags = var.tags
+}
+
+# Security Bootstrap - Certificate management, RBAC, Pod Security
+module "security_bootstrap" {
+  source = "../../platform/security-bootstrap"
+
+  name        = "${var.name}-security-bootstrap"
+  environment = var.environment
+  cluster_name = module.cluster.cluster_name
+  
+  config = {
+    enable_cert_manager     = true
+    enable_pod_security     = var.environment != "local"
+    enable_network_policies = var.environment != "local"
+    enable_rbac            = true
+    cert_manager_version   = "v1.13.2"
+    pod_security_standard  = var.environment == "prod" ? "restricted" : "baseline"
+  }
+
+  tags = var.tags
+  depends_on = [module.cluster]
+}
+
+# Audit Logging - Compliance and security monitoring
+module "audit_logging" {
+  count  = var.environment != "local" ? 1 : 0
+  source = "../../platform/audit-logging"
+
+  name        = "${var.name}-audit"
+  environment = var.environment
+  cluster_name = module.cluster.cluster_name
+  
+  config = {
+    enable_api_audit    = true
+    enable_webhook_audit = var.environment == "prod"
+    retention_days      = var.environment == "prod" ? 90 : 30
+    log_level          = var.environment == "prod" ? "Metadata" : "Request"
+  }
+
+  tags = var.tags
+  depends_on = [module.cluster]
 }

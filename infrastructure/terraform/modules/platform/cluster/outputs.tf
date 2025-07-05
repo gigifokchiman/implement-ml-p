@@ -67,6 +67,8 @@ output "aws_cluster_outputs" {
     cluster_oidc_provider_arn = module.aws_cluster[0].cluster_oidc_provider_arn
     irsa_role_arns = module.aws_cluster[0].irsa_iam_role_arns
     efs_file_system_id = module.aws_cluster[0].efs_file_system_id
+    kms_key_id = module.aws_cluster[0].kms_key_id
+    kms_key_arn = module.aws_cluster[0].kms_key_arn
     useful_commands = module.aws_cluster[0].useful_commands
   } : null
   sensitive = true

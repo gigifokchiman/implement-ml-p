@@ -1,220 +1,176 @@
-# Variables for the modular local environment
-# These variables will be populated from terraform.tfvars
+# Local Environment Variables
 
-variable "project_name" {
-  description = "Name of the project"
+variable "environment" {
+  description = "environment"
+  type        = string
+  default     = "local"
+}
+
+# variable "region" {
+#   description = "AWS region"
+#   type        = string
+#   default     = "us-west-2"
+# }
+
+variable "cluster_name" {
+  description = "Cluster name"
   type        = string
   default     = "data-platform"
 }
 
-variable "environment" {
-  description = "Environment name"
+variable "kubernetes_version" {
+  description = "Kubernetes version"
   type        = string
-  default     = "local"
+  default     = "1.28"
 }
 
-variable "region" {
-  description = "Region identifier"
-  type        = string
-  default     = "local"
-}
+# variable "vpc_cidr" {
+#   description = "VPC CIDR block"
+#   type        = string
+#   default     = "10.0.0.0/16"
+# }
+#
+# variable "allowed_cidr_blocks" {
+#   description = "CIDR blocks allowed to access the EKS cluster"
+#   type        = list(string)
+#   default     = ["0.0.0.0/0"]  # Restrict this in production
+# }
+#
+# variable "key_pair_name" {
+#   description = "EC2 Key Pair name for SSH access to nodes"
+#   type        = string
+#   default     = null
+# }
 
-variable "common_tags" {
-  description = "Common tags to be applied to all resources"
-  type        = map(string)
-  default     = {}
-}
-
-variable "enable_monitoring" {
-  description = "Enable monitoring and observability stack"
-  type        = bool
-  default     = true
-}
-
-variable "enable_backup" {
-  description = "Enable backup for stateful services"
-  type        = bool
-  default     = true
-}
-
-variable "backup_retention_days" {
-  description = "Number of days to retain backups"
-  type        = number
-  default     = 1
-}
-
-variable "deletion_protection" {
-  description = "Enable deletion protection for critical resources"
+# Node group configurations
+variable "enable_gpu_nodes" {
+  description = "Enable GPU node group"
   type        = bool
   default     = false
 }
 
-variable "resource_quotas" {
-  description = "Resource quotas for the environment"
+variable "gpu_node_config" {
+  description = "GPU node group configuration (adapted for Kind with Metal GPU)"
   type = object({
-    enabled = bool
-    compute = optional(object({
-      requests_cpu    = string
-      requests_memory = string
-      limits_cpu      = string
-      limits_memory   = string
-    }))
-    storage = optional(object({
-      requests_storage = string
-    }))
+    instance_types = list(string)
+    min_size       = number
+    max_size       = number
+    desired_size   = number
+    disk_size      = number
+    ami_type       = string
   })
   default = {
-    enabled = false
+    instance_types = ["local"]  # Kind doesn't use instance types
+    min_size       = 1
+    max_size       = 1
+    desired_size   = 1
+    disk_size      = 50
+    ami_type       = "local"    # Kind uses local Docker images
   }
 }
 
-variable "network_config" {
-  description = "Network configuration"
-  type = object({
-    vpc_cidr           = optional(string, "10.0.0.0/16")
-    enable_nat_gateway = optional(bool, true)
-    single_nat_gateway = optional(bool, false)
-    availability_zones = optional(number, 2)
-  })
-  default = {}
-}
-
-variable "database_config" {
-  description = "Database configuration"
-  type = object({
-    engine         = optional(string, "postgres")
-    version        = optional(string, "16")
-    instance_class = optional(string, "local")
-    storage_size   = optional(number, 10)
-    multi_az       = optional(bool, false)
-    encrypted      = optional(bool, false)
-    username       = optional(string, "admin")
-    database_name  = optional(string, "metadata")
-    port           = optional(number, 5432)
-  })
-  default = {}
-}
-
-variable "cache_config" {
-  description = "Cache configuration"
-  type = object({
-    engine    = optional(string, "redis")
-    version   = optional(string, "7.0")
-    node_type = optional(string, "local")
-    num_nodes = optional(number, 1)
-    encrypted = optional(bool, false)
-    port      = optional(number, 6379)
-  })
-  default = {}
-}
-
-variable "storage_config" {
-  description = "Object storage configuration"
-  type = object({
-    versioning_enabled = optional(bool, false)
-    encryption_enabled = optional(bool, false)
-    lifecycle_enabled  = optional(bool, false)
-    port               = optional(number, 9000)
-    buckets = optional(list(object({
-      name   = string
-      public = optional(bool, false)
-      })), [
-      {
-        name   = "ml-artifacts"
-        public = false
-      },
-      {
-        name   = "data-lake"
-        public = false
-      },
-      {
-        name   = "model-registry"
-        public = false
+variable "node_groups_config" {
+  description = "Configuration for node groups (adapted for Kind)"
+  type = map(object({
+    instance_types = list(string)
+    min_size       = number
+    max_size       = number
+    desired_size   = number
+    capacity_type  = string
+    disk_size      = number
+    ami_type       = string
+    labels         = map(string)
+    taints         = map(object({
+      key    = string
+      value  = string
+      effect = string
+    }))
+  }))
+  default = {
+    core_services = {
+      instance_types = ["local"]      # Kind doesn't use instance types, but maintain structure
+      min_size       = 1
+      max_size       = 1             # Kind typically has fewer nodes
+      desired_size   = 1
+      capacity_type  = "ON_DEMAND"   # Kind doesn't distinguish, but maintain structure
+      disk_size      = 50
+      ami_type       = "local"       # Kind uses local Docker images
+      labels = {
+        node-role    = "core-services"
+        service-type = "infrastructure"
+        environment  = "local"
       }
-    ])
-  })
-  default = {}
-}
-
-variable "kubernetes_config" {
-  description = "Kubernetes cluster configuration"
-  type = object({
-    version                   = optional(string, "1.28")
-    enable_irsa               = optional(bool, true)
-    enable_ebs_csi            = optional(bool, true)
-    enable_efs_csi            = optional(bool, false)
-    enable_alb_ingress        = optional(bool, true)
-    enable_cluster_autoscaler = optional(bool, true)
-    node_groups = optional(list(object({
-      name           = string
-      instance_types = list(string)
-      min_size       = number
-      max_size       = number
-      desired_size   = number
-      disk_size      = optional(number, 20)
-      labels         = optional(map(string), {})
-      taints = optional(list(object({
-        key    = string
-        value  = string
-        effect = string
-      })), [])
-    })), [])
-  })
-  default = {}
-}
-
-variable "security_config" {
-  description = "Security configuration"
-  type = object({
-    enable_network_policies   = optional(bool, true)
-    enable_pod_security       = optional(bool, true)
-    enable_secrets_encryption = optional(bool, true)
-    enable_audit_logging      = optional(bool, true)
-    pod_security_standards    = optional(string, "restricted")
-  })
-  default = {}
-}
-
-variable "development_mode" {
-  description = "Development mode configuration"
-  type = object({
-    enabled           = optional(bool, true)
-    minimal_resources = optional(bool, true)
-    allow_insecure    = optional(bool, true)
-    debug_logging     = optional(bool, false)
-    skip_tls          = optional(bool, true)
-  })
-  default = {}
-}
-
-variable "performance_monitoring_config" {
-  description = "Performance monitoring configuration"
-  type = object({
-    enable_apm                 = optional(bool, false)
-    enable_custom_metrics      = optional(bool, false)
-    enable_distributed_tracing = optional(bool, false)
-  })
-  default = {
-    enable_apm                 = false
-    enable_custom_metrics      = false
-    enable_distributed_tracing = false
+      taints = {}                    # No taints for core services
+    }
   }
 }
 
-variable "backup_config" {
-  description = "Backup configuration"
-  type = object({
-    enabled             = optional(bool, false)
-    backup_schedule     = optional(string, "0 2 * * *")
-    retention_days      = optional(number, 1)
-    enable_cross_region = optional(bool, false)
-    enable_encryption   = optional(bool, false)
-  })
+# Team configurations
+variable "team_namespaces" {
+  description = "Team namespace configurations"
+  type = map(object({
+    resource_quota = object({
+      cpu_requests    = string
+      memory_requests = string
+      cpu_limits      = string
+      memory_limits   = string
+      gpu_requests    = string
+    })
+    network_policies = bool
+    # allowed_registries removed for local - no registry restrictions needed
+  }))
   default = {
-    enabled             = false
-    backup_schedule     = "0 2 * * *"
-    retention_days      = 1
-    enable_cross_region = false
-    enable_encryption   = false
+    ml-team = {
+      resource_quota = {
+        cpu_requests    = "2"
+        memory_requests = "4Gi"
+        cpu_limits      = "4"
+        memory_limits   = "8Gi"
+        gpu_requests    = "1"  # Simulated for local
+      }
+      network_policies = false  # Relaxed for local development
+    }
+    data-team = {
+      resource_quota = {
+        cpu_requests    = "1"
+        memory_requests = "2Gi"
+        cpu_limits      = "2"
+        memory_limits   = "4Gi"
+        gpu_requests    = "0"
+      }
+      network_policies = false
+    }
+    core-team = {
+      resource_quota = {
+        cpu_requests    = "1"
+        memory_requests = "2Gi"
+        cpu_limits      = "2"
+        memory_limits   = "4Gi"
+        gpu_requests    = "0"
+      }
+      network_policies = false
+    }
   }
+}
+
+# Port mappings for Kind cluster
+variable "port_mappings" {
+  description = "Port mappings for Kind cluster"
+  type = list(object({
+    container_port = number
+    host_port      = number
+    protocol       = string
+  }))
+  default = [
+    {
+      container_port = 80
+      host_port      = 8080
+      protocol       = "TCP"
+    },
+    {
+      container_port = 443
+      host_port      = 8443
+      protocol       = "TCP"
+    }
+  ]
 }

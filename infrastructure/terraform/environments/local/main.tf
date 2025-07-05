@@ -1,12 +1,13 @@
-# Local Development Environment Configuration
-# Uses new modular composition approach
+# Local Development Environment - Kind Cluster
+# Uses data-platform composition with Kubernetes provider
 
 terraform {
   required_version = ">= 1.0"
+
   required_providers {
-    kind = {
-      source  = "kind.local/gigifokchiman/kind"
-      version = "0.1.0"
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
     }
     kubernetes = {
       source  = "hashicorp/kubernetes"
@@ -16,264 +17,200 @@ terraform {
       source  = "hashicorp/helm"
       version = "~> 2.11"
     }
-    random = {
-      source  = "hashicorp/random"
-      version = "~> 3.4"
+    # Local only
+    kind = {
+      source  = "kind.local/gigifokchiman/kind"
+      version = "0.1.0"
     }
-    # Note: AWS provider not needed for local environment
-    # All services run as Kubernetes containers via Kind
+    docker = {
+      source  = "kreuzwerker/docker"
+      version = "~> 3.0"
+    }
   }
+
+  # backend "s3" {
+  #   bucket = "your-terraform-state-bucket"
+  #   key    = "local/terraform.tfstate"
+  #   region = "us-west-2"
+  # }
 }
 
-# Load shared configuration
-locals {
-  shared_config = yamldecode(file("../_shared/config.yaml"))
-  environment_config = merge(
-    local.shared_config,
-    {
-      environment = "local"
-      is_local    = true
-      # Add environment label to common tags
-      common_tags = merge(local.shared_config.common_tags, {
-        environment = "local"
-      })
-    }
-  )
-}
-
-# KIND CLUSTER IS NOW MANAGED BY THE DATA PLATFORM COMPOSITION
-# The cluster configuration is handled by the platform/cluster module
-
-# Provider configurations will be handled by the data platform composition
-# The cluster information comes from the platform/cluster module outputs
-
-# Stub AWS provider configuration (unused in local environment)
-# Required because child modules reference AWS provider even with count = 0
+# AWS Provider (stub for module compatibility) - minimal configuration for Kind-only setup
 provider "aws" {
   region                      = "us-west-2"
+  # mocks
   skip_credentials_validation = true
   skip_metadata_api_check     = true
   skip_region_validation      = true
   skip_requesting_account_id  = true
-  access_key                  = "dummy"
-  secret_key                  = "dummy"
+  s3_use_path_style          = true
+
+  # Use dummy credentials to avoid AWS SDK calls
+  access_key = "dummy"
+  secret_key = "dummy"
 }
 
-# No storage class needed - using emptyDir volumes for local dev
+# Local only
+data "external" "environment_check" {
+  program = ["sh", "-c", <<-EOF
+    # Check Docker socket
+    if [ -S "$HOME/.docker/run/docker.sock" ]; then
+      DOCKER_SOCKET="unix://$HOME/.docker/run/docker.sock"
+    elif [ -S /var/run/docker.sock ]; then
+      DOCKER_SOCKET="unix:///var/run/docker.sock"
+    else
+      DOCKER_SOCKET="unix:///var/run/docker.sock"
+    fi
 
-# ML Platform Composition
-# Commented out to avoid duplicate resource creation with data_platform
-# Both were creating the same namespaces in the same cluster
-# module "ml_platform" {
-#   source = "../../modules/compositions/data-platform"
-#
-#   name        = "${local.shared_config.project_name}-local"
-#   environment = "local"
-#
-#   database_config = var.database_config
-#   cache_config    = var.cache_config
-#   storage_config  = var.storage_config
-#
-#   tags = local.environment_config.common_tags
-#
-#   depends_on = [kind_cluster.data_platform]
-# }
+    # Check kubeconfig path (Docker container vs local)
+    if [ -f "/workspace/.kube/config" ]; then
+      KUBE_CONFIG="/workspace/.kube/config"
+    elif [ -f "~/.kube/config" ]; then
+      KUBE_CONFIG="~/.kube/config"
+    elif [ -f "$HOME/.kube/config" ]; then
+      KUBE_CONFIG="$HOME/.kube/config"
+    else
+      KUBE_CONFIG="~/.kube/config"
+    fi
 
-# Data Platform Composition using the new modular approach
+    echo "{\"socket_path\": \"$DOCKER_SOCKET\", \"kube_config\": \"$KUBE_CONFIG\"}"
+  EOF
+  ]
+}
+
+# Docker Provider for Kind cluster support
+# Use detected Docker socket path
+provider "docker" {
+  host = data.external.environment_check.result.socket_path
+}
+
+# Locals
+locals {
+  name_prefix = "${var.cluster_name}-${var.environment}"
+
+  common_tags = {
+    "Environment" = var.environment
+    "Project"     = "data-platform"
+    "ManagedBy"   = "terraform"
+  }
+
+
+  # Node groups configuration with GPU support (adapted for Kind)
+  node_groups = merge(
+    var.node_groups_config,
+    var.enable_gpu_nodes ? {
+      gpu = {
+        instance_types = ["local"]  # Kind doesn't have instance types, but maintain structure
+        capacity_type  = "ON_DEMAND"
+        min_size       = 1
+        max_size       = 1
+        desired_size   = 1
+        ami_type       = "local"  # Kind uses local Docker images
+        disk_size      = 50
+        labels = {
+          node-role    = "gpu"
+          gpu-type     = "metal"      # Use Metal for macOS GPU simulation
+          team-access  = "ml-team"
+          environment  = "local"
+        }
+        taints = {
+          gpu = {
+            key    = "metal.gpu/gpu"  # Metal GPU taint instead of nvidia
+            value  = "true"
+            effect = "NO_SCHEDULE"
+          }
+          ml_team = {
+            key    = "team"
+            value  = "ml"
+            effect = "NO_SCHEDULE"
+          }
+        }
+      }
+    } : {}
+  )
+}
+
+# Data Platform Composition
 module "data_platform" {
   source = "../../modules/compositions/data-platform"
 
   name               = "data-platform"
-  cluster_name      = "data-platform-local"
-  environment       = "local"
-  use_aws          = false  # Use Kind cluster
-  kubernetes_version = "1.28"
+  cluster_name      = local.name_prefix
+  environment       = var.environment
+  use_aws          = false  # Use Kind cluster instead of AWS EKS
+  kubernetes_version = var.kubernetes_version
+  # vpc_cidr         = var.vpc_cidr  # Not used for Kind clusters
 
-  # Node groups configuration (will be adapted for Kind)
-  node_groups = {
-    core_services = {
-      instance_types = ["local"]
-      capacity_type  = "ON_DEMAND"
-      min_size       = 1
-      max_size       = 1
-      desired_size   = 1
-      ami_type       = "local"
-      disk_size      = 50
-      labels = {
-        node-role    = "core-services"
-        service-type = "infrastructure"
+  # Node groups
+  node_groups = local.node_groups
+
+  # Access entries for team members (commented for local - Kind uses kubeconfig)
+  # access_entries = var.access_entries
+
+  # AWS features (commented for local - not applicable to Kind)
+  # enable_efs       = var.enable_efs
+  enable_gpu_nodes = var.enable_gpu_nodes
+
+  # Team configurations
+  team_configurations = var.team_namespaces
+
+  # Port mappings for Kind cluster (Kind-specific feature)
+  port_mappings = var.port_mappings
+
+  # Platform services configuration
+  database_config = {
+    engine         = "postgres"
+    version        = "16"
+    instance_class = "local"  # vs var.storage_config.rds.instance_class in dev
+    storage_size   = 20       # vs var.storage_config.rds.allocated_storage in dev
+    multi_az       = false
+    encrypted      = false    # vs true in dev
+    username       = "admin"
+    database_name  = "metadata"
+    port           = 5432
+  }
+  cache_config = {
+    engine    = "redis"
+    version   = "7.0"
+    node_type = "local"       # vs "cache.t3.micro" in dev
+    num_nodes = 1
+    encrypted = false         # vs true in dev
+    port      = 6379
+  }
+  storage_config = {
+    versioning_enabled = true
+    encryption_enabled = false  # vs true in dev
+    lifecycle_enabled  = false  # vs true in dev
+    port              = 9000
+    buckets = [
+      {
+        name   = "ml-artifacts"
+        public = false
+      },
+      {
+        name   = "data-lake"
+        public = false
       }
-      taints = {}
-    }
+    ]
   }
 
-  # Platform services configuration for local development
-  database_config = var.database_config
-  cache_config    = var.cache_config
-  storage_config  = var.storage_config
+  # Security and compliance
+  allowed_cidr_blocks = ["0.0.0.0/0"]  # vs var.allowed_cidr_blocks in dev (relaxed for local)
+  # aws_region         = var.region     # Not applicable for Kind
 
-  tags = local.environment_config.common_tags
+  tags = local.common_tags
 }
 
-# Storage Provisioner for Kind cluster
-# Note: Kind automatically installs local-path-provisioner, so we skip custom installation
-# module "storage_provisioner" {
-#   source = "../../modules/providers/kubernetes/storage-provisioner"
-#
-#   tags = local.environment_config.common_tags
-#
-#   depends_on = [kind_cluster.data_platform]
-# }
-
-# Generate random passwords
-resource "random_password" "argocd_admin" {
-  length  = 16
-  special = true
+# Kubernetes and Helm providers using detected kubeconfig path
+# Works both in Docker container and local environment
+provider "kubernetes" {
+  config_path = data.external.environment_check.result.kube_config
+  config_context = "kind-${module.data_platform.cluster_name}"
 }
 
-# Secret Store for Platform Secrets
-module "secret_store" {
-  source = "../../modules/secret-store"
-
-  environment = "local"
-  tags        = local.environment_config.common_tags
-
-  argocd_admin_password   = random_password.argocd_admin.result
-  grafana_admin_password  = "admin"
-  postgres_admin_password = "password"
-  redis_password          = ""
-  minio_access_key        = "minioadmin"
-  minio_secret_key        = "minioadmin"
-
-  depends_on = [kind_cluster.data_platform]
-
-  providers = {
-    kubernetes = kubernetes.data_platform
-  }
-}
-
-# Security Bootstrap for Data Platform
-module "security_bootstrap" {
-  source = "../../modules/security-bootstrap"
-
-  environment  = "local"
-  cluster_name = "data-platform-local"
-  tags         = local.environment_config.common_tags
-
-  cert_manager_config = {
-    version               = "v1.13.2"
-    enable_cluster_issuer = true
-    letsencrypt_email     = "admin@example.com"
-  }
-
-  nginx_config = {
-    version      = "v1.8.2"
-    enable_ssl   = true
-    default_cert = "default-ssl-certificate"
-  }
-
-  argocd_config = {
-    version        = "5.51.4"
-    enable_ui      = true
-    admin_password = random_password.argocd_admin.result
-    enable_dex     = false
-    enable_tls     = true
-  }
-
-  prometheus_config = {
-    version                = "55.5.0"
-    enable_grafana         = true
-    grafana_admin_password = "admin"
-    storage_class          = ""
-    retention_days         = "15d"
-  }
-
-  depends_on = [kind_cluster.data_platform]
-
-  providers = {
-    kubernetes = kubernetes.data_platform
-    helm       = helm.data_platform
-  }
-}
-
-# Audit Logging Configuration
-module "audit_logging" {
-  source = "../../modules/audit-logging"
-
-  environment = "local"
-  tags        = local.environment_config.common_tags
-
-  depends_on = [kind_cluster.data_platform]
-
-  providers = {
-    kubernetes = kubernetes.data_platform
-  }
-}
-
-# OUTPUTS
-output "data_platform_cluster_info" {
-  description = "Data Platform cluster connection information"
-  sensitive   = true
-  value       = module.data_platform.cluster
-}
-
-output "cluster_name" {
-  description = "Cluster name"
-  value       = module.data_platform.cluster_name
-}
-
-output "cluster_endpoint" {
-  description = "Cluster endpoint"
-  value       = module.data_platform.cluster_endpoint
-}
-
-output "cluster_provider" {
-  description = "Cluster provider type"
-  value       = module.data_platform.cluster_provider
-}
-
-output "kind_cluster_info" {
-  description = "Kind-specific cluster information"
-  value       = module.data_platform.kind_cluster_info
-  sensitive   = true
-}
-
-output "data_platform_service_connections" {
-  description = "Data Platform service connection details"
-  value = {
-    database   = module.data_platform.database
-    cache      = module.data_platform.cache
-    storage    = module.data_platform.storage
-    monitoring = module.data_platform.monitoring
-  }
-  sensitive = true
-}
-
-output "development_urls" {
-  description = "Local development URLs"
-  value = {
-    frontend   = try(module.data_platform.kind_cluster_info.port_mappings.http, "http://localhost:8080")
-    grafana    = "http://localhost:3000" # Port forward required: kubectl port-forward -n monitoring svc/prometheus-grafana 3000:80
-    prometheus = "http://localhost:9090" # Port forward required: kubectl port-forward -n monitoring svc/prometheus-server 9090:9090
-    minio      = "http://localhost:9001" # Port forward required: kubectl port-forward -n storage svc/minio 9001:9000
-    registry   = try(module.data_platform.kind_cluster_info.local_registry_url, "localhost:5001")
-  }
-}
-
-output "useful_commands" {
-  description = "Useful commands for local development"
-  value = {
-    # Data Platform cluster commands
-    kubectl_context         = "kubectl config use-context kind-${module.data_platform.cluster_name}"
-    port_forward_db         = "kubectl --context kind-${module.data_platform.cluster_name} port-forward -n data-platform-database svc/postgres 5432:5432"
-    port_forward_redis      = "kubectl --context kind-${module.data_platform.cluster_name} port-forward -n data-platform-cache svc/redis 6379:6379"
-    port_forward_minio      = "kubectl --context kind-${module.data_platform.cluster_name} port-forward -n data-platform-storage svc/minio 9000:9000"
-    port_forward_grafana    = "kubectl --context kind-${module.data_platform.cluster_name} port-forward -n data-platform-monitoring svc/prometheus-grafana 3000:80"
-    port_forward_prometheus = "kubectl --context kind-${module.data_platform.cluster_name} port-forward -n data-platform-monitoring svc/prometheus-server 9090:9090"
-
-    # General info
-    list_clusters     = "kind get clusters"
-    registry_catalog  = "curl http://localhost:5001/v2/_catalog"
-    minio_credentials = "Access Key: admin, Secret: stored in secret 'minio-secret' in 'data-platform-storage' namespace"
+provider "helm" {
+  kubernetes {
+    config_path = data.external.environment_check.result.kube_config
+    config_context = "kind-${module.data_platform.cluster_name}"
   }
 }

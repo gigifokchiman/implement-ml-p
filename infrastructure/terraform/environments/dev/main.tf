@@ -3,7 +3,7 @@
 
 terraform {
   required_version = ">= 1.0"
-  
+
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -16,10 +16,6 @@ terraform {
     helm = {
       source  = "hashicorp/helm"
       version = "~> 2.11"
-    }
-    kind = {
-      source  = "kind.local/gigifokchiman/kind"
-      version = "0.1.0"
     }
   }
 
@@ -37,8 +33,7 @@ provider "aws" {
 
 # Locals
 locals {
-  environment = "dev"
-  name_prefix = "${var.cluster_name}-${local.environment}"
+  name_prefix = "${var.cluster_name}-${var.environment}"
 
   common_tags = {
     "Environment" = local.environment
@@ -86,24 +81,27 @@ module "data_platform" {
   source = "../../modules/compositions/data-platform"
 
   name               = "data-platform"
-  cluster_name      = local.name_prefix
-  environment       = local.environment
+  cluster_name      = var.name_prefix
+  environment       = var.environment
   use_aws          = true
   kubernetes_version = var.kubernetes_version
   vpc_cidr         = var.vpc_cidr
 
   # Node groups
   node_groups = local.node_groups
-  
+
   # Access entries for team members
   access_entries = var.access_entries
-  
+
   # AWS features
   enable_efs       = var.enable_efs
   enable_gpu_nodes = var.enable_gpu_nodes
-  
+
   # Team configurations
   team_configurations = var.team_namespaces
+
+#   # Port mappings for Kind cluster (Kind-specific feature)
+#   port_mappings = var.port_mappings
 
   # Platform services configuration
   database_config = {
@@ -153,7 +151,7 @@ module "data_platform" {
 provider "kubernetes" {
   host                   = module.data_platform.cluster_endpoint
   cluster_ca_certificate = base64decode(module.data_platform.cluster.ca_certificate)
-  
+
   exec {
     api_version = "client.authentication.k8s.io/v1beta1"
     command     = "aws"
@@ -165,7 +163,7 @@ provider "helm" {
   kubernetes {
     host                   = module.data_platform.cluster_endpoint
     cluster_ca_certificate = base64decode(module.data_platform.cluster.ca_certificate)
-    
+
     exec {
       api_version = "client.authentication.k8s.io/v1beta1"
       command     = "aws"

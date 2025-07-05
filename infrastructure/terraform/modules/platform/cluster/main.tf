@@ -52,7 +52,8 @@ module "kind_cluster" {
   environment        = var.environment
   kubernetes_version = var.kubernetes_version
   
-  node_groups = var.node_groups
+  node_groups    = var.node_groups
+  port_mappings  = var.port_mappings
   
   tags = var.tags
 }

@@ -107,6 +107,27 @@ variable "team_configurations" {
   default = {}
 }
 
+variable "port_mappings" {
+  description = "Port mappings for Kind cluster (ignored for AWS)"
+  type = list(object({
+    container_port = number
+    host_port      = number
+    protocol       = string
+  }))
+  default = [
+    {
+      container_port = 80
+      host_port      = 8080
+      protocol       = "TCP"
+    },
+    {
+      container_port = 443
+      host_port      = 8443
+      protocol       = "TCP"
+    }
+  ]
+}
+
 variable "tags" {
   description = "Tags to apply to resources"
   type        = map(string)

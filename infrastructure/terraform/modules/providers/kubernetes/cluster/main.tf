@@ -49,7 +49,6 @@ locals {
               bind-address: "0.0.0.0"
           EOT
         ]
-        extra_port_mappings = var.port_mappings
       }
     ],
     [
@@ -116,7 +115,7 @@ resource "kind_cluster" "main" {
         
         # Only add port mappings to control plane
         dynamic "extra_port_mappings" {
-          for_each = node.value.role == "control-plane" ? (node.value.extra_port_mappings != null ? node.value.extra_port_mappings : []) : []
+          for_each = node.value.role == "control-plane" ? var.port_mappings : []
           content {
             container_port = extra_port_mappings.value.container_port
             host_port      = extra_port_mappings.value.host_port
@@ -126,13 +125,6 @@ resource "kind_cluster" "main" {
       }
     }
 
-    # Registry configuration
-    containerd_config_patches = [
-      <<-EOT
-      [plugins."io.containerd.grpc.v1.cri".registry.mirrors."localhost:5001"]
-        endpoint = ["http://${docker_container.registry.name}:5000"]
-      EOT
-    ]
   }
 
   depends_on = [docker_container.registry]
