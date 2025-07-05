@@ -1,0 +1,64 @@
+# ConfigMap with node affinity configurations for different workload types
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: node-affinity-config
+  namespace: kube-system
+data:
+  # Infrastructure workloads - prefer infra nodes
+  infra-affinity: |
+    nodeAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        preference:
+          matchExpressions:
+          - key: node-role
+            operator: In
+            values: ["infra"]
+      - weight: 50
+        preference:
+          matchExpressions:
+          - key: kubernetes.io/hostname
+            operator: Contains
+            values: ["infra"]
+    tolerations:
+    - key: node-role
+      operator: Equal
+      value: infra
+      effect: NoSchedule
+  
+  # Application workloads - prefer workload nodes
+  workload-affinity: |
+    nodeAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        preference:
+          matchExpressions:
+          - key: node-role
+            operator: In
+            values: ["workload"]
+      - weight: 80
+        preference:
+          matchExpressions:
+          - key: workload-type
+            operator: In
+            values: ["data-processing", "ml"]
+    tolerations:
+    - key: node-role
+      operator: Equal
+      value: workload
+      effect: NoSchedule
+  
+  # GPU workloads - require GPU nodes
+  gpu-affinity: |
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: gpu
+            operator: In
+            values: ["available", "nvidia", "true"]
+    tolerations:
+    - key: nvidia.com/gpu
+      operator: Exists
+      effect: NoSchedule

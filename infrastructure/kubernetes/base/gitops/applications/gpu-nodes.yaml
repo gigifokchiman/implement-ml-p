@@ -1,0 +1,52 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: metal-gpu-nodes
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: metal-gpu-nodes
+    app.kubernetes.io/part-of: argocd
+    gpu-type: metal
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/your-org/infrastructure  # Update with your repo
+    targetRevision: HEAD
+    path: infrastructure/kubernetes/gpu-nodes
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+---
+# Metal GPU workload examples
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: metal-gpu-workloads
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: metal-gpu-workloads
+    app.kubernetes.io/part-of: argocd
+    gpu-type: metal
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/your-org/infrastructure  # Update with your repo
+    targetRevision: HEAD
+    path: infrastructure/kubernetes/gpu-nodes
+    directory:
+      include: "test-workloads.yaml"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

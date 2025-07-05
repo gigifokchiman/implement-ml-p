@@ -54,7 +54,23 @@ resource "kind_cluster" "data_platform" {
       role = "control-plane"
 
       kubeadm_config_patches = [
-        "kind: InitConfiguration\nnodeRegistration:\n  kubeletExtraArgs:\n    node-labels: \"ingress-ready=true,environment=local,cluster-name=data-platform-local,workload-type=data-processing\""
+        <<-EOT
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "ingress-ready=true,environment=local,cluster-name=data-platform-local,node-role=control-plane"
+          taints:
+          - key: node-role.kubernetes.io/control-plane
+            effect: NoSchedule
+        ---
+        kind: ClusterConfiguration
+        scheduler:
+          extraArgs:
+            bind-address: "0.0.0.0"
+        controllerManager:
+          extraArgs:
+            bind-address: "0.0.0.0"
+        EOT
       ]
 
       extra_port_mappings {
@@ -73,7 +89,12 @@ resource "kind_cluster" "data_platform" {
       role = "worker"
 
       kubeadm_config_patches = [
-        "kind: JoinConfiguration\nnodeRegistration:\n  kubeletExtraArgs:\n    node-labels: \"environment=local,cluster-name=data-platform-local,workload-type=data-processing\""
+        <<-EOT
+        kind: JoinConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "environment=local,cluster-name=data-platform-local,node-role=core-services,service-type=infrastructure"
+        EOT
       ]
     }
   }
