@@ -21,11 +21,13 @@ variable "config" {
   })
 }
 
-# AWS-specific variables (optional, only used for cloud environments)
-variable "region" {
-  description = "AWS region (for AWS environments)"
-  type        = string
-  default     = ""
+# Provider configuration (platform-agnostic)
+variable "provider_config" {
+  description = "Provider-specific configuration"
+  type = object({
+    region = optional(string, "")
+  })
+  default = {}
 }
 
 variable "tags" {

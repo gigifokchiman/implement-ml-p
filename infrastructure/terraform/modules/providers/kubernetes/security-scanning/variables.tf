@@ -33,3 +33,54 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "create_namespace_only" {
+  description = "Only create namespace, not deployments (for ArgoCD to manage)"
+  type        = bool
+  default     = true
+}
+
+variable "security_webhook_url" {
+  description = "Webhook URL for security notifications"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "registry_configs" {
+  description = "Container registry configurations for scanning"
+  type = list(object({
+    name     = string
+    endpoint = string
+    username = string
+    password = string
+  }))
+  default   = []
+  sensitive = true
+}
+
+variable "webhook_ca_bundle" {
+  description = "CA bundle for admission webhook TLS"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "cluster_endpoint" {
+  description = "Kubernetes cluster endpoint for CI/CD kubeconfig"
+  type        = string
+  default     = ""
+}
+
+variable "cluster_ca_certificate" {
+  description = "Kubernetes cluster CA certificate for CI/CD kubeconfig"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "enable_admission_webhook" {
+  description = "Enable admission webhook for CI/CD enforcement (disable for initial testing)"
+  type        = bool
+  default     = false
+}

@@ -1,26 +1,31 @@
-output "scanner_endpoints" {
-  description = "Security scanner service endpoints"
+output "namespace" {
+  description = "Security scanning namespace"
   value = var.environment == "local" ? (
-    length(module.kubernetes_security_scanning) > 0 ? module.kubernetes_security_scanning[0].scanner_endpoints : {}
+    length(module.kubernetes_security_scanning) > 0 ? module.kubernetes_security_scanning[0].namespace : ""
     ) : (
-    length(module.aws_security_scanning) > 0 ? module.aws_security_scanning[0].scanner_endpoints : {}
+    length(module.aws_security_scanning) > 0 ? module.aws_security_scanning[0].namespace : ""
   )
 }
 
-output "vulnerability_database" {
-  description = "Vulnerability database information"
+output "scanning_facilities" {
+  description = "Security scanning facilities"
   value = var.environment == "local" ? (
-    length(module.kubernetes_security_scanning) > 0 ? module.kubernetes_security_scanning[0].vulnerability_database : {}
+    length(module.kubernetes_security_scanning) > 0 ? module.kubernetes_security_scanning[0].scanning_facilities : {}
     ) : (
-    length(module.aws_security_scanning) > 0 ? module.aws_security_scanning[0].vulnerability_database : {}
+    length(module.aws_security_scanning) > 0 ? module.aws_security_scanning[0].scanning_facilities : {}
   )
 }
 
-output "scan_reports_location" {
-  description = "Location where scan reports are stored"
+output "argocd_project" {
+  description = "ArgoCD project for security applications"
   value = var.environment == "local" ? (
-    length(module.kubernetes_security_scanning) > 0 ? module.kubernetes_security_scanning[0].scan_reports_location : ""
-    ) : (
-    length(module.aws_security_scanning) > 0 ? module.aws_security_scanning[0].scan_reports_location : ""
-  )
+    length(module.kubernetes_security_scanning) > 0 ? module.kubernetes_security_scanning[0].argocd_project : null
+    ) : null
+}
+
+output "useful_commands" {
+  description = "Useful commands for security scanning operations"
+  value = var.environment == "local" ? (
+    length(module.kubernetes_security_scanning) > 0 ? module.kubernetes_security_scanning[0].useful_commands : {}
+    ) : {}
 }

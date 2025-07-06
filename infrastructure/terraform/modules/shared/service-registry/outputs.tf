@@ -17,9 +17,12 @@ output "service_dependencies" {
 
 output "registry_configmap" {
   description = "Registry ConfigMap reference"
-  value = {
-    name      = kubernetes_config_map.service_registry.metadata[0].name
-    namespace = kubernetes_config_map.service_registry.metadata[0].namespace
+  value = var.enable_service_registry ? {
+    name      = kubernetes_config_map.service_registry[0].metadata[0].name
+    namespace = kubernetes_config_map.service_registry[0].metadata[0].namespace
+  } : {
+    name      = "service-registry-disabled"
+    namespace = "platform-system"
   }
 }
 

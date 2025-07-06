@@ -23,7 +23,7 @@ rules:
 
   # Log platform infrastructure changes
   - level: RequestResponse
-    namespaces: [ "monitoring", "database", "cache", "storage" ]
+    namespaces: [ "data-platform-monitoring", "data-platform-database", "data-platform-cache", "data-platform-storage" ]
     verbs: [ "create", "update", "patch", "delete" ]
     resources:
       - group: ""

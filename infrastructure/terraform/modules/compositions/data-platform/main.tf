@@ -92,12 +92,15 @@ module "database" {
   config      = var.database_config
   tags        = var.tags
 
-  # AWS-specific variables (passed through from cluster when using AWS)
-  vpc_id                = module.cluster.vpc_id
-  subnet_ids            = module.cluster.private_subnets
-  allowed_cidr_blocks   = var.allowed_cidr_blocks
-  backup_retention_days = 7
-  deletion_protection   = var.environment == "prod"
+  # Provider-specific configuration (only populated for AWS environments)
+  provider_config = {
+    vpc_id                = try(module.cluster.vpc_id, "")
+    subnet_ids            = try(module.cluster.private_subnets, [])
+    allowed_cidr_blocks   = var.allowed_cidr_blocks
+    backup_retention_days = 7
+    deletion_protection   = var.environment == "prod"
+    region                = try(var.aws_region, "")
+  }
 }
 
 module "cache" {
@@ -108,10 +111,13 @@ module "cache" {
   config      = var.cache_config
   tags        = var.tags
 
-  # AWS-specific variables
-  vpc_id              = module.cluster.vpc_id
-  subnet_ids          = module.cluster.private_subnets
-  allowed_cidr_blocks = var.allowed_cidr_blocks
+  # Provider-specific configuration (only populated for AWS environments)
+  provider_config = {
+    vpc_id              = try(module.cluster.vpc_id, "")
+    subnet_ids          = try(module.cluster.private_subnets, [])
+    allowed_cidr_blocks = var.allowed_cidr_blocks
+    region              = try(var.aws_region, "")
+  }
 }
 
 module "storage" {
@@ -122,8 +128,10 @@ module "storage" {
   config      = var.storage_config
   tags        = var.tags
 
-  # AWS-specific variables
-  region = var.aws_region
+  # Provider-specific configuration (only populated for AWS environments)
+  provider_config = {
+    region = try(var.aws_region, "")
+  }
   
   depends_on = [module.cluster]
 }
@@ -150,7 +158,12 @@ module "security" {
     enable_admission_control = var.environment != "local"
     pod_security_standard    = var.environment == "prod" ? "restricted" : "baseline"
   }
-  namespaces = ["database", "cache", "storage", "monitoring"]
+  namespaces = [
+    "${var.name}-database",
+    "${var.name}-cache", 
+    "${var.name}-storage",
+    "${var.name}-monitoring"
+  ]
   tags       = var.tags
 }
 
@@ -173,8 +186,8 @@ module "security_scanning" {
   config = merge(var.security_scanning_config, {
     webhook_url = var.security_webhook_url
   })
-  namespaces = ["database", "cache", "storage", "monitoring", "security-scanning"]
-  tags       = var.tags
+  create_namespace_only = true  # Let ArgoCD manage deployments
+  tags                  = var.tags
 }
 
 module "performance_monitoring" {
@@ -184,7 +197,14 @@ module "performance_monitoring" {
   name        = "${var.name}-performance"
   environment = var.environment
   config = var.performance_config
-  namespaces = ["database", "cache", "storage", "monitoring", "security-scanning", "performance-monitoring"]
+  namespaces = [
+    "${var.name}-database",
+    "${var.name}-cache",
+    "${var.name}-storage",
+    "${var.name}-monitoring", 
+    "${var.name}-security-scanning",
+    "${var.name}-performance-monitoring"
+  ]
   tags       = var.tags
 }
 
@@ -258,7 +278,24 @@ module "security_interface" {
   }
 }
 
-# Service Discovery Registry
+# Interface Validation
+module "interface_validation" {
+  source = "../../shared/validation"
+  
+  cluster_interface  = module.cluster_interface.cluster_interface
+  security_interface = module.security_interface.security_interface
+  
+  provider_config = {
+    vpc_id                = try(module.cluster.vpc_id, "")
+    subnet_ids            = try(module.cluster.private_subnets, [])
+    allowed_cidr_blocks   = var.allowed_cidr_blocks
+    backup_retention_days = 7
+    deletion_protection   = var.environment == "prod"
+    region                = try(var.aws_region, "")
+  }
+}
+
+# Service Discovery Registry (disabled until ArgoCD manages namespaces)
 module "service_registry" {
   source = "../../shared/service-registry"
   
@@ -267,6 +304,11 @@ module "service_registry" {
   
   cluster_service = module.cluster_interface.cluster_interface
   security_service = module.security_interface.security_interface
+  
+  enable_service_registry = false  # Disabled until platform-system namespace exists
+  enable_health_checks    = false  # Disabled - managed by ArgoCD
+  
+  depends_on = [module.interface_validation]
   
   additional_services = {
     database = {

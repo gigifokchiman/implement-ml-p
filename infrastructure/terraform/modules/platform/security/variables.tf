@@ -27,7 +27,7 @@ variable "config" {
 variable "namespaces" {
   description = "List of namespaces to secure"
   type        = list(string)
-  default     = ["database", "cache", "storage", "monitoring"]
+  default     = []
 }
 
 variable "tags" {

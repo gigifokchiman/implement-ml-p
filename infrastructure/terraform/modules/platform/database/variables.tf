@@ -22,35 +22,18 @@ variable "config" {
   })
 }
 
-# AWS-specific variables (optional, only used for cloud environments)
-variable "vpc_id" {
-  description = "VPC ID (for AWS environments)"
-  type        = string
-  default     = ""
-}
-
-variable "subnet_ids" {
-  description = "Subnet IDs (for AWS environments)"
-  type        = list(string)
-  default     = []
-}
-
-variable "allowed_cidr_blocks" {
-  description = "CIDR blocks allowed to access database"
-  type        = list(string)
-  default     = []
-}
-
-variable "backup_retention_days" {
-  description = "Backup retention period in days"
-  type        = number
-  default     = 7
-}
-
-variable "deletion_protection" {
-  description = "Enable deletion protection"
-  type        = bool
-  default     = true
+# Provider configuration (platform-agnostic)
+variable "provider_config" {
+  description = "Provider-specific configuration"
+  type = object({
+    vpc_id                = optional(string, "")
+    subnet_ids            = optional(list(string), [])
+    allowed_cidr_blocks   = optional(list(string), [])
+    backup_retention_days = optional(number, 7)
+    deletion_protection   = optional(bool, true)
+    region                = optional(string, "")
+  })
+  default = {}
 }
 
 variable "tags" {

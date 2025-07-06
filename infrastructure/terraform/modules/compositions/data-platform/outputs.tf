@@ -118,16 +118,16 @@ output "backup" {
 output "security_scanning" {
   description = "Security scanning endpoints and configuration"
   value = length(module.security_scanning) > 0 ? {
-    scanner_endpoints      = module.security_scanning[0].scanner_endpoints
-    vulnerability_database = module.security_scanning[0].vulnerability_database
-    scan_reports_location  = module.security_scanning[0].scan_reports_location
-    enabled                = true
-    message                = "Security scanning enabled"
+    scanning_facilities    = module.security_scanning[0].scanning_facilities
+    namespace             = module.security_scanning[0].namespace
+    argocd_project        = module.security_scanning[0].argocd_project
+    enabled               = true
+    message               = "Security scanning enabled"
   } : {
-    scanner_endpoints      = {}
-    vulnerability_database = {}
-    scan_reports_location  = ""
-    enabled                = false
+    scanning_facilities    = {}
+    namespace             = ""
+    argocd_project        = null
+    enabled               = false
     message                = "Security scanning disabled"
   }
 }

@@ -19,23 +19,16 @@ variable "config" {
   })
 }
 
-# AWS-specific variables (optional, only used for cloud environments)
-variable "vpc_id" {
-  description = "VPC ID (for AWS environments)"
-  type        = string
-  default     = ""
-}
-
-variable "subnet_ids" {
-  description = "Subnet IDs (for AWS environments)"
-  type        = list(string)
-  default     = []
-}
-
-variable "allowed_cidr_blocks" {
-  description = "CIDR blocks allowed to access cache"
-  type        = list(string)
-  default     = []
+# Provider configuration (platform-agnostic)
+variable "provider_config" {
+  description = "Provider-specific configuration"
+  type = object({
+    vpc_id              = optional(string, "")
+    subnet_ids          = optional(list(string), [])
+    allowed_cidr_blocks = optional(list(string), [])
+    region              = optional(string, "")
+  })
+  default = {}
 }
 
 variable "tags" {

@@ -40,10 +40,10 @@ module "aws_database" {
   config      = var.config
   tags        = var.tags
 
-  # AWS-specific variables (will be passed from composition)
-  vpc_id                = var.vpc_id
-  subnet_ids            = var.subnet_ids
-  allowed_cidr_blocks   = var.allowed_cidr_blocks
-  backup_retention_days = var.backup_retention_days
-  deletion_protection   = var.deletion_protection
+  # Provider-specific configuration
+  vpc_id                = var.provider_config.vpc_id
+  subnet_ids            = var.provider_config.subnet_ids
+  allowed_cidr_blocks   = var.provider_config.allowed_cidr_blocks
+  backup_retention_days = var.provider_config.backup_retention_days
+  deletion_protection   = var.provider_config.deletion_protection
 }

@@ -40,6 +40,6 @@ module "aws_storage" {
   config      = var.config
   tags        = var.tags
 
-  # AWS-specific variables
-  region = var.region
+  # Provider-specific configuration
+  region = var.provider_config.region
 }

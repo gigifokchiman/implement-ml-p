@@ -1,49 +1,112 @@
-# Kubernetes Security Scanning Implementation
-# Uses Trivy for container image scanning and vulnerability assessment
+# Kubernetes Security Platform - Foundation Only
+# Terraform manages: namespace, RBAC, protection policies
+# ArgoCD manages: actual tool deployments (Trivy, Falco)
 
 # Sanitize tags for Kubernetes compatibility
 locals {
   k8s_tags = {
     for key, value in var.tags : key => replace(replace(value, "/", "-"), ":", "-")
   }
+  
+  # Security-critical labels
+  security_labels = merge(local.k8s_tags, {
+    "security.platform/critical"         = "true"
+    "security.platform/managed-by"        = "terraform"
+    "app.kubernetes.io/part-of"          = "security-platform"
+  })
 }
 
-# Namespace for security scanning
+# Security scanning namespace with enhanced protection
 resource "kubernetes_namespace" "security_scanning" {
   metadata {
     name = var.name
-    labels = merge(local.k8s_tags, {
+    labels = merge(local.security_labels, {
       "app.kubernetes.io/name"             = "security-scanning"
       "app.kubernetes.io/component"        = "security"
       "workload-type"                      = "security"
-      "pod-security.kubernetes.io/enforce" = "baseline"
-      "pod-security.kubernetes.io/audit"   = "baseline"
-      "pod-security.kubernetes.io/warn"    = "baseline"
+      "pod-security.kubernetes.io/enforce" = "privileged" # Security tools need privileged access
+      "pod-security.kubernetes.io/audit"   = "privileged"
+      "pod-security.kubernetes.io/warn"    = "privileged"
+      "argocd.argoproj.io/managed"        = "true"
     })
+    
+    annotations = {
+      "security.platform/do-not-delete" = "This namespace is critical for security compliance"
+      "security.platform/owner"         = "platform-security-team"
+    }
   }
 
   lifecycle {
+    prevent_destroy = true
     ignore_changes = [
-      metadata[0].annotations
+      metadata[0].annotations["kubectl.kubernetes.io/last-applied-configuration"]
     ]
   }
 }
 
-# Trivy vulnerability database
+
+# ArgoCD project for security applications
+resource "kubernetes_manifest" "security_argocd_project" {
+  count = var.create_namespace_only ? 1 : 0
+  
+  manifest = {
+    apiVersion = "argoproj.io/v1alpha1"
+    kind       = "AppProject"
+    metadata = {
+      name      = "platform-security"
+      namespace = "argocd"
+      labels    = local.security_labels
+    }
+    spec = {
+      description = "Security platform applications"
+      
+      sourceRepos = ["*"]
+      
+      destinations = [{
+        namespace = kubernetes_namespace.security_scanning.metadata[0].name
+        server    = "https://kubernetes.default.svc"
+      }]
+      
+      clusterResourceWhitelist = [{
+        group = "*"
+        kind  = "*"
+      }]
+      
+      namespaceResourceWhitelist = [{
+        group = "*"
+        kind  = "*"
+      }]
+      
+      roles = [{
+        name = "security-admin"
+        policies = [
+          "p, proj:platform-security:security-admin, applications, *, platform-security/*, allow"
+        ]
+        groups = ["platform-security-team"]
+      }]
+    }
+  }
+}
+
+# Core scanning facilities - deployed by Terraform as platform infrastructure
+# ArgoCD applications will USE these facilities for scanning
+
+# PVC for Trivy cache - only for cloud environments with persistent storage
 resource "kubernetes_persistent_volume_claim" "trivy_cache" {
-  count = var.config.enable_vulnerability_db ? 1 : 0
+  count = 0  # Disabled for local Kind - use emptyDir instead
 
   metadata {
     name      = "trivy-cache"
-    namespace = var.name
-    labels = merge(local.k8s_tags, {
+    namespace = kubernetes_namespace.security_scanning.metadata[0].name
+    labels = merge(local.security_labels, {
       "app.kubernetes.io/name"      = "trivy"
       "app.kubernetes.io/component" = "cache"
     })
   }
 
   spec {
-    access_modes = ["ReadWriteOnce"]
+    access_modes       = ["ReadWriteOnce"]
+    storage_class_name = "standard"
     resources {
       requests = {
         storage = "5Gi"
@@ -52,14 +115,14 @@ resource "kubernetes_persistent_volume_claim" "trivy_cache" {
   }
 }
 
-# Trivy server deployment
+# Trivy server deployment (core scanning facility)
 resource "kubernetes_deployment" "trivy_server" {
-  count = var.config.enable_image_scanning ? 1 : 0
+  count = var.create_namespace_only ? 1 : 0
 
   metadata {
     name      = "trivy-server"
-    namespace = var.name
-    labels = merge(local.k8s_tags, {
+    namespace = kubernetes_namespace.security_scanning.metadata[0].name
+    labels = merge(local.security_labels, {
       "app.kubernetes.io/name"      = "trivy"
       "app.kubernetes.io/component" = "server"
     })
@@ -80,10 +143,14 @@ resource "kubernetes_deployment" "trivy_server" {
         labels = {
           "app.kubernetes.io/name"      = "trivy"
           "app.kubernetes.io/component" = "server"
+          "app.kubernetes.io/part-of"   = "security-scanning"
         }
       }
 
       spec {
+        service_account_name = kubernetes_service_account.security_scanner.metadata[0].name
+        priority_class_name  = kubernetes_priority_class.security_critical.metadata[0].name
+
         security_context {
           run_as_non_root = true
           run_as_user     = 65534
@@ -93,31 +160,37 @@ resource "kubernetes_deployment" "trivy_server" {
         container {
           name  = "trivy"
           image = "aquasec/trivy:0.48.3"
-          args  = ["server", "--listen", "0.0.0.0:4954", "--cache-dir", "/tmp/trivy/.cache"]
+          args = [
+            "server",
+            "--listen", "0.0.0.0:4954",
+            "--cache-dir", "/cache"
+          ]
 
           port {
             container_port = 4954
-            name           = "trivy-server"
+            name          = "trivy-server"
           }
 
           env {
             name  = "TRIVY_CACHE_DIR"
-            value = "/tmp/trivy/.cache"
+            value = "/cache"
           }
-
           env {
             name  = "TRIVY_TIMEOUT"
             value = "10m"
           }
-
           env {
             name  = "TRIVY_DB_REPOSITORY"
             value = "ghcr.io/aquasecurity/trivy-db"
           }
+          env {
+            name  = "TMPDIR"
+            value = "/cache"
+          }
 
           volume_mount {
             name       = "cache"
-            mount_path = "/tmp/trivy/.cache"
+            mount_path = "/cache"
           }
 
           resources {
@@ -158,21 +231,10 @@ resource "kubernetes_deployment" "trivy_server" {
           }
         }
 
-        dynamic "volume" {
-          for_each = var.config.enable_vulnerability_db ? [1] : []
-          content {
-            name = "cache"
-            persistent_volume_claim {
-              claim_name = kubernetes_persistent_volume_claim.trivy_cache[0].metadata[0].name
-            }
-          }
-        }
-
-        dynamic "volume" {
-          for_each = var.config.enable_vulnerability_db ? [] : [1]
-          content {
-            name = "cache"
-            empty_dir {}
+        volume {
+          name = "cache"
+          empty_dir {
+            # Use emptyDir for local Kind - temporary storage
           }
         }
       }
@@ -182,12 +244,12 @@ resource "kubernetes_deployment" "trivy_server" {
 
 # Trivy server service
 resource "kubernetes_service" "trivy_server" {
-  count = var.config.enable_image_scanning ? 1 : 0
+  count = var.create_namespace_only ? 1 : 0
 
   metadata {
     name      = "trivy-server"
-    namespace = var.name
-    labels = merge(local.k8s_tags, {
+    namespace = kubernetes_namespace.security_scanning.metadata[0].name
+    labels = merge(local.security_labels, {
       "app.kubernetes.io/name"      = "trivy"
       "app.kubernetes.io/component" = "server"
     })
@@ -200,116 +262,27 @@ resource "kubernetes_service" "trivy_server" {
     }
 
     port {
-      name        = "trivy-server"
       port        = 4954
       target_port = 4954
-      protocol    = "TCP"
-    }
-
-    type = "ClusterIP"
-  }
-}
-
-# Trivy image scanning cronjob
-resource "kubernetes_cron_job_v1" "image_scanner" {
-  count = var.config.enable_image_scanning ? 1 : 0
-
-  metadata {
-    name      = "trivy-image-scanner"
-    namespace = var.name
-    labels = merge(local.k8s_tags, {
-      "app.kubernetes.io/name"      = "trivy"
-      "app.kubernetes.io/component" = "scanner"
-    })
-  }
-
-  spec {
-    schedule = var.config.scan_schedule
-
-    job_template {
-      metadata {
-        labels = {
-          "app.kubernetes.io/name"      = "trivy"
-          "app.kubernetes.io/component" = "scanner"
-        }
-      }
-
-      spec {
-        template {
-          metadata {
-            labels = {
-              "app.kubernetes.io/name"      = "trivy"
-              "app.kubernetes.io/component" = "scanner"
-            }
-          }
-
-          spec {
-            restart_policy = "OnFailure"
-
-            security_context {
-              run_as_non_root = true
-              run_as_user     = 65534
-              fs_group        = 65534
-            }
-
-            container {
-              name    = "trivy-scanner"
-              image   = "aquasec/trivy:0.48.3"
-              command = ["/bin/sh"]
-              args = [
-                "-c",
-                <<-EOT
-                  # Scan common container images
-                  trivy image --server http://trivy-server:4954 --severity ${var.config.severity_threshold} --format json postgres:15
-                  trivy image --server http://trivy-server:4954 --severity ${var.config.severity_threshold} --format json redis:7
-                  trivy image --server http://trivy-server:4954 --severity ${var.config.severity_threshold} --format json minio/minio:RELEASE.2024-01-16T16-07-38Z
-                  trivy image --server http://trivy-server:4954 --severity ${var.config.severity_threshold} --format json prom/prometheus:v2.48.1
-                  trivy image --server http://trivy-server:4954 --severity ${var.config.severity_threshold} --format json grafana/grafana:10.2.3
-                EOT
-              ]
-
-              resources {
-                limits = {
-                  cpu    = "500m"
-                  memory = "512Mi"
-                }
-                requests = {
-                  cpu    = "100m"
-                  memory = "128Mi"
-                }
-              }
-
-              security_context {
-                allow_privilege_escalation = false
-                capabilities {
-                  drop = ["ALL"]
-                }
-                read_only_root_filesystem = true
-              }
-            }
-          }
-        }
-      }
+      name        = "trivy-server"
     }
   }
 }
 
-# Runtime security scanning using Falco (optional)
-resource "kubernetes_deployment" "falco" {
-  count = var.config.enable_runtime_scanning ? 1 : 0
+# Falco DaemonSet (core runtime security facility)
+resource "kubernetes_daemonset" "falco" {
+  count = var.create_namespace_only ? 1 : 0
 
   metadata {
     name      = "falco"
-    namespace = var.name
-    labels = merge(local.k8s_tags, {
+    namespace = kubernetes_namespace.security_scanning.metadata[0].name
+    labels = merge(local.security_labels, {
       "app.kubernetes.io/name"      = "falco"
       "app.kubernetes.io/component" = "runtime-security"
     })
   }
 
   spec {
-    replicas = 1
-
     selector {
       match_labels = {
         "app.kubernetes.io/name"      = "falco"
@@ -322,73 +295,108 @@ resource "kubernetes_deployment" "falco" {
         labels = {
           "app.kubernetes.io/name"      = "falco"
           "app.kubernetes.io/component" = "runtime-security"
+          "app.kubernetes.io/part-of"   = "security-scanning"
         }
       }
 
       spec {
-        service_account_name = kubernetes_service_account.falco[0].metadata[0].name
+        service_account_name = kubernetes_service_account.security_scanner.metadata[0].name
+        priority_class_name  = kubernetes_priority_class.security_critical.metadata[0].name
+        host_network         = true
+        host_pid             = true
+
+        toleration {
+          effect = "NoSchedule"
+          key    = "node-role.kubernetes.io/master"
+        }
+        toleration {
+          effect = "NoSchedule"
+          key    = "node-role.kubernetes.io/control-plane"
+        }
 
         container {
           name  = "falco"
           image = "falcosecurity/falco-no-driver:0.36.2"
-
           args = [
             "/usr/bin/falco",
-            "--cri", "/run/containerd/containerd.sock",
-            "--disable-source", "kernel",
-            "--enable-source", "k8s_audit",
-            "--k8s-api", "https://kubernetes.default.svc",
-            "--k8s-api-cert", "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt",
-            "--k8s-api-token", "/var/run/secrets/kubernetes.io/serviceaccount/token"
+            "-K", "/var/run/secrets/kubernetes.io/serviceaccount/token",
+            "-k", "https://$(KUBERNETES_SERVICE_HOST)",
+            "--disable-source", "syscall",
+            "--enable-source", "k8s_audit"
           ]
 
           env {
-            name  = "FALCO_GRPC_ENABLED"
-            value = "true"
-          }
-
-          env {
-            name  = "FALCO_GRPC_BIND_ADDRESS"
-            value = "0.0.0.0:5060"
-          }
-
-          env {
-            name  = "FALCO_WEBSERVER_ENABLED"
-            value = "true"
-          }
-
-          env {
-            name  = "FALCO_WEBSERVER_LISTEN_PORT"
-            value = "8765"
-          }
-
-          port {
-            container_port = 5060
-            name           = "grpc"
-          }
-
-          port {
-            container_port = 8765
-            name           = "http"
-          }
-
-          resources {
-            limits = {
-              cpu    = "200m"
-              memory = "512Mi"
-            }
-            requests = {
-              cpu    = "100m"
-              memory = "256Mi"
+            name = "KUBERNETES_SERVICE_HOST"
+            value_from {
+              field_ref {
+                field_path = "status.hostIP"
+              }
             }
           }
 
           security_context {
-            allow_privilege_escalation = false
-            capabilities {
-              drop = ["ALL"]
+            privileged = true
+          }
+
+          volume_mount {
+            mount_path = "/host/var/run/docker.sock"
+            name       = "docker-socket"
+          }
+          volume_mount {
+            mount_path = "/host/dev"
+            name       = "dev-fs"
+            read_only  = true
+          }
+          volume_mount {
+            mount_path = "/host/proc"
+            name       = "proc-fs"
+            read_only  = true
+          }
+          volume_mount {
+            mount_path = "/etc/kubernetes/audit"
+            name       = "audit-logs"
+            read_only  = true
+          }
+
+          resources {
+            limits = {
+              cpu    = "1000m"
+              memory = "1024Mi"
             }
-            read_only_root_filesystem = true
+            requests = {
+              cpu    = "100m"
+              memory = "512Mi"
+            }
+          }
+
+          port {
+            container_port = 8765
+            name          = "http"
+          }
+        }
+
+        volume {
+          name = "docker-socket"
+          host_path {
+            path = "/var/run/docker.sock"
+          }
+        }
+        volume {
+          name = "dev-fs"
+          host_path {
+            path = "/dev"
+          }
+        }
+        volume {
+          name = "proc-fs"
+          host_path {
+            path = "/proc"
+          }
+        }
+        volume {
+          name = "audit-logs"
+          host_path {
+            path = "/etc/kubernetes/audit"
           }
         }
       }
@@ -396,84 +404,14 @@ resource "kubernetes_deployment" "falco" {
   }
 }
 
-# Service account for Falco
-resource "kubernetes_service_account" "falco" {
-  count = var.config.enable_runtime_scanning ? 1 : 0
-
-  metadata {
-    name      = "falco"
-    namespace = var.name
-    labels = merge(local.k8s_tags, {
-      "app.kubernetes.io/name"      = "falco"
-      "app.kubernetes.io/component" = "runtime-security"
-    })
-  }
-}
-
-# Cluster role for Falco
-resource "kubernetes_cluster_role" "falco" {
-  count = var.config.enable_runtime_scanning ? 1 : 0
-
-  metadata {
-    name = "falco"
-    labels = merge(local.k8s_tags, {
-      "app.kubernetes.io/name"      = "falco"
-      "app.kubernetes.io/component" = "runtime-security"
-    })
-  }
-
-  rule {
-    api_groups = [""]
-    resources  = ["nodes", "pods", "replicationcontrollers", "services", "endpoints", "events", "configmaps", "secrets", "serviceaccounts"]
-    verbs      = ["get", "list", "watch"]
-  }
-
-  rule {
-    api_groups = ["apps"]
-    resources  = ["deployments", "daemonsets", "replicasets", "statefulsets"]
-    verbs      = ["get", "list", "watch"]
-  }
-
-  rule {
-    api_groups = ["networking.k8s.io"]
-    resources  = ["networkpolicies"]
-    verbs      = ["get", "list", "watch"]
-  }
-}
-
-# Cluster role binding for Falco
-resource "kubernetes_cluster_role_binding" "falco" {
-  count = var.config.enable_runtime_scanning ? 1 : 0
-
-  metadata {
-    name = "falco"
-    labels = merge(local.k8s_tags, {
-      "app.kubernetes.io/name"      = "falco"
-      "app.kubernetes.io/component" = "runtime-security"
-    })
-  }
-
-  role_ref {
-    api_group = "rbac.authorization.k8s.io"
-    kind      = "ClusterRole"
-    name      = kubernetes_cluster_role.falco[0].metadata[0].name
-  }
-
-  subject {
-    kind      = "ServiceAccount"
-    name      = kubernetes_service_account.falco[0].metadata[0].name
-    namespace = var.name
-  }
-}
-
 # Falco service
 resource "kubernetes_service" "falco" {
-  count = var.config.enable_runtime_scanning ? 1 : 0
+  count = var.create_namespace_only ? 1 : 0
 
   metadata {
     name      = "falco"
-    namespace = var.name
-    labels = merge(local.k8s_tags, {
+    namespace = kubernetes_namespace.security_scanning.metadata[0].name
+    labels = merge(local.security_labels, {
       "app.kubernetes.io/name"      = "falco"
       "app.kubernetes.io/component" = "runtime-security"
     })
@@ -486,19 +424,9 @@ resource "kubernetes_service" "falco" {
     }
 
     port {
-      name        = "grpc"
-      port        = 5060
-      target_port = 5060
-      protocol    = "TCP"
-    }
-
-    port {
-      name        = "http"
       port        = 8765
       target_port = 8765
-      protocol    = "TCP"
+      name        = "http"
     }
-
-    type = "ClusterIP"
   }
 }

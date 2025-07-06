@@ -10,8 +10,10 @@ terraform {
   }
 }
 
-# Service Registry ConfigMap
+# Service Registry ConfigMap (namespace managed by ArgoCD)
 resource "kubernetes_config_map" "service_registry" {
+  count = var.enable_service_registry ? 1 : 0
+  
   metadata {
     name      = "platform-service-registry"
     namespace = var.registry_namespace
@@ -24,6 +26,10 @@ resource "kubernetes_config_map" "service_registry" {
 
   data = {
     "services.json" = jsonencode(local.service_registry)
+  }
+  
+  lifecycle {
+    ignore_changes = [metadata[0].namespace]
   }
 }
 
@@ -106,43 +112,43 @@ locals {
   }
 }
 
-# Service health checks
-resource "kubernetes_manifest" "service_health_check" {
-  for_each = var.enable_health_checks ? toset(keys(local.registered_services)) : toset([])
-  
-  manifest = {
-    apiVersion = "batch/v1"
-    kind       = "CronJob"
-    metadata = {
-      name      = "${each.key}-health-check"
-      namespace = var.registry_namespace
-      labels = {
-        "app.kubernetes.io/name"      = "health-check"
-        "app.kubernetes.io/component" = each.key
-        "platform.io/service"        = each.key
-      }
-    }
-    spec = {
-      schedule = "*/2 * * * *"  # Every 2 minutes
-      jobTemplate = {
-        spec = {
-          template = {
-            spec = {
-              restartPolicy = "OnFailure"
-              containers = [
-                {
-                  name  = "health-check"
-                  image = "curlimages/curl:latest"
-                  command = [
-                    "sh", "-c",
-                    "curl -f ${local.service_endpoints[each.key].health} || exit 1"
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      }
-    }
-  }
-}
+# Service health checks (disabled for now - managed by ArgoCD)
+# resource "kubernetes_manifest" "service_health_check" {
+#   for_each = var.enable_health_checks ? toset(keys(local.registered_services)) : toset([])
+#   
+#   manifest = {
+#     apiVersion = "batch/v1"
+#     kind       = "CronJob"
+#     metadata = {
+#       name      = "${each.key}-health-check"
+#       namespace = var.registry_namespace
+#       labels = {
+#         "app.kubernetes.io/name"      = "health-check"
+#         "app.kubernetes.io/component" = each.key
+#         "platform.io/service"        = each.key
+#       }
+#     }
+#     spec = {
+#       schedule = "*/2 * * * *"  # Every 2 minutes
+#       jobTemplate = {
+#         spec = {
+#           template = {
+#             spec = {
+#               restartPolicy = "OnFailure"
+#               containers = [
+#                 {
+#                   name  = "health-check"
+#                   image = "curlimages/curl:latest"
+#                   command = [
+#                     "sh", "-c",
+#                     "curl -f ${local.service_endpoints[each.key].health} || exit 1"
+#                   ]
+#                 }
+#               ]
+#             }
+#           }
+#         }
+#       }
+#     }
+#   }
+# }

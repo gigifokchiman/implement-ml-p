@@ -32,10 +32,10 @@ variable "config" {
   }
 }
 
-variable "namespaces" {
-  description = "List of namespaces to scan"
-  type        = list(string)
-  default     = ["database", "cache", "storage", "monitoring"]
+variable "create_namespace_only" {
+  description = "Only create namespace, not deployments (for ArgoCD to manage)"
+  type        = bool
+  default     = true
 }
 
 variable "tags" {

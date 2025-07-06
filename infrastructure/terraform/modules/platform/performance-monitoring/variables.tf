@@ -39,7 +39,7 @@ variable "config" {
 variable "namespaces" {
   description = "List of namespaces to monitor"
   type        = list(string)
-  default     = ["database", "cache", "storage", "monitoring"]
+  default     = ["data-platform-database", "data-platform-cache", "data-platform-storage", "data-platform-monitoring"]
 }
 
 variable "tags" {
