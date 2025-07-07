@@ -3,6 +3,11 @@ variable "name" {
   type        = string
 }
 
+variable "namespace" {
+  description = "Kubernetes namespace for database resources"
+  type        = string
+}
+
 variable "environment" {
   description = "Environment name"
   type        = string

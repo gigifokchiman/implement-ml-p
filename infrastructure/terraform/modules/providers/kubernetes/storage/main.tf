@@ -7,22 +7,23 @@ locals {
   }
 }
 
-resource "kubernetes_namespace" "storage" {
-  metadata {
-    name = var.name
-    labels = merge(local.k8s_tags, {
-      "app.kubernetes.io/name"      = "storage"
-      "app.kubernetes.io/component" = "storage"
-      "workload-type"               = "storage"
-    })
-  }
+# Storage namespace is managed by the shared data platform namespace
+# resource "kubernetes_namespace" "storage" {
+#   metadata {
+#     name = var.name
+#     labels = merge(local.k8s_tags, {
+#       "app.kubernetes.io/name"      = "storage"
+#       "app.kubernetes.io/component" = "storage"
+#       "workload-type"               = "storage"
+#     })
+#   }
 
-  lifecycle {
-    ignore_changes = [
-      metadata[0].annotations
-    ]
-  }
-}
+#   lifecycle {
+#     ignore_changes = [
+#       metadata[0].annotations
+#     ]
+#   }
+# }
 
 resource "random_password" "minio_admin" {
   length  = 16
@@ -32,7 +33,7 @@ resource "random_password" "minio_admin" {
 resource "kubernetes_secret" "minio" {
   metadata {
     name      = "minio-secret"
-    namespace = var.name
+    namespace = var.namespace
   }
 
   data = {
@@ -46,7 +47,7 @@ resource "kubernetes_secret" "minio" {
 resource "kubernetes_deployment" "minio" {
   metadata {
     name      = "minio"
-    namespace = var.name
+    namespace = var.namespace
     labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"      = "minio"
       "app.kubernetes.io/component" = "storage"
@@ -129,7 +130,7 @@ resource "kubernetes_deployment" "minio" {
 resource "kubernetes_service" "minio" {
   metadata {
     name      = "minio"
-    namespace = var.name
+    namespace = var.namespace
     labels = {
       "app.kubernetes.io/name"      = "minio"
       "app.kubernetes.io/component" = "storage"
@@ -154,7 +155,7 @@ resource "kubernetes_job" "create_buckets" {
 
   metadata {
     name      = "create-bucket-${var.config.buckets[count.index].name}"
-    namespace = var.name
+    namespace = var.namespace
   }
 
   spec {
@@ -190,6 +191,17 @@ resource "kubernetes_job" "create_buckets" {
                 name = kubernetes_secret.minio.metadata[0].name
                 key  = "password"
               }
+            }
+          }
+
+          resources {
+            requests = {
+              cpu    = "50m"
+              memory = "64Mi"
+            }
+            limits = {
+              cpu    = "200m"
+              memory = "128Mi"
             }
           }
         }

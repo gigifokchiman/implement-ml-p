@@ -16,9 +16,9 @@ resource "kubernetes_namespace" "performance_monitoring" {
       "app.kubernetes.io/name"             = "performance-monitoring"
       "app.kubernetes.io/component"        = "observability"
       "workload-type"                      = "observability"
-      "pod-security.kubernetes.io/enforce" = "baseline"
-      "pod-security.kubernetes.io/audit"   = "baseline"
-      "pod-security.kubernetes.io/warn"    = "baseline"
+      "pod-security.kubernetes.io/enforce" = "privileged"
+      "pod-security.kubernetes.io/audit"   = "privileged"
+      "pod-security.kubernetes.io/warn"    = "privileged"
     })
   }
 
@@ -166,7 +166,8 @@ resource "kubernetes_persistent_volume_claim" "jaeger_storage" {
   }
 
   spec {
-    access_modes = ["ReadWriteOnce"]
+    access_modes       = ["ReadWriteOnce"]
+    storage_class_name = "standard"
     resources {
       requests = {
         storage = var.config.trace_storage_size
@@ -219,6 +220,227 @@ resource "kubernetes_service" "jaeger" {
     }
 
     type = "ClusterIP"
+  }
+}
+
+# Fluent Bit for Audit Log Processing (EFK Stack)
+resource "kubernetes_config_map" "fluent_bit_config" {
+  count = var.config.enable_log_aggregation ? 1 : 0
+
+  metadata {
+    name      = "fluent-bit-config"
+    namespace = var.name
+    labels = merge(local.k8s_tags, {
+      "app.kubernetes.io/name"      = "fluent-bit"
+      "app.kubernetes.io/component" = "config"
+    })
+  }
+
+  data = {
+    "fluent-bit.conf" = <<-EOT
+      [SERVICE]
+          Flush         1
+          Log_Level     info
+          Daemon        off
+          Parsers_File  parsers.conf
+          HTTP_Server   On
+          HTTP_Listen   0.0.0.0
+          HTTP_Port     2020
+
+      [INPUT]
+          Name              tail
+          Path              /var/log/audit.log
+          Parser            k8s_audit
+          Tag               kubernetes.audit
+          Refresh_Interval  5
+          Mem_Buf_Limit     50MB
+          Skip_Long_Lines   On
+
+      [FILTER]
+          Name                kubernetes
+          Match               kubernetes.*
+          Kube_URL            https://kubernetes.default.svc.cluster.local:443
+          Kube_CA_File        /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+          Kube_Token_File     /var/run/secrets/kubernetes.io/serviceaccount/token
+          Merge_Log           On
+          K8S-Logging.Parser  On
+          K8S-Logging.Exclude Off
+
+      [FILTER]
+          Name    record_modifier
+          Match   kubernetes.audit
+          Record  log_source audit
+          Record  environment ${var.environment}
+
+      [OUTPUT]
+          Name  es
+          Match kubernetes.audit
+          Host  elasticsearch.${var.name}.svc.cluster.local
+          Port  9200
+          Index k8s-audit-logs
+          Type  _doc
+          Logstash_Format On
+          Logstash_Prefix k8s-audit
+          Time_Key @timestamp
+          Time_Key_Format %Y-%m-%dT%H:%M:%S.%L%z
+          Include_Tag_Key On
+          Tag_Key tag
+    EOT
+
+    "parsers.conf" = <<-EOT
+      [PARSER]
+          Name        k8s_audit
+          Format      json
+          Time_Key    stageTimestamp
+          Time_Format %Y-%m-%dT%H:%M:%S.%L%z
+          Time_Keep   On
+    EOT
+  }
+}
+
+resource "kubernetes_daemonset" "fluent_bit" {
+  count = var.config.enable_log_aggregation ? 1 : 0
+
+  metadata {
+    name      = "fluent-bit"
+    namespace = var.name
+    labels = merge(local.k8s_tags, {
+      "app.kubernetes.io/name"      = "fluent-bit"
+      "app.kubernetes.io/component" = "log-processor"
+    })
+  }
+
+  spec {
+    selector {
+      match_labels = {
+        "app.kubernetes.io/name"      = "fluent-bit"
+        "app.kubernetes.io/component" = "log-processor"
+      }
+    }
+
+    template {
+      metadata {
+        labels = {
+          "app.kubernetes.io/name"      = "fluent-bit"
+          "app.kubernetes.io/component" = "log-processor"
+        }
+      }
+
+      spec {
+        service_account_name = kubernetes_service_account.fluent_bit[0].metadata[0].name
+        
+        # Only run on control plane where audit logs are generated
+        node_selector = {
+          "node-role.kubernetes.io/control-plane" = ""
+        }
+        
+        toleration {
+          key    = "node-role.kubernetes.io/control-plane"
+          effect = "NoSchedule"
+        }
+
+        container {
+          name  = "fluent-bit"
+          image = "fluent/fluent-bit:2.2.0"
+          
+          port {
+            container_port = 2020
+            name          = "http"
+          }
+
+          volume_mount {
+            name       = "varlog"
+            mount_path = "/var/log"
+            read_only  = true
+          }
+          
+          volume_mount {
+            name       = "config"
+            mount_path = "/fluent-bit/etc"
+          }
+
+          resources {
+            limits = {
+              cpu    = "200m"
+              memory = "200Mi"
+            }
+            requests = {
+              cpu    = "50m"
+              memory = "50Mi"
+            }
+          }
+        }
+
+        volume {
+          name = "varlog"
+          host_path {
+            path = "/var/log"
+          }
+        }
+        
+        volume {
+          name = "config"
+          config_map {
+            name = kubernetes_config_map.fluent_bit_config[0].metadata[0].name
+          }
+        }
+      }
+    }
+  }
+}
+
+resource "kubernetes_service_account" "fluent_bit" {
+  count = var.config.enable_log_aggregation ? 1 : 0
+
+  metadata {
+    name      = "fluent-bit"
+    namespace = var.name
+    labels = merge(local.k8s_tags, {
+      "app.kubernetes.io/name"      = "fluent-bit"
+      "app.kubernetes.io/component" = "log-processor"
+    })
+  }
+}
+
+resource "kubernetes_cluster_role" "fluent_bit" {
+  count = var.config.enable_log_aggregation ? 1 : 0
+
+  metadata {
+    name = "fluent-bit"
+    labels = merge(local.k8s_tags, {
+      "app.kubernetes.io/name"      = "fluent-bit"
+      "app.kubernetes.io/component" = "log-processor"
+    })
+  }
+
+  rule {
+    api_groups = [""]
+    resources  = ["namespaces", "pods", "nodes"]
+    verbs      = ["get", "list", "watch"]
+  }
+}
+
+resource "kubernetes_cluster_role_binding" "fluent_bit" {
+  count = var.config.enable_log_aggregation ? 1 : 0
+
+  metadata {
+    name = "fluent-bit"
+    labels = merge(local.k8s_tags, {
+      "app.kubernetes.io/name"      = "fluent-bit"
+      "app.kubernetes.io/component" = "log-processor"
+    })
+  }
+
+  role_ref {
+    api_group = "rbac.authorization.k8s.io"
+    kind      = "ClusterRole"
+    name      = kubernetes_cluster_role.fluent_bit[0].metadata[0].name
+  }
+
+  subject {
+    kind      = "ServiceAccount"
+    name      = kubernetes_service_account.fluent_bit[0].metadata[0].name
+    namespace = var.name
   }
 }
 
@@ -375,6 +597,7 @@ resource "kubernetes_config_map" "otel_collector_config" {
       processors = {
         batch = {}
         memory_limiter = {
+          check_interval = "1s"
           limit_mib = 512
         }
         resource = {
@@ -392,8 +615,8 @@ resource "kubernetes_config_map" "otel_collector_config" {
         prometheus = {
           endpoint = "0.0.0.0:8889"
         }
-        jaeger = var.config.enable_distributed_trace ? {
-          endpoint = "jaeger:14250"
+        otlp = var.config.enable_distributed_trace ? {
+          endpoint = "jaeger:4317"
           tls = {
             insecure = true
           }
@@ -413,7 +636,7 @@ resource "kubernetes_config_map" "otel_collector_config" {
           traces = var.config.enable_distributed_trace ? {
             receivers  = ["otlp"]
             processors = ["memory_limiter", "batch", "resource"]
-            exporters  = ["jaeger", "logging"]
+            exporters  = ["otlp", "logging"]
           } : null
         }
       }

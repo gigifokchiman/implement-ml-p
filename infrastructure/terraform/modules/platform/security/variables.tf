@@ -3,6 +3,11 @@ variable "name" {
   type        = string
 }
 
+variable "namespace" {
+  description = "Security instance namespace"
+  type        = string
+}
+
 variable "environment" {
   description = "Environment name"
   type        = string
@@ -28,6 +33,16 @@ variable "namespaces" {
   description = "List of namespaces to secure"
   type        = list(string)
   default     = []
+}
+
+variable "platform_namespace" {
+  description = "Shared data platform namespace for cache, database, storage components"
+  type        = string
+}
+
+variable "monitoring_namespace" {
+  description = "Monitoring namespace"
+  type        = string
 }
 
 variable "tags" {

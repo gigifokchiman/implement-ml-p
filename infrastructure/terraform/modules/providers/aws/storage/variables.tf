@@ -11,12 +11,13 @@ variable "environment" {
 variable "config" {
   description = "Storage configuration"
   type = object({
-    versioning_enabled = bool
-    encryption_enabled = bool
-    lifecycle_enabled  = bool
+    versioning_enabled = optional(bool, false)
+    encryption_enabled = optional(bool, false)
+    lifecycle_enabled  = optional(bool, false)
+    port               = optional(number, 9000)
     buckets = list(object({
       name   = string
-      public = bool
+      policy = optional(string, "private")
     }))
   })
 }

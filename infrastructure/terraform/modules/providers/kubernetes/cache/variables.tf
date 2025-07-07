@@ -8,6 +8,11 @@ variable "environment" {
   type        = string
 }
 
+variable "namespace"{
+    description = "namespace"
+    type=string
+}
+
 variable "config" {
   description = "Cache configuration"
   type = object({

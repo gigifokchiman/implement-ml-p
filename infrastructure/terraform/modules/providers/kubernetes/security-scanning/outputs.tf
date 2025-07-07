@@ -12,7 +12,8 @@ output "scanning_facilities" {
   description = "Core scanning facilities deployed"
   value = {
     trivy_server_endpoint = var.create_namespace_only ? "http://trivy-server.${kubernetes_namespace.security_scanning.metadata[0].name}.svc.cluster.local:4954" : null
-    falco_endpoint       = var.create_namespace_only ? "http://falco.${kubernetes_namespace.security_scanning.metadata[0].name}.svc.cluster.local:8765" : null
+    falco_endpoint       = var.create_namespace_only && var.environment != "local" ? "http://falco.${kubernetes_namespace.security_scanning.metadata[0].name}.svc.cluster.local:8765" : null
+    falco_status         = var.environment == "local" ? "disabled-kind-limitation" : "enabled"
     namespace           = kubernetes_namespace.security_scanning.metadata[0].name
     facilities_ready    = var.create_namespace_only
   }

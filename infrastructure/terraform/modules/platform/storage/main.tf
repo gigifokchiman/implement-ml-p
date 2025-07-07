@@ -25,6 +25,7 @@ module "kubernetes_storage" {
   source = "../../providers/kubernetes/storage"
 
   name        = var.name
+  namespace   = var.namespace
   environment = var.environment
   config      = var.config
   tags        = var.tags

@@ -12,29 +12,30 @@ resource "random_password" "postgres_password" {
   special = false
 }
 
-resource "kubernetes_namespace" "database" {
-  metadata {
-    name = var.name
-    labels = merge(local.k8s_tags, {
-      "app.kubernetes.io/name"      = "database"
-      "app.kubernetes.io/component" = "database"
-      "workload-type"               = "database"
-    })
-  }
+# Database namespace is managed by the shared data platform namespace
+# resource "kubernetes_namespace" "database" {
+#   metadata {
+#     name = var.name
+#     labels = merge(local.k8s_tags, {
+#       "app.kubernetes.io/name"      = "database"
+#       "app.kubernetes.io/component" = "database"
+#       "workload-type"               = "database"
+#     })
+#   }
 
-  lifecycle {
-    ignore_changes = [
-      metadata[0].annotations
-    ]
-  }
-}
+#   lifecycle {
+#     ignore_changes = [
+#       metadata[0].annotations
+#     ]
+#   }
+# }
 
 # No PVC for local dev - using emptyDir
 
 resource "kubernetes_secret" "postgres" {
   metadata {
     name      = "postgres-secret"
-    namespace = var.name
+    namespace = var.namespace
   }
 
   data = {
@@ -47,7 +48,7 @@ resource "kubernetes_secret" "postgres" {
 resource "kubernetes_deployment" "postgres" {
   metadata {
     name      = "postgres"
-    namespace = var.name
+    namespace = var.namespace
     labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"      = "postgres"
       "app.kubernetes.io/component" = "database"
@@ -138,7 +139,7 @@ resource "kubernetes_deployment" "postgres" {
 resource "kubernetes_service" "postgres" {
   metadata {
     name      = "postgres"
-    namespace = var.name
+    namespace = var.namespace
     labels = {
       "app.kubernetes.io/name"      = "postgres"
       "app.kubernetes.io/component" = "database"

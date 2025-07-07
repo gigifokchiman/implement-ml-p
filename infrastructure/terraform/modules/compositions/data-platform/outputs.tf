@@ -40,39 +40,27 @@ output "kind_cluster_info" {
   sensitive   = true
 }
 
-output "database" {
-  description = "Database connection details"
-  value       = module.database.connection
+output "team_databases" {
+  description = "Database connection details per team"
+  value       = { for k, v in module.team_databases : k => v.connection }
   sensitive   = true
 }
 
-output "database_credentials" {
-  description = "Database credentials"
-  value       = module.database.credentials
+output "team_database_credentials" {
+  description = "Database credentials per team"
+  value       = { for k, v in module.team_databases : k => v.credentials }
   sensitive   = true
 }
 
-output "cache" {
-  description = "Cache connection details"
-  value       = module.cache.connection
+output "team_storage" {
+  description = "Storage connection details per team"
+  value       = { for k, v in module.team_storage : k => v.connection }
   sensitive   = true
 }
 
-output "cache_credentials" {
-  description = "Cache credentials"
-  value       = module.cache.credentials
-  sensitive   = true
-}
-
-output "storage" {
-  description = "Storage connection details"
-  value       = module.storage.connection
-  sensitive   = true
-}
-
-output "storage_credentials" {
-  description = "Storage credentials"
-  value       = module.storage.credentials
+output "team_storage_credentials" {
+  description = "Storage credentials per team"
+  value       = { for k, v in module.team_storage : k => v.credentials }
   sensitive   = true
 }
 

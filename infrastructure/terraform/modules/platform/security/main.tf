@@ -4,9 +4,11 @@
 module "kubernetes_security" {
   source = "../../providers/kubernetes/security"
 
-  name        = var.name
-  environment = var.environment
-  config      = var.config
-  namespaces  = var.namespaces
-  tags        = var.tags
+  name                  = var.name
+  environment           = var.environment
+  config                = var.config
+  namespaces            = var.namespaces
+  platform_namespace    = var.platform_namespace
+  monitoring_namespace  = var.monitoring_namespace
+  tags                  = var.tags
 }

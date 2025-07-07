@@ -60,10 +60,11 @@ resource "aws_s3_bucket_public_access_block" "buckets" {
   count  = length(var.config.buckets)
   bucket = aws_s3_bucket.buckets[count.index].id
 
-  block_public_acls       = !var.config.buckets[count.index].public
-  block_public_policy     = !var.config.buckets[count.index].public
-  ignore_public_acls      = !var.config.buckets[count.index].public
-  restrict_public_buckets = !var.config.buckets[count.index].public
+  # Convert policy to boolean for public access (public policy means allow public access)
+  block_public_acls       = var.config.buckets[count.index].policy != "public"
+  block_public_policy     = var.config.buckets[count.index].policy != "public"
+  ignore_public_acls      = var.config.buckets[count.index].policy != "public"
+  restrict_public_buckets = var.config.buckets[count.index].policy != "public"
 }
 
 # IAM role for S3 access

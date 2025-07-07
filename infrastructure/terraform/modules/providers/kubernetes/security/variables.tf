@@ -23,6 +23,16 @@ variable "namespaces" {
   type        = list(string)
 }
 
+variable "platform_namespace" {
+  description = "Shared data platform namespace for cache, database, storage components"
+  type        = string
+}
+
+variable "monitoring_namespace" {
+  description = "Monitoring namespace"
+  type        = string
+}
+
 variable "tags" {
   description = "Tags to apply to resources"
   type        = map(string)

@@ -105,9 +105,9 @@ variable "node_groups_config" {
   }
 }
 
-# Team configurations
-variable "team_namespaces" {
-  description = "Team namespace configurations"
+# Team configurations with flexible storage/database options
+variable "team_configurations" {
+  description = "Team-specific configurations"
   type = map(object({
     resource_quota = object({
       cpu_requests    = string
@@ -117,40 +117,56 @@ variable "team_namespaces" {
       gpu_requests    = string
     })
     network_policies = bool
-    # allowed_registries removed for local - no registry restrictions needed
+    allowed_registries = optional(list(string), [])  # Optional for local environments
+    
+    # Storage configuration - teams can optionally define their storage needs
+    storage_config = optional(object({
+      enabled = bool
+      config = object({
+        port = optional(number, 9000)
+        buckets = list(object({
+          name = string
+          policy = optional(string, "private")
+        }))
+      })
+    }), {
+      enabled = false
+      config = {
+        port = 9000
+        buckets = []
+      }
+    })
+    
+    # Database configuration - teams can optionally define their database needs
+    database_config = optional(object({
+      enabled = bool
+      config = object({
+        engine         = string
+        version        = string
+        instance_class = string
+        storage_size   = number
+        multi_az       = bool
+        encrypted      = bool
+        username       = string
+        database_name  = string
+        port           = optional(number, 5432)
+      })
+    }), {
+      enabled = false
+      config = {
+        engine         = "postgres"
+        version        = "15"
+        instance_class = "db.t3.micro"
+        storage_size   = 20
+        multi_az       = false
+        encrypted      = true
+        username       = "admin"
+        database_name  = "appdb"
+        port           = 5432
+      }
+    })
   }))
-  default = {
-    ml-team = {
-      resource_quota = {
-        cpu_requests    = "2"
-        memory_requests = "4Gi"
-        cpu_limits      = "4"
-        memory_limits   = "8Gi"
-        gpu_requests    = "1"  # Simulated for local
-      }
-      network_policies = false  # Relaxed for local development
-    }
-    data-team = {
-      resource_quota = {
-        cpu_requests    = "1"
-        memory_requests = "2Gi"
-        cpu_limits      = "2"
-        memory_limits   = "4Gi"
-        gpu_requests    = "0"
-      }
-      network_policies = false
-    }
-    core-team = {
-      resource_quota = {
-        cpu_requests    = "1"
-        memory_requests = "2Gi"
-        cpu_limits      = "2"
-        memory_limits   = "4Gi"
-        gpu_requests    = "0"
-      }
-      network_policies = false
-    }
-  }
+  default = {}
 }
 
 # Port mappings for Kind cluster

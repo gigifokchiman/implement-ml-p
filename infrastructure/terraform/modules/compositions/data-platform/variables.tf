@@ -138,6 +138,53 @@ variable "team_configurations" {
     })
     network_policies = bool
     allowed_registries = optional(list(string), [])  # Optional for local environments
+    
+    # Storage configuration - teams can optionally define their storage needs
+    storage_config = optional(object({
+      enabled = bool
+      config = object({
+        port = optional(number, 9000)
+        buckets = list(object({
+          name = string
+          policy = optional(string, "private")
+        }))
+      })
+    }), {
+      enabled = false
+      config = {
+        port = 9000
+        buckets = []
+      }
+    })
+    
+    # Database configuration - teams can optionally define their database needs
+    database_config = optional(object({
+      enabled = bool
+      config = object({
+        engine         = string
+        version        = string
+        instance_class = string
+        storage_size   = number
+        multi_az       = bool
+        encrypted      = bool
+        username       = string
+        database_name  = string
+        port           = optional(number, 5432)
+      })
+    }), {
+      enabled = false
+      config = {
+        engine         = "postgres"
+        version        = "15"
+        instance_class = "db.t3.micro"
+        storage_size   = 20
+        multi_az       = false
+        encrypted      = true
+        username       = "admin"
+        database_name  = "appdb"
+        port           = 5432
+      }
+    })
   }))
   default = {}
 }
@@ -169,7 +216,7 @@ variable "environment" {
 }
 
 variable "database_config" {
-  description = "Database configuration"
+  description = "Database configuration (deprecated - use team_configurations instead)"
   type = object({
     engine         = string
     version        = string
@@ -181,10 +228,21 @@ variable "database_config" {
     database_name  = string
     port           = optional(number, 5432)
   })
+  default = {
+    engine         = "postgres"
+    version        = "15"
+    instance_class = "db.t3.micro"
+    storage_size   = 20
+    multi_az       = false
+    encrypted      = true
+    username       = "admin"
+    database_name  = "deprecated"
+    port           = 5432
+  }
 }
 
 variable "cache_config" {
-  description = "Cache configuration"
+  description = "Cache configuration (deprecated - use team_configurations instead)"
   type = object({
     engine    = string
     version   = string
@@ -193,10 +251,18 @@ variable "cache_config" {
     encrypted = bool
     port      = optional(number, 6379)
   })
+  default = {
+    engine    = "redis"
+    version   = "7.0"
+    node_type = "cache.t3.micro"
+    num_nodes = 1
+    encrypted = false
+    port      = 6379
+  }
 }
 
 variable "storage_config" {
-  description = "Storage configuration"
+  description = "Storage configuration (deprecated - use team_configurations instead)"
   type = object({
     versioning_enabled = bool
     encryption_enabled = bool
@@ -207,6 +273,13 @@ variable "storage_config" {
       public = bool
     }))
   })
+  default = {
+    versioning_enabled = false
+    encryption_enabled = false
+    lifecycle_enabled  = false
+    port               = 9000
+    buckets = []
+  }
 }
 
 # Legacy AWS-specific variables (now handled by cluster module, kept for compatibility)

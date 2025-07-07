@@ -45,13 +45,13 @@ resource "kubernetes_network_policy" "deny_all" {
   }
 }
 
-# Network Policy: Allow database access from cache and storage
+# Network Policy: Allow database access within team namespaces  
 resource "kubernetes_network_policy" "database_access" {
-  count = var.config.enable_network_policies ? 1 : 0
+  for_each = var.config.enable_network_policies ? toset([for ns in var.namespaces : ns if startswith(ns, "app-")]) : toset([])
 
   metadata {
     name      = "allow-database-access"
-    namespace = "database"
+    namespace = each.value
     labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"      = "network-policy"
       "app.kubernetes.io/component" = "security"
@@ -98,13 +98,13 @@ resource "kubernetes_network_policy" "database_access" {
   }
 }
 
-# Network Policy: Allow cache access from applications
+# Network Policy: Allow cache access within team namespaces
 resource "kubernetes_network_policy" "cache_access" {
-  count = var.config.enable_network_policies ? 1 : 0
+  for_each = var.config.enable_network_policies ? toset([for ns in var.namespaces : ns if startswith(ns, "app-")]) : toset([])
 
   metadata {
     name      = "allow-cache-access"
-    namespace = "cache"
+    namespace = each.value
     labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"      = "network-policy"
       "app.kubernetes.io/component" = "security"
@@ -144,13 +144,13 @@ resource "kubernetes_network_policy" "cache_access" {
   }
 }
 
-# Network Policy: Allow storage access from applications
+# Network Policy: Allow storage access within team namespaces
 resource "kubernetes_network_policy" "storage_access" {
-  count = var.config.enable_network_policies ? 1 : 0
+  for_each = var.config.enable_network_policies ? toset([for ns in var.namespaces : ns if startswith(ns, "app-")]) : toset([])
 
   metadata {
     name      = "allow-storage-access"
-    namespace = "storage"
+    namespace = each.value
     labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"      = "network-policy"
       "app.kubernetes.io/component" = "security"
@@ -189,7 +189,7 @@ resource "kubernetes_network_policy" "monitoring_scrape" {
 
   metadata {
     name      = "allow-monitoring-scrape"
-    namespace = "monitoring"
+    namespace = var.monitoring_namespace
     labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"      = "network-policy"
       "app.kubernetes.io/component" = "security"

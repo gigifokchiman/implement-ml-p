@@ -269,9 +269,85 @@ resource "kubernetes_service" "trivy_server" {
   }
 }
 
+# Falco ConfigMap for production environments (not Kind)
+resource "kubernetes_config_map" "falco_config" {
+  count = var.create_namespace_only && var.environment != "local" ? 1 : 0
+
+  metadata {
+    name      = "falco-config"
+    namespace = kubernetes_namespace.security_scanning.metadata[0].name
+    labels = merge(local.security_labels, {
+      "app.kubernetes.io/name"      = "falco"
+      "app.kubernetes.io/component" = "config"
+    })
+  }
+
+  data = {
+    "falco.yaml" = <<-EOT
+      # Falco configuration for EKS/production environments
+      
+      plugins:
+        - name: k8saudit
+          library_path: libk8saudit.so
+          init_config:
+            maxEventBytes: 1048576
+            webhookMaxBatchSize: 12582912
+          open_params: "/var/log/audit.log"
+      
+      load_plugins: [k8saudit]
+      
+      rules_file:
+        - /etc/falco/falco_rules.yaml
+        - /etc/falco/falco_rules.local.yaml
+        - /etc/falco/k8s_audit_rules.yaml
+      
+      json_output: true
+      json_include_output_property: true
+      
+      log_stderr: true
+      log_syslog: false
+      log_level: info
+      
+      priority: debug
+      
+      stdout_output:
+        enabled: true
+      
+      syslog_output:
+        enabled: false
+      
+      webserver:
+        enabled: true
+        listen_port: 8765
+        ssl_enabled: false
+      
+      outputs:
+        rate: 1
+        max_burst: 1000
+      
+      syscall_event_drops:
+        actions:
+          - log
+          - alert
+        rate: .03333
+        max_burst: 10
+    EOT
+  }
+}
+
 # Falco DaemonSet (core runtime security facility)
+# 
+# Deployment Logic:
+# - EKS/Production: Deploys with full syscall + k8s audit monitoring
+# - Kind/Local: Disabled - Falco requires kernel module access for syscalls
+#               which is not available in Kind containers
+# 
+# For local development, security is provided by:
+# - Trivy server for image scanning
+# - Security admission webhook for policy enforcement
+# - Audit logs are still generated for manual analysis
 resource "kubernetes_daemonset" "falco" {
-  count = var.create_namespace_only ? 1 : 0
+  count = var.create_namespace_only && var.environment != "local" ? 1 : 0
 
   metadata {
     name      = "falco"
@@ -316,13 +392,12 @@ resource "kubernetes_daemonset" "falco" {
 
         container {
           name  = "falco"
-          image = "falcosecurity/falco-no-driver:0.36.2"
+          image = "falcosecurity/falco:0.36.2"
           args = [
             "/usr/bin/falco",
             "-K", "/var/run/secrets/kubernetes.io/serviceaccount/token",
             "-k", "https://$(KUBERNETES_SERVICE_HOST)",
-            "--disable-source", "syscall",
-            "--enable-source", "k8s_audit"
+            "-c", "/etc/falco-custom/falco.yaml"
           ]
 
           env {
@@ -353,7 +428,12 @@ resource "kubernetes_daemonset" "falco" {
             read_only  = true
           }
           volume_mount {
-            mount_path = "/etc/kubernetes/audit"
+            mount_path = "/etc/falco-custom"
+            name       = "falco-config"
+            read_only  = true
+          }
+          volume_mount {
+            mount_path = "/var/log"
             name       = "audit-logs"
             read_only  = true
           }
@@ -396,7 +476,13 @@ resource "kubernetes_daemonset" "falco" {
         volume {
           name = "audit-logs"
           host_path {
-            path = "/etc/kubernetes/audit"
+            path = "/var/log"
+          }
+        }
+        volume {
+          name = "falco-config"
+          config_map {
+            name = kubernetes_config_map.falco_config[0].metadata[0].name
           }
         }
       }

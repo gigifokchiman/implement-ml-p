@@ -17,7 +17,7 @@ terraform {
     }
     kind = {
       source  = "kind.local/gigifokchiman/kind"
-      version = "0.1.0"
+      version = "0.1.1"
     }
   }
 }
@@ -34,10 +34,10 @@ module "aws_cluster" {
 
   node_groups    = var.node_groups
   access_entries = var.access_entries
-  
+
   enable_efs       = var.enable_efs
   enable_gpu_nodes = var.enable_gpu_nodes
-  
+
   team_configurations = var.team_configurations
 
   tags = var.tags
@@ -51,10 +51,10 @@ module "kind_cluster" {
   name               = var.name
   environment        = var.environment
   kubernetes_version = var.kubernetes_version
-  
+
   node_groups    = var.node_groups
   port_mappings  = var.port_mappings
-  
+
   tags = var.tags
 }
 

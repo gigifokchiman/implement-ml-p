@@ -5,7 +5,7 @@ terraform {
   required_providers {
     kind = {
       source  = "kind.local/gigifokchiman/kind"
-      version = "0.1.0"
+      version = "0.1.1"
     }
     kubernetes = {
       source  = "hashicorp/kubernetes"
@@ -47,7 +47,33 @@ locals {
           controllerManager:
             extraArgs:
               bind-address: "0.0.0.0"
+          apiServer:
+            extraArgs:
+              audit-log-path: /var/log/audit.log
+              audit-policy-file: /etc/kubernetes/audit-policy.yaml
+              audit-log-maxage: "7"
+              audit-log-maxbackup: "3"
+              audit-log-maxsize: "100"
+            extraVolumes:
+            - name: audit-policy
+              hostPath: /etc/kubernetes/audit-policy.yaml
+              mountPath: /etc/kubernetes/audit-policy.yaml
+              readOnly: true
+              pathType: File
           EOT
+        ]
+        
+        # Audit logging mounts
+        extra_mounts = [
+          {
+            host_path      = "/tmp/audit-logs"
+            container_path = "/var/log"
+          },
+          {
+            host_path      = "/tmp/audit-policy.yaml"
+            container_path = "/etc/kubernetes/audit-policy.yaml"
+            readonly       = true
+          }
         ]
       }
     ],
@@ -69,6 +95,100 @@ locals {
       }
     ]
   )
+}
+
+# Create audit logs directory
+resource "null_resource" "audit_logs_dir" {
+  provisioner "local-exec" {
+    command = "mkdir -p /tmp/audit-logs"
+  }
+}
+
+# Create audit policy file
+resource "local_file" "audit_policy" {
+  filename = "/tmp/audit-policy.yaml"
+  content = yamlencode({
+    apiVersion = "audit.k8s.io/v1"
+    kind       = "Policy"
+    rules = [
+      {
+        level = "RequestResponse"
+        namespaces = ["kube-system", "argocd", "secret-store"]
+        resources = [
+          {
+            group = ""
+            resources = ["secrets", "configmaps", "serviceaccounts"]
+          },
+          {
+            group = "rbac.authorization.k8s.io"
+            resources = ["roles", "rolebindings", "clusterroles", "clusterrolebindings"]
+          }
+        ]
+      },
+      {
+        level = "Request"
+        namespaces = ["app-ml-team", "app-data-team", "app-core-team"]
+        resources = [
+          {
+            group = ""
+            resources = ["pods", "services", "persistentvolumeclaims"]
+          },
+          {
+            group = "apps"
+            resources = ["deployments", "statefulsets"]
+          }
+        ]
+      },
+      {
+        level = "RequestResponse"
+        namespaces = ["data-platform-monitoring", "app-ml-team", "app-data-team", "app-core-team"]
+        verbs = ["create", "update", "patch", "delete"]
+        resources = [
+          {
+            group = ""
+            resources = ["pods", "services", "persistentvolumeclaims", "configmaps"]
+          }
+        ]
+      },
+      {
+        level = "RequestResponse"
+        resources = [
+          {
+            group = "cert-manager.io"
+            resources = ["certificates", "issuers", "clusterissuers"]
+          },
+          {
+            group = "networking.k8s.io"
+            resources = ["networkpolicies"]
+          }
+        ]
+      },
+      {
+        level = "Request"
+        namespaces = ["argocd"]
+        resources = [
+          {
+            group = "argoproj.io"
+            resources = ["applications", "appprojects"]
+          }
+        ]
+      },
+      {
+        level = "None"
+        verbs = ["get", "list", "watch"]
+        resources = [
+          {
+            group = ""
+            resources = ["events", "nodes", "nodes/status", "pods/log", "pods/status"]
+          }
+        ]
+      },
+      {
+        level = "Metadata"
+        omitStages = ["RequestReceived"]
+      }
+    ]
+  })
 }
 
 # Local Docker Registry for Kind
@@ -122,12 +242,24 @@ resource "kind_cluster" "main" {
             protocol       = extra_port_mappings.value.protocol
           }
         }
+        
+        # Add extra mounts if present
+        dynamic "extra_mounts" {
+          for_each = lookup(node.value, "extra_mounts", [])
+          content {
+            host_path      = extra_mounts.value.host_path
+            container_path = extra_mounts.value.container_path
+            readonly       = lookup(extra_mounts.value, "readonly", false)
+            selinux_relabel = lookup(extra_mounts.value, "selinux_relabel", false)
+            propagation    = lookup(extra_mounts.value, "propagation", "None")
+          }
+        }
       }
     }
 
   }
 
-  depends_on = [docker_container.registry]
+  depends_on = [docker_container.registry, local_file.audit_policy, null_resource.audit_logs_dir]
 }
 
 # Wait for cluster to be ready

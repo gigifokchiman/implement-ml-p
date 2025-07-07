@@ -29,22 +29,16 @@ output "kind_cluster_info" {
   sensitive   = true
 }
 
-# Platform Services
-output "database" {
-  description = "Database connection details"
-  value       = module.data_platform.database
+# Team Platform Services
+output "team_databases" {
+  description = "Database connection details per team"
+  value       = module.data_platform.team_databases
   sensitive   = true
 }
 
-output "cache" {
-  description = "Cache connection details"
-  value       = module.data_platform.cache
-  sensitive   = true
-}
-
-output "storage" {
-  description = "Storage connection details"
-  value       = module.data_platform.storage
+output "team_storage" {
+  description = "Storage connection details per team"
+  value       = module.data_platform.team_storage
   sensitive   = true
 }
 
@@ -85,10 +79,9 @@ output "resource_summary" {
       provider = module.data_platform.cluster_provider
     }
     services = {
-      database_enabled   = module.data_platform.database != null
-      cache_enabled      = module.data_platform.cache != null
-      storage_enabled    = module.data_platform.storage != null
-      monitoring_enabled = module.data_platform.monitoring != null
+      team_databases_count = length(keys(module.data_platform.team_databases))
+      team_storage_count   = length(keys(module.data_platform.team_storage))
+      monitoring_enabled   = module.data_platform.monitoring != null
     }
     local_access = {
       registry_url = try(module.data_platform.kind_cluster_info.local_registry_url, "localhost:5001")

@@ -6,7 +6,7 @@ terraform {
   required_providers {
     kind = {
       source  = "kind.local/gigifokchiman/kind"
-      version = "0.1.0"
+      version = "0.1.1"
     }
     kubernetes = {
       source  = "hashicorp/kubernetes"

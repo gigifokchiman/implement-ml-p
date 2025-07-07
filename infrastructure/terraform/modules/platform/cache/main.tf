@@ -25,6 +25,7 @@ module "kubernetes_cache" {
   source = "../../providers/kubernetes/cache"
 
   name        = var.name
+  namespace   = var.namespace
   environment = var.environment
   config      = var.config
   tags        = var.tags

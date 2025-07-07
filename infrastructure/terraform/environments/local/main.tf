@@ -20,7 +20,7 @@ terraform {
     # Local only
     kind = {
       source  = "kind.local/gigifokchiman/kind"
-      version = "0.1.0"
+      version = "0.1.1"
     }
     docker = {
       source  = "kreuzwerker/docker"
@@ -157,47 +157,12 @@ module "data_platform" {
   enable_performance_monitoring = var.enable_performance_monitoring
 
   # Team configurations
-  team_configurations = var.team_namespaces
+  team_configurations = var.team_configurations
 
   # Local only
   port_mappings = var.port_mappings
 
-  # Platform services configuration
-  database_config = {
-    engine         = "postgres"
-    version        = "16"
-    instance_class = "local"  # vs var.storage_config.rds.instance_class in dev
-    storage_size   = 20       # vs var.storage_config.rds.allocated_storage in dev
-    multi_az       = false
-    encrypted      = false    # vs true in dev
-    username       = "admin"
-    database_name  = "metadata"
-    port           = 5432
-  }
-  cache_config = {
-    engine    = "redis"
-    version   = "7.0"
-    node_type = "local"       # vs "cache.t3.micro" in dev
-    num_nodes = 1
-    encrypted = false         # vs true in dev
-    port      = 6379
-  }
-  storage_config = {
-    versioning_enabled = true
-    encryption_enabled = false  # vs true in dev
-    lifecycle_enabled  = false  # vs true in dev
-    port              = 9000
-    buckets = [
-      {
-        name   = "ml-artifacts"
-        public = false
-      },
-      {
-        name   = "data-lake"
-        public = false
-      }
-    ]
-  }
+  # Platform services configuration now managed per-team in team_configurations
 
   # Security and compliance
   allowed_cidr_blocks = ["0.0.0.0/0"]  # vs var.allowed_cidr_blocks in dev (relaxed for local)

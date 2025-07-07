@@ -14,7 +14,7 @@ terraform {
     }
     kind = {
       source  = "kind.local/gigifokchiman/kind"
-      version = "0.1.0"
+      version = "0.1.1"
     }
   }
 }
@@ -22,7 +22,7 @@ terraform {
 # Cross-cutting concerns for platform
 module "platform_cross_cutting" {
   source = "../../shared/cross-cutting"
-  
+
   platform_name     = var.name
   environment       = var.environment
   module_name       = "data-platform-composition"
@@ -32,14 +32,14 @@ module "platform_cross_cutting" {
   service_tier      = "core"
   security_level    = "high"
   namespace         = "default"
-  
+
   base_tags = var.tags
-  
+
   logging_config = {
     enabled = true
     level   = var.environment == "local" ? "debug" : "info"
   }
-  
+
   monitoring_config = {
     enabled = var.enable_monitoring
   }
@@ -57,20 +57,100 @@ module "cluster" {
 
   node_groups    = var.node_groups
   access_entries = var.access_entries
-  
+
   enable_efs       = var.enable_efs
   enable_gpu_nodes = var.enable_gpu_nodes
-  
+
   team_configurations = var.team_configurations
   port_mappings       = var.port_mappings
 
   tags = module.platform_cross_cutting.standard_tags
 }
 
+# Removed shared data-platform namespace - each team now has their own namespace
+# with storage and database resources
+
+# Create team-specific namespaces
+# These namespaces are created by Terraform because they require AWS service integration
+# and resource quotas that cannot be managed by ArgoCD
+resource "kubernetes_namespace" "team_namespaces" {
+  for_each = var.team_configurations
+
+  metadata {
+    name = "app-${each.key}"
+    labels = {
+      "app.kubernetes.io/name"      = "app-${each.key}"
+      "app.kubernetes.io/component" = "application"
+      "app.kubernetes.io/team"      = each.key
+      "workload-type"              = "application"
+    }
+    annotations = var.use_aws ? {
+      # AWS-specific annotations for service account integration
+      "iam.amazonaws.com/permitted" = "*"
+    } : {}
+  }
+  
+  lifecycle {
+    ignore_changes = [
+      metadata[0].annotations["kubectl.kubernetes.io/last-applied-configuration"]
+    ]
+  }
+}
+
+# Resource quotas for team namespaces
+resource "kubernetes_resource_quota" "team_quotas" {
+  for_each = var.team_configurations
+
+  metadata {
+    name      = "${each.key}-quota"
+    namespace = kubernetes_namespace.team_namespaces[each.key].metadata[0].name
+  }
+
+  spec {
+    hard = {
+      "requests.cpu"    = each.value.resource_quota.cpu_requests
+      "requests.memory" = each.value.resource_quota.memory_requests
+      "limits.cpu"      = each.value.resource_quota.cpu_limits
+      "limits.memory"   = each.value.resource_quota.memory_limits
+      "requests.nvidia.com/gpu" = each.value.resource_quota.gpu_requests
+    }
+  }
+}
+
+# Network policies for team namespaces (if enabled)
+resource "kubernetes_network_policy" "team_default_deny" {
+  for_each = { for k, v in var.team_configurations : k => v if v.network_policies }
+
+  metadata {
+    name      = "default-deny-all"
+    namespace = kubernetes_namespace.team_namespaces[each.key].metadata[0].name
+  }
+
+  spec {
+    pod_selector {}
+    policy_types = ["Ingress", "Egress"]
+    
+    # Allow DNS resolution
+    egress {
+      to {
+        namespace_selector {
+          match_labels = {
+            "kubernetes.io/metadata.name" = "kube-system"
+          }
+        }
+      }
+      ports {
+        port     = "53"
+        protocol = "UDP"
+      }
+    }
+  }
+}
+
 # Cluster interface for dependency injection
 module "cluster_interface" {
   source = "../../shared/interfaces/cluster"
-  
+
   cluster_outputs = {
     cluster_name     = module.cluster.cluster_name
     cluster_endpoint = module.cluster.cluster_endpoint
@@ -84,13 +164,18 @@ module "cluster_interface" {
   }
 }
 
-module "database" {
-  source = "../../platform/database"
+# Create database resources only for teams that explicitly enable them
+module "team_databases" {
+  for_each = { for k, v in var.team_configurations : k => v if v.database_config.enabled }
+  source   = "../../platform/database"
 
-  name        = "${var.name}-database"
+  name        = "${each.key}-database"
+  namespace   = kubernetes_namespace.team_namespaces[each.key].metadata[0].name
   environment = var.environment
-  config      = var.database_config
-  tags        = var.tags
+  config      = each.value.database_config.config
+  tags        = merge(var.tags, {
+    team = each.key
+  })
 
   # Provider-specific configuration (only populated for AWS environments)
   provider_config = {
@@ -103,37 +188,27 @@ module "database" {
   }
 }
 
-module "cache" {
-  source = "../../platform/cache"
+# Removed shared cache module - each team has their own storage
 
-  name        = "${var.name}-cache"
+# Create storage resources only for teams that explicitly enable them
+module "team_storage" {
+  for_each = { for k, v in var.team_configurations : k => v if v.storage_config.enabled }
+  source   = "../../platform/storage"
+
+  name        = "${each.key}-storage"
+  namespace   = kubernetes_namespace.team_namespaces[each.key].metadata[0].name
   environment = var.environment
-  config      = var.cache_config
-  tags        = var.tags
-
-  # Provider-specific configuration (only populated for AWS environments)
-  provider_config = {
-    vpc_id              = try(module.cluster.vpc_id, "")
-    subnet_ids          = try(module.cluster.private_subnets, [])
-    allowed_cidr_blocks = var.allowed_cidr_blocks
-    region              = try(var.aws_region, "")
-  }
-}
-
-module "storage" {
-  source = "../../platform/storage"
-
-  name        = "${var.name}-storage"
-  environment = var.environment
-  config      = var.storage_config
-  tags        = var.tags
+  config      = each.value.storage_config.config
+  tags        = merge(var.tags, {
+    team = each.key
+  })
 
   # Provider-specific configuration (only populated for AWS environments)
   provider_config = {
     region = try(var.aws_region, "")
   }
-  
-  depends_on = [module.cluster]
+
+  depends_on = [module.cluster, kubernetes_namespace.team_namespaces]
 }
 
 module "monitoring" {
@@ -151,6 +226,7 @@ module "security" {
   source = "../../platform/security"
 
   name        = "${var.name}-security"
+  namespace   = "${var.name}-security"
   environment = var.environment
   config = {
     enable_network_policies  = true
@@ -158,13 +234,19 @@ module "security" {
     enable_admission_control = var.environment != "local"
     pod_security_standard    = var.environment == "prod" ? "restricted" : "baseline"
   }
-  namespaces = [
-    "${var.name}-database",
-    "${var.name}-cache", 
-    "${var.name}-storage",
-    "${var.name}-monitoring"
-  ]
+  namespaces = concat(
+    [for k, v in var.team_configurations : "app-${k}"],
+    ["${var.name}-monitoring"]
+  )
+  platform_namespace   = "app-core-team"  # Use one of the team namespaces as example
+  monitoring_namespace = "${var.name}-monitoring"
   tags       = var.tags
+  
+  # Ensure team namespaces are created before applying security policies
+  depends_on = [
+    kubernetes_namespace.team_namespaces,
+    module.monitoring
+  ]
 }
 
 module "backup" {
@@ -197,14 +279,14 @@ module "performance_monitoring" {
   name        = "${var.name}-performance"
   environment = var.environment
   config = var.performance_config
-  namespaces = [
-    "${var.name}-database",
-    "${var.name}-cache",
-    "${var.name}-storage",
-    "${var.name}-monitoring", 
-    "${var.name}-security-scanning",
-    "${var.name}-performance-monitoring"
-  ]
+  namespaces = concat(
+    [for k, v in var.team_configurations : "app-${k}"],
+    [
+      "${var.name}-monitoring",
+      "${var.name}-security-scanning",
+      "${var.name}-performance"
+    ]
+  )
   tags       = var.tags
 }
 
@@ -215,7 +297,7 @@ module "secret_store" {
   name        = "${var.name}-secrets"
   environment = var.environment
   use_aws     = var.use_aws
-  
+
   # AWS uses Secrets Manager, Local uses Kubernetes secrets
   config = merge(var.secret_store_config, {
     kms_key_id = var.use_aws && can(module.cluster.aws_cluster_outputs.kms_key_id) ? module.cluster.aws_cluster_outputs.kms_key_id : null
@@ -231,10 +313,10 @@ module "security_bootstrap" {
   name         = "${var.name}-security-bootstrap"
   environment  = var.environment
   cluster_name = module.cluster.cluster_name
-  
+
   # Dependency injection - inject cluster interface
   cluster_info = module.cluster_interface.cluster_interface
-  
+
   config = var.security_config
 
   tags = module.platform_cross_cutting.standard_tags
@@ -248,7 +330,7 @@ module "audit_logging" {
   name        = "${var.name}-audit"
   environment = var.environment
   cluster_name = module.cluster.cluster_name
-  
+
   config = {
     enable_api_audit    = true
     enable_webhook_audit = var.environment == "prod"
@@ -263,7 +345,7 @@ module "audit_logging" {
 # Security interface for service discovery
 module "security_interface" {
   source = "../../shared/interfaces/security"
-  
+
   security_outputs = {
     cert_manager_enabled     = module.security_bootstrap.security_info.cert_manager_enabled
     cert_manager_namespace   = module.security_bootstrap.security_info.cert_manager_namespace
@@ -281,10 +363,10 @@ module "security_interface" {
 # Interface Validation
 module "interface_validation" {
   source = "../../shared/validation"
-  
+
   cluster_interface  = module.cluster_interface.cluster_interface
   security_interface = module.security_interface.security_interface
-  
+
   provider_config = {
     vpc_id                = try(module.cluster.vpc_id, "")
     subnet_ids            = try(module.cluster.private_subnets, [])
@@ -298,18 +380,18 @@ module "interface_validation" {
 # Service Discovery Registry (disabled until ArgoCD manages namespaces)
 module "service_registry" {
   source = "../../shared/service-registry"
-  
+
   platform_name = var.name
   environment   = var.environment
-  
+
   cluster_service = module.cluster_interface.cluster_interface
   security_service = module.security_interface.security_interface
-  
+
   enable_service_registry = false  # Disabled until platform-system namespace exists
   enable_health_checks    = false  # Disabled - managed by ArgoCD
-  
+
   depends_on = [module.interface_validation]
-  
+
   additional_services = {
     database = {
       name     = "database"

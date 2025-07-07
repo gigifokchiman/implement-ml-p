@@ -25,6 +25,7 @@ module "kubernetes_database" {
   source = "../../providers/kubernetes/database"
 
   name        = var.name
+  namespace   = var.namespace
   environment = var.environment
   config      = var.config
   tags        = var.tags
