@@ -26,20 +26,20 @@ resource "kubernetes_validating_webhook_configuration_v1" "protect_security" {
 
   webhook {
     name = "prevent-security-deletion.security.platform"
-    
+
     admission_review_versions = ["v1", "v1beta1"]
-    
+
     client_config {
       service {
         name      = "security-webhook"
         namespace = kubernetes_namespace.security_scanning.metadata[0].name
         path      = "/validate"
       }
-      
+
       # In production, use proper CA bundle
       ca_bundle = base64encode("placeholder-ca-bundle")
     }
-    
+
     rule {
       api_groups   = ["*"]
       api_versions = ["*"]
@@ -47,15 +47,15 @@ resource "kubernetes_validating_webhook_configuration_v1" "protect_security" {
       resources    = ["*"]
       scope        = "Namespaced"
     }
-    
+
     namespace_selector {
       match_labels = {
         "security.platform/critical" = "true"
       }
     }
-    
-    failure_policy = "Fail"
-    side_effects   = "None"
+
+    failure_policy  = "Fail"
+    side_effects    = "None"
     timeout_seconds = 10
   }
 }
@@ -69,33 +69,33 @@ resource "kubernetes_mutating_webhook_configuration_v1" "security_labeler" {
 
   webhook {
     name = "label-security-resources.security.platform"
-    
+
     admission_review_versions = ["v1", "v1beta1"]
-    
+
     client_config {
       service {
         name      = "security-webhook"
         namespace = kubernetes_namespace.security_scanning.metadata[0].name
         path      = "/mutate"
       }
-      
+
       ca_bundle = base64encode("placeholder-ca-bundle")
     }
-    
+
     rule {
       api_groups   = ["apps", "batch"]
       api_versions = ["v1"]
       operations   = ["CREATE", "UPDATE"]
       resources    = ["deployments", "daemonsets", "statefulsets", "jobs", "cronjobs"]
     }
-    
+
     namespace_selector {
       match_labels = {
         "security.platform/scanning-enabled" = "true"
       }
     }
-    
-    failure_policy = "Ignore"  # Don't block deployments if webhook fails
+
+    failure_policy = "Ignore" # Don't block deployments if webhook fails
     side_effects   = "None"
   }
 }

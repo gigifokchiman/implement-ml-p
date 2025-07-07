@@ -106,17 +106,17 @@ output "backup" {
 output "security_scanning" {
   description = "Security scanning endpoints and configuration"
   value = length(module.security_scanning) > 0 ? {
-    scanning_facilities    = module.security_scanning[0].scanning_facilities
-    namespace             = module.security_scanning[0].namespace
-    argocd_project        = module.security_scanning[0].argocd_project
-    enabled               = true
-    message               = "Security scanning enabled"
-  } : {
-    scanning_facilities    = {}
-    namespace             = ""
-    argocd_project        = null
-    enabled               = false
-    message                = "Security scanning disabled"
+    scanning_facilities = module.security_scanning[0].scanning_facilities
+    namespace           = module.security_scanning[0].namespace
+    argocd_project      = module.security_scanning[0].argocd_project
+    enabled             = true
+    message             = "Security scanning enabled"
+    } : {
+    scanning_facilities = {}
+    namespace           = ""
+    argocd_project      = null
+    enabled             = false
+    message             = "Security scanning disabled"
   }
 }
 
@@ -129,7 +129,7 @@ output "performance_monitoring" {
     dashboards        = module.performance_monitoring[0].dashboards
     enabled           = true
     message           = "Performance monitoring enabled"
-  } : {
+    } : {
     apm_endpoints     = {}
     tracing_endpoints = {}
     metrics_endpoints = {}

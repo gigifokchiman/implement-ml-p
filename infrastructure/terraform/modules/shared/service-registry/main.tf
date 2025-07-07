@@ -13,7 +13,7 @@ terraform {
 # Service Registry ConfigMap (namespace managed by ArgoCD)
 resource "kubernetes_config_map" "service_registry" {
   count = var.enable_service_registry ? 1 : 0
-  
+
   metadata {
     name      = "platform-service-registry"
     namespace = var.registry_namespace
@@ -27,7 +27,7 @@ resource "kubernetes_config_map" "service_registry" {
   data = {
     "services.json" = jsonencode(local.service_registry)
   }
-  
+
   lifecycle {
     ignore_changes = [metadata[0].namespace]
   }
@@ -40,25 +40,25 @@ locals {
     # Core platform services
     var.cluster_service != null ? {
       cluster = {
-        name      = var.cluster_service.name
-        type      = "cluster"
-        status    = var.cluster_service.is_ready ? "ready" : "pending"
-        endpoint  = var.cluster_service.endpoint
-        version   = var.cluster_service.version
-        provider  = var.cluster_service.is_aws ? "aws" : "local"
+        name     = var.cluster_service.name
+        type     = "cluster"
+        status   = var.cluster_service.is_ready ? "ready" : "pending"
+        endpoint = var.cluster_service.endpoint
+        version  = var.cluster_service.version
+        provider = var.cluster_service.is_aws ? "aws" : "local"
         metadata = {
           vpc_id = try(var.cluster_service.vpc_id, null)
           region = try(var.cluster_service.region, null)
         }
       }
     } : {},
-    
+
     # Security services
     var.security_service != null ? {
       security = {
-        name     = "security-bootstrap"
-        type     = "security"
-        status   = var.security_service.is_ready ? "ready" : "pending"
+        name   = "security-bootstrap"
+        type   = "security"
+        status = var.security_service.is_ready ? "ready" : "pending"
         services = {
           cert_manager = {
             enabled   = var.security_service.certificates.enabled
@@ -76,23 +76,23 @@ locals {
         }
       }
     } : {},
-    
+
     # Additional registered services
     var.additional_services
   )
 
   # Service dependencies mapping
   service_dependencies = {
-    security = var.cluster_service != null ? ["cluster"] : []
+    security   = var.cluster_service != null ? ["cluster"] : []
     monitoring = var.security_service != null ? ["cluster", "security"] : ["cluster"]
-    storage = ["cluster"]
-    database = ["cluster"]
-    cache = ["cluster"]
+    storage    = ["cluster"]
+    database   = ["cluster"]
+    cache      = ["cluster"]
   }
 
   # Service discovery endpoints
   service_endpoints = {
-    for service_name, service in local.registered_services : 
+    for service_name, service in local.registered_services :
     service_name => {
       internal = try(service.endpoint, null)
       external = try(service.external_endpoint, null)
@@ -103,12 +103,12 @@ locals {
 
   # Complete service registry
   service_registry = {
-    version = "1.0"
-    platform = var.platform_name
-    environment = var.environment
-    services = local.registered_services
+    version      = "1.0"
+    platform     = var.platform_name
+    environment  = var.environment
+    services     = local.registered_services
     dependencies = local.service_dependencies
-    endpoints = local.service_endpoints
+    endpoints    = local.service_endpoints
   }
 }
 

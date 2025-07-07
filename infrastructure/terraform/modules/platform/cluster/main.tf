@@ -30,7 +30,7 @@ module "aws_cluster" {
   name               = var.name
   environment        = var.environment
   kubernetes_version = var.kubernetes_version
-  vpc_cidr          = var.vpc_cidr
+  vpc_cidr           = var.vpc_cidr
 
   node_groups    = var.node_groups
   access_entries = var.access_entries
@@ -52,8 +52,8 @@ module "kind_cluster" {
   environment        = var.environment
   kubernetes_version = var.kubernetes_version
 
-  node_groups    = var.node_groups
-  port_mappings  = var.port_mappings
+  node_groups   = var.node_groups
+  port_mappings = var.port_mappings
 
   tags = var.tags
 }
@@ -61,26 +61,26 @@ module "kind_cluster" {
 # Output unified interface
 locals {
   cluster_info = var.use_aws ? {
-    name              = module.aws_cluster[0].cluster_name
-    endpoint          = module.aws_cluster[0].cluster_endpoint
-    version           = module.aws_cluster[0].cluster_version
-    ca_certificate    = module.aws_cluster[0].cluster_ca_certificate
-    provider_type     = "aws"
-    kubeconfig        = module.aws_cluster[0].kubeconfig
-    vpc_id            = module.aws_cluster[0].vpc_id
-    private_subnets   = module.aws_cluster[0].private_subnets
-    public_subnets    = module.aws_cluster[0].public_subnets
+    name               = module.aws_cluster[0].cluster_name
+    endpoint           = module.aws_cluster[0].cluster_endpoint
+    version            = module.aws_cluster[0].cluster_version
+    ca_certificate     = module.aws_cluster[0].cluster_ca_certificate
+    provider_type      = "aws"
+    kubeconfig         = module.aws_cluster[0].kubeconfig
+    vpc_id             = module.aws_cluster[0].vpc_id
+    private_subnets    = module.aws_cluster[0].private_subnets
+    public_subnets     = module.aws_cluster[0].public_subnets
     ecr_repository_url = module.aws_cluster[0].ecr_repository_url
-  } : {
-    name              = module.kind_cluster[0].cluster_name
-    endpoint          = module.kind_cluster[0].cluster_endpoint
-    version           = module.kind_cluster[0].cluster_version
-    ca_certificate    = module.kind_cluster[0].cluster_ca_certificate
-    provider_type     = "kind"
-    kubeconfig        = module.kind_cluster[0].kubeconfig
-    vpc_id            = null
-    private_subnets   = []
-    public_subnets    = []
+    } : {
+    name               = module.kind_cluster[0].cluster_name
+    endpoint           = module.kind_cluster[0].cluster_endpoint
+    version            = module.kind_cluster[0].cluster_version
+    ca_certificate     = module.kind_cluster[0].cluster_ca_certificate
+    provider_type      = "kind"
+    kubeconfig         = module.kind_cluster[0].kubeconfig
+    vpc_id             = null
+    private_subnets    = []
+    public_subnets     = []
     ecr_repository_url = null
   }
 }

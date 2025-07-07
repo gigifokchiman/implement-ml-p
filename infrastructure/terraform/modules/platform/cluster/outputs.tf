@@ -63,13 +63,13 @@ output "ecr_repository_url" {
 output "aws_cluster_outputs" {
   description = "AWS-specific cluster outputs"
   value = var.use_aws ? {
-    cluster_oidc_issuer_url = module.aws_cluster[0].cluster_oidc_issuer_url
+    cluster_oidc_issuer_url   = module.aws_cluster[0].cluster_oidc_issuer_url
     cluster_oidc_provider_arn = module.aws_cluster[0].cluster_oidc_provider_arn
-    irsa_role_arns = module.aws_cluster[0].irsa_iam_role_arns
-    efs_file_system_id = module.aws_cluster[0].efs_file_system_id
-    kms_key_id = module.aws_cluster[0].kms_key_id
-    kms_key_arn = module.aws_cluster[0].kms_key_arn
-    useful_commands = module.aws_cluster[0].useful_commands
+    irsa_role_arns            = module.aws_cluster[0].irsa_iam_role_arns
+    efs_file_system_id        = module.aws_cluster[0].efs_file_system_id
+    kms_key_id                = module.aws_cluster[0].kms_key_id
+    kms_key_arn               = module.aws_cluster[0].kms_key_arn
+    useful_commands           = module.aws_cluster[0].useful_commands
   } : null
   sensitive = true
 }
@@ -79,8 +79,8 @@ output "kind_cluster_outputs" {
   description = "Kind-specific cluster outputs"
   value = var.use_aws ? null : {
     local_registry_url = try(module.kind_cluster[0].local_registry_url, null)
-    kubeconfig_path = try(module.kind_cluster[0].kubeconfig_path, null)
-    port_mappings = try(module.kind_cluster[0].port_mappings, null)
+    kubeconfig_path    = try(module.kind_cluster[0].kubeconfig_path, null)
+    port_mappings      = try(module.kind_cluster[0].port_mappings, null)
   }
   sensitive = true
 }

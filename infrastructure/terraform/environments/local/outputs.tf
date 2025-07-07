@@ -59,8 +59,8 @@ output "useful_commands" {
   description = "Useful commands for this environment"
   value = {
     kubectl_config       = "kubectl config use-context kind-${module.data_platform.cluster_name}"
-    get_nodes           = "kubectl get nodes -o wide"
-    get_pods            = "kubectl get pods --all-namespaces"
+    get_nodes            = "kubectl get nodes -o wide"
+    get_pods             = "kubectl get pods --all-namespaces"
     port_forward_grafana = "kubectl port-forward -n monitoring svc/prometheus-grafana 3000:80"
     port_forward_minio   = "kubectl port-forward -n storage svc/minio 9001:9000"
     registry_catalog     = "curl http://localhost:5001/v2/_catalog"
@@ -95,10 +95,10 @@ output "development_urls" {
   description = "Local development URLs"
   sensitive   = true
   value = {
-    frontend     = try(module.data_platform.kind_cluster_info.port_mappings.http, "http://localhost:8080")
-    registry     = try(module.data_platform.kind_cluster_info.local_registry_url, "localhost:5001")
-    grafana      = "http://localhost:3000"  # Port forward required
-    prometheus   = "http://localhost:9090" # Port forward required
-    minio        = "http://localhost:9001" # Port forward required
+    frontend   = try(module.data_platform.kind_cluster_info.port_mappings.http, "http://localhost:8080")
+    registry   = try(module.data_platform.kind_cluster_info.local_registry_url, "localhost:5001")
+    grafana    = "http://localhost:3000" # Port forward required
+    prometheus = "http://localhost:9090" # Port forward required
+    minio      = "http://localhost:9001" # Port forward required
   }
 }

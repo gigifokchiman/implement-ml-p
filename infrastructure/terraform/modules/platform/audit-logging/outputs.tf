@@ -42,8 +42,8 @@ output "aws_audit_logging_outputs" {
     log_group_names = module.aws_audit_logging[0].log_group_names
     log_group_arns  = module.aws_audit_logging[0].log_group_arns
     metric_filters  = module.aws_audit_logging[0].metric_filter_names
-    alarms         = module.aws_audit_logging[0].alarm_names
-    processor_role = module.aws_audit_logging[0].processor_role_arn
+    alarms          = module.aws_audit_logging[0].alarm_names
+    processor_role  = module.aws_audit_logging[0].processor_role_arn
   } : null
 }
 
@@ -51,11 +51,11 @@ output "aws_audit_logging_outputs" {
 output "kubernetes_audit_logging_outputs" {
   description = "Kubernetes audit logging outputs"
   value = var.use_aws ? null : {
-    namespace           = module.kubernetes_audit_logging[0].namespace
-    config_map_names    = module.kubernetes_audit_logging[0].config_map_names
-    service_account     = module.kubernetes_audit_logging[0].service_account_name
-    daemonset_name      = module.kubernetes_audit_logging[0].daemonset_name
-    cluster_role_name   = module.kubernetes_audit_logging[0].cluster_role_name
-    audit_policy_path   = module.kubernetes_audit_logging[0].audit_policy_path
+    namespace         = module.kubernetes_audit_logging[0].namespace
+    config_map_names  = module.kubernetes_audit_logging[0].config_map_names
+    service_account   = module.kubernetes_audit_logging[0].service_account_name
+    daemonset_name    = module.kubernetes_audit_logging[0].daemonset_name
+    cluster_role_name = module.kubernetes_audit_logging[0].cluster_role_name
+    audit_policy_path = module.kubernetes_audit_logging[0].audit_policy_path
   }
 }

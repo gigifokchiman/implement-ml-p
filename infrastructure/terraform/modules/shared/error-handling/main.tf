@@ -22,17 +22,17 @@ resource "kubernetes_config_map" "error_context" {
     labels = {
       "app.kubernetes.io/name"      = "error-handling"
       "app.kubernetes.io/component" = var.service_name
-      "platform.io/error-boundary" = "true"
+      "platform.io/error-boundary"  = "true"
     }
   }
 
   data = {
     "error-config.json" = jsonencode({
-      service_name    = var.service_name
-      environment     = var.environment
-      retry_policy    = var.retry_policy
-      circuit_breaker = var.circuit_breaker_config
-      fallback_mode   = var.fallback_config
+      service_name     = var.service_name
+      environment      = var.environment
+      retry_policy     = var.retry_policy
+      circuit_breaker  = var.circuit_breaker_config
+      fallback_mode    = var.fallback_config
       error_thresholds = var.error_thresholds
     })
   }
@@ -45,29 +45,29 @@ locals {
     var.health_checks.last_check_status == "healthy" &&
     var.health_checks.error_rate < var.error_thresholds.max_error_rate
   ) : true
-  
+
   # Circuit breaker state
   circuit_breaker_open = var.circuit_breaker_config.enabled ? (
     var.health_checks.consecutive_failures >= var.circuit_breaker_config.failure_threshold
   ) : false
-  
+
   # Determine fallback strategy
   fallback_strategy = local.circuit_breaker_open ? (
     var.fallback_config.strategy
   ) : "normal"
-  
+
   # Error recovery actions
   recovery_actions = {
-    restart_required = var.health_checks.consecutive_failures >= var.error_thresholds.restart_threshold
+    restart_required    = var.health_checks.consecutive_failures >= var.error_thresholds.restart_threshold
     scale_down_required = var.health_checks.error_rate > var.error_thresholds.scale_down_rate
-    alert_required = var.health_checks.error_rate > var.error_thresholds.alert_rate
+    alert_required      = var.health_checks.error_rate > var.error_thresholds.alert_rate
   }
 }
 
 # Service health monitoring
 resource "kubernetes_manifest" "health_monitor" {
   count = var.health_checks.enabled ? 1 : 0
-  
+
   manifest = {
     apiVersion = "batch/v1"
     kind       = "CronJob"
@@ -137,7 +137,7 @@ resource "kubernetes_manifest" "health_monitor" {
 # Health status tracking
 resource "kubernetes_config_map" "health_status" {
   count = var.health_checks.enabled ? 1 : 0
-  
+
   metadata {
     name      = "${var.service_name}-health-status"
     namespace = var.namespace
@@ -149,16 +149,16 @@ resource "kubernetes_config_map" "health_status" {
 
   data = {
     status               = "unknown"
-    last_check          = ""
+    last_check           = ""
     consecutive_failures = "0"
-    error_rate          = "0.0"
+    error_rate           = "0.0"
   }
 }
 
 # Service account for health monitoring
 resource "kubernetes_service_account" "health_monitor" {
   count = var.health_checks.enabled ? 1 : 0
-  
+
   metadata {
     name      = "${var.service_name}-health-monitor"
     namespace = var.namespace
@@ -168,7 +168,7 @@ resource "kubernetes_service_account" "health_monitor" {
 # RBAC for health monitoring
 resource "kubernetes_role" "health_monitor" {
   count = var.health_checks.enabled ? 1 : 0
-  
+
   metadata {
     namespace = var.namespace
     name      = "${var.service_name}-health-monitor"
@@ -183,18 +183,18 @@ resource "kubernetes_role" "health_monitor" {
 
 resource "kubernetes_role_binding" "health_monitor" {
   count = var.health_checks.enabled ? 1 : 0
-  
+
   metadata {
     name      = "${var.service_name}-health-monitor"
     namespace = var.namespace
   }
-  
+
   role_ref {
     api_group = "rbac.authorization.k8s.io"
     kind      = "Role"
     name      = kubernetes_role.health_monitor[0].metadata[0].name
   }
-  
+
   subject {
     kind      = "ServiceAccount"
     name      = kubernetes_service_account.health_monitor[0].metadata[0].name
@@ -205,12 +205,12 @@ resource "kubernetes_role_binding" "health_monitor" {
 # Error recovery automation
 resource "null_resource" "error_recovery" {
   count = var.auto_recovery.enabled ? 1 : 0
-  
+
   triggers = {
-    health_status = var.health_checks.enabled ? "${var.service_name}-monitoring" : "disabled"
+    health_status   = var.health_checks.enabled ? "${var.service_name}-monitoring" : "disabled"
     recovery_config = jsonencode(var.auto_recovery)
   }
-  
+
   provisioner "local-exec" {
     command = <<-EOT
     echo "Error recovery check for ${var.service_name}"

@@ -49,9 +49,9 @@ output "aws_secrets_manager_outputs" {
 output "kubernetes_secrets_outputs" {
   description = "Kubernetes secrets outputs"
   value = var.use_aws ? null : {
-    namespace               = module.kubernetes_secrets[0].namespace
-    secret_names           = module.kubernetes_secrets[0].secret_names
-    service_account_name   = module.kubernetes_secrets[0].service_account_name
-    config_map_name        = module.kubernetes_secrets[0].config_map_name
+    namespace            = module.kubernetes_secrets[0].namespace
+    secret_names         = module.kubernetes_secrets[0].secret_names
+    service_account_name = module.kubernetes_secrets[0].service_account_name
+    config_map_name      = module.kubernetes_secrets[0].config_map_name
   }
 }

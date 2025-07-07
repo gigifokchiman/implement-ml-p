@@ -7,17 +7,17 @@ resource "kubernetes_namespace" "cicd_system" {
   metadata {
     name = "cicd-system"
     labels = merge(local.security_labels, {
-      "app.kubernetes.io/name"      = "cicd-system"
-      "security.platform/critical" = "true"
+      "app.kubernetes.io/name"             = "cicd-system"
+      "security.platform/critical"         = "true"
       "pod-security.kubernetes.io/enforce" = "restricted"
     })
-    
+
     annotations = {
       "security.platform/purpose" = "CI/CD automation only"
       "security.platform/audit"   = "all-operations-logged"
     }
   }
-  
+
   lifecycle {
     prevent_destroy = true
   }
@@ -26,12 +26,12 @@ resource "kubernetes_namespace" "cicd_system" {
 # Service account for CI/CD deployments (ONLY account that can deploy)
 resource "kubernetes_service_account" "cicd_deployer" {
   count = var.create_namespace_only ? 1 : 0
-  
+
   metadata {
     name      = "cicd-deployer"
     namespace = kubernetes_namespace.cicd_system[0].metadata[0].name
     labels    = local.security_labels
-    
+
     annotations = {
       "security.platform/purpose" = "Automated deployment only - no human access"
       "security.platform/audit"   = "all-deployments-logged"
@@ -51,7 +51,7 @@ resource "kubernetes_cluster_role" "cicd_deployer" {
   rule {
     api_groups = ["", "apps", "batch", "networking.k8s.io"]
     resources = [
-      "deployments", "services", "configmaps", "secrets", 
+      "deployments", "services", "configmaps", "secrets",
       "jobs", "cronjobs", "ingresses", "networkpolicies"
     ]
     verbs = ["create", "update", "patch", "delete", "get", "list", "watch"]
@@ -66,9 +66,9 @@ resource "kubernetes_cluster_role" "cicd_deployer" {
 
   # Allow reading namespaces (but not security ones)
   rule {
-    api_groups     = [""]
-    resources      = ["namespaces"]
-    verbs          = ["get", "list"]
+    api_groups = [""]
+    resources  = ["namespaces"]
+    verbs      = ["get", "list"]
   }
 
   # Note: Kubernetes RBAC doesn't support explicit DENY rules
@@ -106,7 +106,7 @@ resource "kubernetes_deployment" "security_admission_webhook" {
   }
 
   spec {
-    replicas = 2  # High availability for security
+    replicas = 2 # High availability for security
 
     selector {
       match_labels = {
@@ -128,8 +128,8 @@ resource "kubernetes_deployment" "security_admission_webhook" {
 
         container {
           name  = "webhook"
-          image = "alpine:latest"  # Placeholder - in production use custom webhook image
-          
+          image = "alpine:latest" # Placeholder - in production use custom webhook image
+
           command = ["/bin/sh"]
           args = [
             "-c",
@@ -138,7 +138,7 @@ resource "kubernetes_deployment" "security_admission_webhook" {
 
           port {
             container_port = 8443
-            name          = "webhook"
+            name           = "webhook"
           }
 
           env {
@@ -208,8 +208,8 @@ resource "kubernetes_service" "security_admission_webhook" {
 
 # ValidatingAdmissionWebhook - The enforcement mechanism (disabled for now)
 resource "kubernetes_validating_webhook_configuration" "cicd_only_enforcement" {
-  count = 0  # Disabled for initial deployment
-  
+  count = 0 # Disabled for initial deployment
+
   metadata {
     name   = "cicd-only-deployment-policy"
     labels = local.security_labels
@@ -224,16 +224,16 @@ resource "kubernetes_validating_webhook_configuration" "cicd_only_enforcement" {
         namespace = kubernetes_namespace.security_scanning.metadata[0].name
         path      = "/validate-deployment"
       }
-      
+
       # CA bundle for webhook TLS
       ca_bundle = base64encode(var.webhook_ca_bundle != "" ? var.webhook_ca_bundle : "placeholder-ca")
     }
 
     rule {
-      operations    = ["CREATE", "UPDATE"]
-      api_groups    = ["apps", "batch", ""]
-      api_versions  = ["v1"]
-      resources     = ["deployments", "jobs", "pods", "replicasets", "daemonsets", "statefulsets"]
+      operations   = ["CREATE", "UPDATE"]
+      api_groups   = ["apps", "batch", ""]
+      api_versions = ["v1"]
+      resources    = ["deployments", "jobs", "pods", "replicasets", "daemonsets", "statefulsets"]
     }
 
     # Exclude system namespaces from enforcement
@@ -245,7 +245,7 @@ resource "kubernetes_validating_webhook_configuration" "cicd_only_enforcement" {
       }
     }
 
-    failure_policy = "Fail"  # Block if webhook is down (fail-safe)
+    failure_policy = "Fail" # Block if webhook is down (fail-safe)
   }
 }
 
@@ -280,7 +280,7 @@ resource "kubernetes_cluster_role" "emergency_deployer" {
   metadata {
     name   = "emergency-deployer"
     labels = local.security_labels
-    
+
     annotations = {
       "security.platform/purpose" = "Emergency break-glass access only"
       "security.platform/audit"   = "all-emergency-access-logged"
@@ -301,7 +301,7 @@ resource "kubernetes_secret" "cicd_kubeconfig" {
     name      = "cicd-kubeconfig"
     namespace = kubernetes_namespace.cicd_system[0].metadata[0].name
     labels    = local.security_labels
-    
+
     annotations = {
       "security.platform/purpose" = "CI/CD pipeline authentication"
     }

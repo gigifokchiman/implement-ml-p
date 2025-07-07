@@ -24,8 +24,8 @@ variable "config" {
     log_level                  = optional(string, "Metadata")
     enable_structured_logging  = optional(bool, false)
     enable_security_monitoring = optional(bool, true)
-    enable_alerting           = optional(bool, true)
-    enable_log_processing     = optional(bool, false)
+    enable_alerting            = optional(bool, true)
+    enable_log_processing      = optional(bool, false)
   })
   default = {
     enable_api_audit           = true
@@ -34,8 +34,8 @@ variable "config" {
     log_level                  = "Metadata"
     enable_structured_logging  = false
     enable_security_monitoring = true
-    enable_alerting           = true
-    enable_log_processing     = false
+    enable_alerting            = true
+    enable_log_processing      = false
   }
 }
 

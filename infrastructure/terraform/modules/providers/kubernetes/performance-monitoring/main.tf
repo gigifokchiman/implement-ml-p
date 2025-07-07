@@ -328,12 +328,12 @@ resource "kubernetes_daemonset" "fluent_bit" {
 
       spec {
         service_account_name = kubernetes_service_account.fluent_bit[0].metadata[0].name
-        
+
         # Only run on control plane where audit logs are generated
         node_selector = {
           "node-role.kubernetes.io/control-plane" = ""
         }
-        
+
         toleration {
           key    = "node-role.kubernetes.io/control-plane"
           effect = "NoSchedule"
@@ -342,10 +342,10 @@ resource "kubernetes_daemonset" "fluent_bit" {
         container {
           name  = "fluent-bit"
           image = "fluent/fluent-bit:2.2.0"
-          
+
           port {
             container_port = 2020
-            name          = "http"
+            name           = "http"
           }
 
           volume_mount {
@@ -353,7 +353,7 @@ resource "kubernetes_daemonset" "fluent_bit" {
             mount_path = "/var/log"
             read_only  = true
           }
-          
+
           volume_mount {
             name       = "config"
             mount_path = "/fluent-bit/etc"
@@ -377,7 +377,7 @@ resource "kubernetes_daemonset" "fluent_bit" {
             path = "/var/log"
           }
         }
-        
+
         volume {
           name = "config"
           config_map {
@@ -598,7 +598,7 @@ resource "kubernetes_config_map" "otel_collector_config" {
         batch = {}
         memory_limiter = {
           check_interval = "1s"
-          limit_mib = 512
+          limit_mib      = 512
         }
         resource = {
           attributes = [

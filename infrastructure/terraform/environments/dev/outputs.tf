@@ -64,10 +64,10 @@ output "kubectl_config_command" {
 output "useful_commands" {
   description = "Useful commands for this environment"
   value = {
-    kubectl_config     = "aws eks update-kubeconfig --region ${var.region} --name ${module.data_platform.cluster_name}"
-    get_nodes         = "kubectl get nodes -o wide"
-    get_node_groups   = "kubectl get nodes --show-labels"
-    port_forward_db   = "kubectl port-forward -n database svc/postgres 5432:5432"
+    kubectl_config  = "aws eks update-kubeconfig --region ${var.region} --name ${module.data_platform.cluster_name}"
+    get_nodes       = "kubectl get nodes -o wide"
+    get_node_groups = "kubectl get nodes --show-labels"
+    port_forward_db = "kubectl port-forward -n database svc/postgres 5432:5432"
   }
 }
 
@@ -81,9 +81,9 @@ output "resource_summary" {
       provider = module.data_platform.cluster_provider
     }
     services = {
-      database_enabled = module.data_platform.database != null
-      cache_enabled    = module.data_platform.cache != null
-      storage_enabled  = module.data_platform.storage != null
+      database_enabled   = module.data_platform.database != null
+      cache_enabled      = module.data_platform.cache != null
+      storage_enabled    = module.data_platform.storage != null
       monitoring_enabled = module.data_platform.monitoring != null
     }
   }

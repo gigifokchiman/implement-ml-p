@@ -7,12 +7,12 @@ locals {
   k8s_tags = {
     for key, value in var.tags : key => replace(replace(value, "/", "-"), ":", "-")
   }
-  
+
   # Security-critical labels
   security_labels = merge(local.k8s_tags, {
-    "security.platform/critical"         = "true"
-    "security.platform/managed-by"        = "terraform"
-    "app.kubernetes.io/part-of"          = "security-platform"
+    "security.platform/critical"   = "true"
+    "security.platform/managed-by" = "terraform"
+    "app.kubernetes.io/part-of"    = "security-platform"
   })
 }
 
@@ -27,9 +27,9 @@ resource "kubernetes_namespace" "security_scanning" {
       "pod-security.kubernetes.io/enforce" = "privileged" # Security tools need privileged access
       "pod-security.kubernetes.io/audit"   = "privileged"
       "pod-security.kubernetes.io/warn"    = "privileged"
-      "argocd.argoproj.io/managed"        = "true"
+      "argocd.argoproj.io/managed"         = "true"
     })
-    
+
     annotations = {
       "security.platform/do-not-delete" = "This namespace is critical for security compliance"
       "security.platform/owner"         = "platform-security-team"
@@ -48,7 +48,7 @@ resource "kubernetes_namespace" "security_scanning" {
 # ArgoCD project for security applications
 resource "kubernetes_manifest" "security_argocd_project" {
   count = var.create_namespace_only ? 1 : 0
-  
+
   manifest = {
     apiVersion = "argoproj.io/v1alpha1"
     kind       = "AppProject"
@@ -59,24 +59,24 @@ resource "kubernetes_manifest" "security_argocd_project" {
     }
     spec = {
       description = "Security platform applications"
-      
+
       sourceRepos = ["*"]
-      
+
       destinations = [{
         namespace = kubernetes_namespace.security_scanning.metadata[0].name
         server    = "https://kubernetes.default.svc"
       }]
-      
+
       clusterResourceWhitelist = [{
         group = "*"
         kind  = "*"
       }]
-      
+
       namespaceResourceWhitelist = [{
         group = "*"
         kind  = "*"
       }]
-      
+
       roles = [{
         name = "security-admin"
         policies = [
@@ -93,7 +93,7 @@ resource "kubernetes_manifest" "security_argocd_project" {
 
 # PVC for Trivy cache - only for cloud environments with persistent storage
 resource "kubernetes_persistent_volume_claim" "trivy_cache" {
-  count = 0  # Disabled for local Kind - use emptyDir instead
+  count = 0 # Disabled for local Kind - use emptyDir instead
 
   metadata {
     name      = "trivy-cache"
@@ -168,7 +168,7 @@ resource "kubernetes_deployment" "trivy_server" {
 
           port {
             container_port = 4954
-            name          = "trivy-server"
+            name           = "trivy-server"
           }
 
           env {
@@ -451,7 +451,7 @@ resource "kubernetes_daemonset" "falco" {
 
           port {
             container_port = 8765
-            name          = "http"
+            name           = "http"
           }
         }
 

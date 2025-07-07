@@ -91,8 +91,8 @@ variable "monitoring_config" {
 variable "security_config" {
   description = "Security configuration"
   type = object({
-    pod_security_enabled      = optional(bool, true)
-    network_policies_enabled  = optional(bool, true)
+    pod_security_enabled     = optional(bool, true)
+    network_policies_enabled = optional(bool, true)
     rbac_enabled             = optional(bool, true)
   })
   default = {}

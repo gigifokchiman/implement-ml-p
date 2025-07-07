@@ -7,7 +7,7 @@ resource "kubernetes_service_account" "security_scanner" {
     name      = "security-scanner"
     namespace = kubernetes_namespace.security_scanning.metadata[0].name
     labels    = local.security_labels
-    
+
     annotations = {
       "security.platform/purpose" = "Cluster-wide security scanning"
     }

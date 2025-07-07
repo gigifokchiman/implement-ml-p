@@ -17,7 +17,7 @@ terraform {
 # NGINX Ingress Controller
 resource "helm_release" "nginx_ingress" {
   count = var.config.enable_nginx_ingress ? 1 : 0
-  
+
   name             = "ingress-nginx"
   repository       = "https://kubernetes.github.io/ingress-nginx"
   chart            = "ingress-nginx"
@@ -48,7 +48,7 @@ resource "helm_release" "nginx_ingress" {
 # Namespace labeling
 resource "kubernetes_labels" "ingress_nginx_namespace" {
   count = var.config.enable_nginx_ingress ? 1 : 0
-  
+
   api_version = "v1"
   kind        = "Namespace"
   metadata {

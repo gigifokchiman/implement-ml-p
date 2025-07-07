@@ -57,10 +57,10 @@ resource "kubernetes_resource_quota" "security_scanning" {
 
   spec {
     hard = {
-      "requests.cpu"    = "4"
-      "requests.memory" = "8Gi"
-      "limits.cpu"      = "8"
-      "limits.memory"   = "16Gi"
+      "requests.cpu"           = "4"
+      "requests.memory"        = "8Gi"
+      "limits.cpu"             = "8"
+      "limits.memory"          = "16Gi"
       "persistentvolumeclaims" = "10"
     }
   }
@@ -73,10 +73,10 @@ resource "kubernetes_priority_class" "security_critical" {
     labels = local.security_labels
   }
 
-  value       = 1000000000  # Highest priority
+  value       = 1000000000 # Highest priority
   description = "Critical security scanning workloads"
-  
-  global_default = false
+
+  global_default    = false
   preemption_policy = "PreemptLowerPriority"
 }
 
@@ -92,18 +92,18 @@ resource "kubernetes_config_map" "security_policies" {
     "scan-policy.yaml" = yamlencode({
       scanPolicy = {
         namespaceSelector = {
-          matchLabels = {}  # Scan all namespaces
+          matchLabels = {} # Scan all namespaces
         }
-        scanInterval = "1h"
+        scanInterval      = "1h"
         severityThreshold = "MEDIUM"
-        ignoreUnfixed = false
+        ignoreUnfixed     = false
       }
     })
-    
+
     "compliance-policy.yaml" = yamlencode({
       compliancePolicy = {
-        standards = ["CIS", "PCI-DSS", "NIST"]
-        scanSchedule = "0 */6 * * *"  # Every 6 hours
+        standards    = ["CIS", "PCI-DSS", "NIST"]
+        scanSchedule = "0 */6 * * *" # Every 6 hours
       }
     })
   }
@@ -115,7 +115,7 @@ resource "kubernetes_secret" "security_integrations" {
     name      = "security-integrations"
     namespace = kubernetes_namespace.security_scanning.metadata[0].name
     labels    = local.security_labels
-    
+
     annotations = {
       "security.platform/purpose" = "External security tool integrations"
     }
@@ -125,7 +125,7 @@ resource "kubernetes_secret" "security_integrations" {
 
   data = {
     # These would be populated from secure sources
-    "webhook-url"     = base64encode(var.security_webhook_url != "" ? var.security_webhook_url : "https://placeholder.webhook.url")
+    "webhook-url" = base64encode(var.security_webhook_url != "" ? var.security_webhook_url : "https://placeholder.webhook.url")
     "registry-config" = base64encode(jsonencode({
       registries = var.registry_configs
     }))

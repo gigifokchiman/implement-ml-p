@@ -32,7 +32,7 @@ variable "vpc_cidr" {
 variable "allowed_cidr_blocks" {
   description = "CIDR blocks allowed to access the EKS cluster"
   type        = list(string)
-  default     = ["0.0.0.0/0"]  # Restrict this in production
+  default     = ["0.0.0.0/0"] # Restrict this in production
 }
 
 variable "key_pair_name" {
@@ -144,8 +144,8 @@ variable "storage_config" {
       encryption = bool
     }))
     rds = object({
-      instance_class  = string
-      allocated_storage = number
+      instance_class          = string
+      allocated_storage       = number
       backup_retention_period = number
     })
   })
@@ -161,9 +161,9 @@ variable "storage_config" {
       }
     }
     rds = {
-      instance_class           = "db.t3.micro"
-      allocated_storage        = 20
-      backup_retention_period  = 7
+      instance_class          = "db.t3.micro"
+      allocated_storage       = 20
+      backup_retention_period = 7
     }
   }
 }
@@ -192,13 +192,13 @@ variable "security_config" {
     enable_pod_security_standards = bool
     enable_network_policies       = bool
     enable_falco                  = bool
-    pod_security_level           = string
+    pod_security_level            = string
   })
   default = {
     enable_pod_security_standards = true
     enable_network_policies       = true
     enable_falco                  = false
-    pod_security_level           = "restricted"
+    pod_security_level            = "restricted"
   }
 }
 
@@ -206,10 +206,10 @@ variable "security_config" {
 variable "gitops_config" {
   description = "GitOps configuration"
   type = object({
-    enable_argocd    = bool
-    argocd_version   = string
-    repo_url         = string
-    target_revision  = string
+    enable_argocd   = bool
+    argocd_version  = string
+    repo_url        = string
+    target_revision = string
   })
   default = {
     enable_argocd   = true

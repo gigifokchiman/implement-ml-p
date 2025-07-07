@@ -29,8 +29,8 @@ module "kms" {
   source  = "terraform-aws-modules/kms/aws"
   version = "~> 3.0"
 
-  description = var.description
-  key_usage   = var.key_usage
+  description              = var.description
+  key_usage                = var.key_usage
   customer_master_key_spec = var.key_spec
 
   # Key policy
@@ -70,7 +70,7 @@ module "kms" {
       ]
       resources = ["*"]
     }
-  ], var.additional_key_statements) : concat([
+    ], var.additional_key_statements) : concat([
     {
       sid    = "Enable IAM User Permissions"
       effect = "Allow"

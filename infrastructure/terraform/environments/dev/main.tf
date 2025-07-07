@@ -33,7 +33,7 @@ provider "aws" {
 
 # Locals
 locals {
-  name_prefix = "${var.cluster_name}"
+  name_prefix = var.cluster_name
 
   common_tags = {
     "Environment" = var.environment
@@ -47,17 +47,17 @@ locals {
     var.enable_gpu_nodes ? {
       gpu = {
         instance_types = var.gpu_node_config.instance_types
-        capacity_type  = "ON_DEMAND"  # GPU instances work better with on-demand
+        capacity_type  = "ON_DEMAND" # GPU instances work better with on-demand
         min_size       = var.gpu_node_config.min_size
         max_size       = var.gpu_node_config.max_size
         desired_size   = var.gpu_node_config.desired_size
         ami_type       = "AL2_x86_64_GPU"
         disk_size      = var.gpu_node_config.disk_size
         labels = {
-          node-role    = "gpu"
-          gpu-type     = "nvidia"
-          team-access  = "ml-team"
-          environment  = "dev"
+          node-role   = "gpu"
+          gpu-type    = "nvidia"
+          team-access = "ml-team"
+          environment = "dev"
         }
         taints = {
           gpu = {
@@ -81,11 +81,11 @@ module "data_platform" {
   source = "../../modules/compositions/data-platform"
 
   name               = "data-platform"
-  cluster_name      = var.name_prefix
-  environment       = var.environment
-  use_aws          = true
+  cluster_name       = var.name_prefix
+  environment        = var.environment
+  use_aws            = true
   kubernetes_version = var.kubernetes_version
-  vpc_cidr         = var.vpc_cidr
+  vpc_cidr           = var.vpc_cidr
 
   # Node groups
   node_groups = local.node_groups
@@ -126,7 +126,7 @@ module "data_platform" {
     versioning_enabled = true
     encryption_enabled = true
     lifecycle_enabled  = true
-    port              = 9000
+    port               = 9000
     buckets = [
       {
         name   = "ml-artifacts"
@@ -141,7 +141,7 @@ module "data_platform" {
 
   # Security and compliance
   allowed_cidr_blocks = var.allowed_cidr_blocks
-  aws_region         = var.region
+  aws_region          = var.region
 
   tags = local.common_tags
 }

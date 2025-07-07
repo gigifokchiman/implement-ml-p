@@ -20,12 +20,12 @@ output "argocd_project" {
   description = "ArgoCD project for security applications"
   value = var.environment == "local" ? (
     length(module.kubernetes_security_scanning) > 0 ? module.kubernetes_security_scanning[0].argocd_project : null
-    ) : null
+  ) : null
 }
 
 output "useful_commands" {
   description = "Useful commands for security scanning operations"
   value = var.environment == "local" ? (
     length(module.kubernetes_security_scanning) > 0 ? module.kubernetes_security_scanning[0].useful_commands : {}
-    ) : {}
+  ) : {}
 }

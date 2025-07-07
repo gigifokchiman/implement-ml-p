@@ -27,7 +27,7 @@ variable "node_groups" {
     ami_type       = string
     disk_size      = number
     labels         = map(string)
-    taints         = map(object({
+    taints = map(object({
       key    = string
       value  = string
       effect = string

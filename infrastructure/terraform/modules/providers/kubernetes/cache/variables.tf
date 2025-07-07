@@ -8,9 +8,9 @@ variable "environment" {
   type        = string
 }
 
-variable "namespace"{
-    description = "namespace"
-    type=string
+variable "namespace" {
+  description = "namespace"
+  type        = string
 }
 
 variable "config" {

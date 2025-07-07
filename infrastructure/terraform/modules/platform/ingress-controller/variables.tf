@@ -4,15 +4,15 @@ variable "config" {
   description = "Ingress controller configuration"
   type = object({
     enable_nginx_ingress = optional(bool, true)
-    nginx_version       = optional(string, "4.8.3")
-    service_type        = optional(string, "LoadBalancer")
-    host_port_enabled   = optional(string, "false")
+    nginx_version        = optional(string, "4.8.3")
+    service_type         = optional(string, "LoadBalancer")
+    host_port_enabled    = optional(string, "false")
   })
   default = {
     enable_nginx_ingress = true
-    nginx_version       = "4.8.3"
-    service_type        = "LoadBalancer"
-    host_port_enabled   = "false"
+    nginx_version        = "4.8.3"
+    service_type         = "LoadBalancer"
+    host_port_enabled    = "false"
   }
 }
 

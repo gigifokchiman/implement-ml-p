@@ -12,7 +12,7 @@ module "kubernetes_security_scanning" {
   name                  = var.name
   environment           = var.environment
   config                = var.config
-  namespaces            = []  # ArgoCD will manage namespaces
+  namespaces            = [] # ArgoCD will manage namespaces
   tags                  = var.tags
   create_namespace_only = var.create_namespace_only
 }

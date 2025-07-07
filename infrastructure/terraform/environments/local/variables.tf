@@ -60,12 +60,12 @@ variable "gpu_node_config" {
     ami_type       = string
   })
   default = {
-    instance_types = ["local"]  # Kind doesn't use instance types
+    instance_types = ["local"] # Kind doesn't use instance types
     min_size       = 1
     max_size       = 1
     desired_size   = 1
     disk_size      = 50
-    ami_type       = "local"    # Kind uses local Docker images
+    ami_type       = "local" # Kind uses local Docker images
   }
 }
 
@@ -80,7 +80,7 @@ variable "node_groups_config" {
     disk_size      = number
     ami_type       = string
     labels         = map(string)
-    taints         = map(object({
+    taints = map(object({
       key    = string
       value  = string
       effect = string
@@ -88,19 +88,19 @@ variable "node_groups_config" {
   }))
   default = {
     core_services = {
-      instance_types = ["local"]      # Kind doesn't use instance types, but maintain structure
+      instance_types = ["local"] # Kind doesn't use instance types, but maintain structure
       min_size       = 1
-      max_size       = 1             # Kind typically has fewer nodes
+      max_size       = 1 # Kind typically has fewer nodes
       desired_size   = 1
-      capacity_type  = "ON_DEMAND"   # Kind doesn't distinguish, but maintain structure
+      capacity_type  = "ON_DEMAND" # Kind doesn't distinguish, but maintain structure
       disk_size      = 50
-      ami_type       = "local"       # Kind uses local Docker images
+      ami_type       = "local" # Kind uses local Docker images
       labels = {
         node-role    = "core-services"
         service-type = "infrastructure"
         environment  = "local"
       }
-      taints = {}                    # No taints for core services
+      taints = {} # No taints for core services
     }
   }
 }
@@ -116,27 +116,27 @@ variable "team_configurations" {
       memory_limits   = string
       gpu_requests    = string
     })
-    network_policies = bool
-    allowed_registries = optional(list(string), [])  # Optional for local environments
-    
+    network_policies   = bool
+    allowed_registries = optional(list(string), []) # Optional for local environments
+
     # Storage configuration - teams can optionally define their storage needs
     storage_config = optional(object({
       enabled = bool
       config = object({
         port = optional(number, 9000)
         buckets = list(object({
-          name = string
+          name   = string
           policy = optional(string, "private")
         }))
       })
-    }), {
+      }), {
       enabled = false
       config = {
-        port = 9000
+        port    = 9000
         buckets = []
       }
     })
-    
+
     # Database configuration - teams can optionally define their database needs
     database_config = optional(object({
       enabled = bool
@@ -151,7 +151,7 @@ variable "team_configurations" {
         database_name  = string
         port           = optional(number, 5432)
       })
-    }), {
+      }), {
       enabled = false
       config = {
         engine         = "postgres"
@@ -195,20 +195,20 @@ variable "port_mappings" {
 variable "security_config" {
   description = "Security configuration"
   type = object({
-    enable_cert_manager        = optional(bool, true)
-    enable_pod_security        = optional(bool, true)
-    enable_network_policies    = optional(bool, true)
+    enable_cert_manager       = optional(bool, true)
+    enable_pod_security       = optional(bool, true)
+    enable_network_policies   = optional(bool, true)
     enable_rbac               = optional(bool, true)
     enable_argocd             = optional(bool, true)
     enable_letsencrypt_issuer = optional(bool, false)
     enable_selfsigned_issuer  = optional(bool, true)
     cert_manager_version      = optional(string, "v1.13.2")
-    argocd_version           = optional(string, "5.51.6")
-    pod_security_standard    = optional(string, "baseline")
-    ingress_service_type     = optional(string, "LoadBalancer")
+    argocd_version            = optional(string, "5.51.6")
+    pod_security_standard     = optional(string, "baseline")
+    ingress_service_type      = optional(string, "LoadBalancer")
     ingress_host_port_enabled = optional(string, "false")
-    argocd_service_type      = optional(string, "LoadBalancer")
-    argocd_insecure          = optional(string, "false")
+    argocd_service_type       = optional(string, "LoadBalancer")
+    argocd_insecure           = optional(string, "false")
   })
   default = {}
 }
@@ -259,9 +259,9 @@ variable "security_scanning_config" {
 variable "secret_store_config" {
   description = "Secret store configuration"
   type = object({
-    enable_rotation    = optional(bool, true)
-    rotation_days      = optional(number, 30)
-    enable_encryption  = optional(bool, true)
+    enable_rotation   = optional(bool, true)
+    rotation_days     = optional(number, 30)
+    enable_encryption = optional(bool, true)
   })
   default = {}
 }

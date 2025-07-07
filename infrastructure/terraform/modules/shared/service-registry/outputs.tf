@@ -20,7 +20,7 @@ output "registry_configmap" {
   value = var.enable_service_registry ? {
     name      = kubernetes_config_map.service_registry[0].metadata[0].name
     namespace = kubernetes_config_map.service_registry[0].metadata[0].namespace
-  } : {
+    } : {
     name      = "service-registry-disabled"
     namespace = "platform-system"
   }
@@ -35,13 +35,13 @@ output "service_discovery_functions" {
       for name, service in local.service_registry.services :
       name => service.status == "ready"
     }
-    
+
     # Get service endpoint
     get_service_endpoint = {
       for name, service in local.service_registry.services :
       name => try(service.endpoint, null)
     }
-    
+
     # Check service dependencies
     get_service_dependencies = local.service_registry.dependencies
   }

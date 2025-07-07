@@ -27,13 +27,13 @@ variable "config" {
     enable_api_audit     = optional(bool, true)
     enable_webhook_audit = optional(bool, false)
     retention_days       = optional(number, 30)
-    log_level           = optional(string, "Metadata")
+    log_level            = optional(string, "Metadata")
   })
   default = {
     enable_api_audit     = true
     enable_webhook_audit = false
     retention_days       = 30
-    log_level           = "Metadata"
+    log_level            = "Metadata"
   }
 }
 

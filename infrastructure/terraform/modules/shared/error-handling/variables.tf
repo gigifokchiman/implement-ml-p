@@ -17,12 +17,12 @@ variable "namespace" {
 variable "health_checks" {
   description = "Health check configuration"
   type = object({
-    enabled               = bool
-    endpoint              = optional(string, "/health")
-    schedule              = optional(string, "*/2 * * * *")
-    timeout_seconds       = optional(number, 30)
-    last_check_status     = optional(string, "unknown")
-    consecutive_failures  = optional(number, 0)
+    enabled              = bool
+    endpoint             = optional(string, "/health")
+    schedule             = optional(string, "*/2 * * * *")
+    timeout_seconds      = optional(number, 30)
+    last_check_status    = optional(string, "unknown")
+    consecutive_failures = optional(number, 0)
     error_rate           = optional(number, 0.0)
   })
   default = {
@@ -33,18 +33,18 @@ variable "health_checks" {
 variable "retry_policy" {
   description = "Retry policy configuration"
   type = object({
-    max_retries      = number
-    initial_delay    = string
-    max_delay        = string
-    backoff_factor   = number
-    jitter_enabled   = bool
+    max_retries    = number
+    initial_delay  = string
+    max_delay      = string
+    backoff_factor = number
+    jitter_enabled = bool
   })
   default = {
-    max_retries      = 3
-    initial_delay    = "1s"
-    max_delay        = "60s"
-    backoff_factor   = 2
-    jitter_enabled   = true
+    max_retries    = 3
+    initial_delay  = "1s"
+    max_delay      = "60s"
+    backoff_factor = 2
+    jitter_enabled = true
   }
 }
 
@@ -67,8 +67,8 @@ variable "circuit_breaker_config" {
 variable "fallback_config" {
   description = "Fallback configuration"
   type = object({
-    strategy     = string # "cache", "static", "degraded", "none"
-    cache_ttl    = optional(string, "300s")
+    strategy        = string # "cache", "static", "degraded", "none"
+    cache_ttl       = optional(string, "300s")
     static_response = optional(string, "{\"status\":\"degraded\"}")
   })
   default = {
@@ -79,26 +79,26 @@ variable "fallback_config" {
 variable "error_thresholds" {
   description = "Error rate thresholds for different actions"
   type = object({
-    max_error_rate     = number # 0.0 to 1.0
-    alert_rate         = number
-    scale_down_rate    = number
-    restart_threshold  = number # consecutive failures
+    max_error_rate    = number # 0.0 to 1.0
+    alert_rate        = number
+    scale_down_rate   = number
+    restart_threshold = number # consecutive failures
   })
   default = {
-    max_error_rate     = 0.1   # 10% error rate
-    alert_rate         = 0.05  # 5% error rate triggers alert
-    scale_down_rate    = 0.3   # 30% error rate triggers scale down
-    restart_threshold  = 5     # 5 consecutive failures triggers restart
+    max_error_rate    = 0.1  # 10% error rate
+    alert_rate        = 0.05 # 5% error rate triggers alert
+    scale_down_rate   = 0.3  # 30% error rate triggers scale down
+    restart_threshold = 5    # 5 consecutive failures triggers restart
   }
 }
 
 variable "auto_recovery" {
   description = "Automatic recovery configuration"
   type = object({
-    enabled          = bool
-    strategy         = string # "restart", "scale", "rollback", "manual"
-    max_retries      = number
-    backoff_strategy = string # "linear", "exponential", "fixed"
+    enabled              = bool
+    strategy             = string # "restart", "scale", "rollback", "manual"
+    max_retries          = number
+    backoff_strategy     = string # "linear", "exponential", "fixed"
     notification_webhook = optional(string, "")
   })
   default = {

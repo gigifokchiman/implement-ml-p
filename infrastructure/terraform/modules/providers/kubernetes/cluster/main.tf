@@ -24,7 +24,7 @@ terraform {
 
 locals {
   cluster_name = "${var.name}-${var.environment}"
-  
+
   # Convert node groups to Kind node configuration
   kind_nodes = concat(
     [
@@ -62,7 +62,7 @@ locals {
               pathType: File
           EOT
         ]
-        
+
         # Audit logging mounts
         extra_mounts = [
           {
@@ -86,15 +86,15 @@ locals {
           nodeRegistration:
             kubeletExtraArgs:
               node-labels: "${join(",", [for k, v in merge(config.labels, {
-                environment = var.environment
-                cluster-name = local.cluster_name
-                node-role = name
-              }) : "${k}=${v}"])}"
+          environment  = var.environment
+          cluster-name = local.cluster_name
+          node-role    = name
+}) : "${k}=${v}"])}"
           EOT
-        ]
-      }
-    ]
-  )
+]
+}
+]
+)
 }
 
 # Create audit logs directory
@@ -112,40 +112,40 @@ resource "local_file" "audit_policy" {
     kind       = "Policy"
     rules = [
       {
-        level = "RequestResponse"
+        level      = "RequestResponse"
         namespaces = ["kube-system", "argocd", "secret-store"]
         resources = [
           {
-            group = ""
+            group     = ""
             resources = ["secrets", "configmaps", "serviceaccounts"]
           },
           {
-            group = "rbac.authorization.k8s.io"
+            group     = "rbac.authorization.k8s.io"
             resources = ["roles", "rolebindings", "clusterroles", "clusterrolebindings"]
           }
         ]
       },
       {
-        level = "Request"
+        level      = "Request"
         namespaces = ["app-ml-team", "app-data-team", "app-core-team"]
         resources = [
           {
-            group = ""
+            group     = ""
             resources = ["pods", "services", "persistentvolumeclaims"]
           },
           {
-            group = "apps"
+            group     = "apps"
             resources = ["deployments", "statefulsets"]
           }
         ]
       },
       {
-        level = "RequestResponse"
+        level      = "RequestResponse"
         namespaces = ["data-platform-monitoring", "app-ml-team", "app-data-team", "app-core-team"]
-        verbs = ["create", "update", "patch", "delete"]
+        verbs      = ["create", "update", "patch", "delete"]
         resources = [
           {
-            group = ""
+            group     = ""
             resources = ["pods", "services", "persistentvolumeclaims", "configmaps"]
           }
         ]
@@ -154,21 +154,21 @@ resource "local_file" "audit_policy" {
         level = "RequestResponse"
         resources = [
           {
-            group = "cert-manager.io"
+            group     = "cert-manager.io"
             resources = ["certificates", "issuers", "clusterissuers"]
           },
           {
-            group = "networking.k8s.io"
+            group     = "networking.k8s.io"
             resources = ["networkpolicies"]
           }
         ]
       },
       {
-        level = "Request"
+        level      = "Request"
         namespaces = ["argocd"]
         resources = [
           {
-            group = "argoproj.io"
+            group     = "argoproj.io"
             resources = ["applications", "appprojects"]
           }
         ]
@@ -178,13 +178,13 @@ resource "local_file" "audit_policy" {
         verbs = ["get", "list", "watch"]
         resources = [
           {
-            group = ""
+            group     = ""
             resources = ["events", "nodes", "nodes/status", "pods/log", "pods/status"]
           }
         ]
       },
       {
-        level = "Metadata"
+        level      = "Metadata"
         omitStages = ["RequestReceived"]
       }
     ]
@@ -193,25 +193,25 @@ resource "local_file" "audit_policy" {
 
 # Local Docker Registry for Kind
 resource "docker_image" "registry" {
-  name = "registry:2"
+  name         = "registry:2"
   keep_locally = true
 }
 
 resource "docker_container" "registry" {
   name  = "${local.cluster_name}-registry"
   image = docker_image.registry.image_id
-  
+
   ports {
     internal = 5000
     external = 5001
   }
-  
+
   restart = "unless-stopped"
-  
+
   networks_advanced {
     name = "kind"
   }
-  
+
   lifecycle {
     ignore_changes = [networks_advanced]
   }
@@ -230,9 +230,9 @@ resource "kind_cluster" "main" {
       for_each = local.kind_nodes
       content {
         role = node.value.role
-        
+
         kubeadm_config_patches = node.value.kubeadm_config_patches
-        
+
         # Only add port mappings to control plane
         dynamic "extra_port_mappings" {
           for_each = node.value.role == "control-plane" ? var.port_mappings : []
@@ -242,16 +242,16 @@ resource "kind_cluster" "main" {
             protocol       = extra_port_mappings.value.protocol
           }
         }
-        
+
         # Add extra mounts if present
         dynamic "extra_mounts" {
           for_each = lookup(node.value, "extra_mounts", [])
           content {
-            host_path      = extra_mounts.value.host_path
-            container_path = extra_mounts.value.container_path
-            readonly       = lookup(extra_mounts.value, "readonly", false)
+            host_path       = extra_mounts.value.host_path
+            container_path  = extra_mounts.value.container_path
+            readonly        = lookup(extra_mounts.value, "readonly", false)
             selinux_relabel = lookup(extra_mounts.value, "selinux_relabel", false)
-            propagation    = lookup(extra_mounts.value, "propagation", "None")
+            propagation     = lookup(extra_mounts.value, "propagation", "None")
           }
         }
       }
@@ -265,7 +265,7 @@ resource "kind_cluster" "main" {
 # Wait for cluster to be ready
 resource "null_resource" "wait_for_cluster" {
   depends_on = [kind_cluster.main]
-  
+
   provisioner "local-exec" {
     command = "kubectl --context kind-${local.cluster_name} wait --for=condition=Ready nodes --all --timeout=300s"
   }

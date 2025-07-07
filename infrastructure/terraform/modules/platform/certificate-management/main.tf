@@ -13,12 +13,12 @@ terraform {
 # Cert-Manager Provider Module
 module "kubernetes_cert_manager" {
   source = "../../providers/kubernetes/cert-manager"
-  
+
   config = {
-    enable_cert_manager   = var.config.enable_cert_manager
-    cert_manager_version  = var.config.cert_manager_version
+    enable_cert_manager  = var.config.enable_cert_manager
+    cert_manager_version = var.config.cert_manager_version
   }
-  
+
   tags = var.tags
 }
 

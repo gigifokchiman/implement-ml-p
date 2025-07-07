@@ -59,9 +59,9 @@ output "useful_commands" {
   description = "Useful commands for this cluster"
   value = {
     kubectl_context      = "kubectl config use-context kind-${kind_cluster.main.name}"
-    get_nodes           = "kubectl --context kind-${kind_cluster.main.name} get nodes -o wide"
+    get_nodes            = "kubectl --context kind-${kind_cluster.main.name} get nodes -o wide"
     port_forward_example = "kubectl --context kind-${kind_cluster.main.name} port-forward -n namespace svc/service 8080:80"
-    registry_catalog    = "curl http://localhost:5001/v2/_catalog"
-    push_image_example  = "docker tag myimage:latest localhost:5001/myimage:latest && docker push localhost:5001/myimage:latest"
+    registry_catalog     = "curl http://localhost:5001/v2/_catalog"
+    push_image_example   = "docker tag myimage:latest localhost:5001/myimage:latest && docker push localhost:5001/myimage:latest"
   }
 }

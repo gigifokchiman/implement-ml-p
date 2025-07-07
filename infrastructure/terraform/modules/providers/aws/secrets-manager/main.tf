@@ -29,17 +29,17 @@ data "aws_region" "current" {}
 module "secrets_manager" {
   source  = "terraform-aws-modules/secrets-manager/aws"
   version = "~> 1.0"
-  
+
   for_each = var.secrets
 
   # Secret configuration
-  name_prefix                 = "${local.name_prefix}-${each.key}"
-  description                 = each.value.description
-  kms_key_id                  = var.kms_key_id
-  recovery_window_in_days     = each.value.recovery_window_in_days
-  secret_string               = each.value.secret_string
-  secret_binary               = each.value.secret_binary
-  ignore_secret_changes       = each.value.ignore_secret_changes
+  name_prefix             = "${local.name_prefix}-${each.key}"
+  description             = each.value.description
+  kms_key_id              = var.kms_key_id
+  recovery_window_in_days = each.value.recovery_window_in_days
+  secret_string           = each.value.secret_string
+  secret_binary           = each.value.secret_binary
+  ignore_secret_changes   = each.value.ignore_secret_changes
 
   # Automatic rotation configuration
   enable_rotation = each.value.enable_rotation

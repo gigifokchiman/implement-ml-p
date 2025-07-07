@@ -37,7 +37,7 @@ run "test_database_platform_interface" {
 
   # Verify the module plans successfully
   assert {
-    condition = can(module.database)
+    condition     = can(module.database)
     error_message = "Database platform module should plan successfully"
   }
 }
@@ -72,7 +72,7 @@ run "test_cache_platform_interface" {
   }
 
   assert {
-    condition = can(module.cache)
+    condition     = can(module.cache)
     error_message = "Cache platform module should plan successfully"
   }
 }
@@ -108,7 +108,7 @@ run "test_storage_platform_interface" {
   }
 
   assert {
-    condition = can(module.storage)
+    condition     = can(module.storage)
     error_message = "Storage platform module should plan successfully"
   }
 }
@@ -125,8 +125,8 @@ run "test_cluster_platform_interface" {
     environment        = "test"
     use_aws            = false
     kubernetes_version = "1.28"
-    vpc_cidr          = ""
-    
+    vpc_cidr           = ""
+
     node_groups = {
       default = {
         instance_types = ["local"]
@@ -143,10 +143,10 @@ run "test_cluster_platform_interface" {
         taints = {}
       }
     }
-    
-    access_entries = {}
-    enable_efs = false
-    enable_gpu_nodes = false
+
+    access_entries      = {}
+    enable_efs          = false
+    enable_gpu_nodes    = false
     team_configurations = []
     port_mappings = [
       {
@@ -155,7 +155,7 @@ run "test_cluster_platform_interface" {
         protocol       = "TCP"
       }
     ]
-    
+
     tags = {
       Environment = "test"
       Module      = "cluster"
@@ -163,7 +163,7 @@ run "test_cluster_platform_interface" {
   }
 
   assert {
-    condition = can(module.cluster)
+    condition     = can(module.cluster)
     error_message = "Cluster platform module should plan successfully"
   }
 }

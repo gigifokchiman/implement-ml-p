@@ -21,7 +21,7 @@ terraform {
 # Cert-Manager Helm Release
 resource "helm_release" "cert_manager" {
   count = var.config.enable_cert_manager ? 1 : 0
-  
+
   name             = "cert-manager"
   repository       = "https://charts.jetstack.io"
   chart            = "cert-manager"
@@ -45,7 +45,7 @@ resource "helm_release" "cert_manager" {
 
 # Wait for cert-manager CRDs to be available
 resource "time_sleep" "wait_for_cert_manager" {
-  count = var.config.enable_cert_manager ? 1 : 0
+  count           = var.config.enable_cert_manager ? 1 : 0
   depends_on      = [helm_release.cert_manager]
   create_duration = "120s"
 }
@@ -53,7 +53,7 @@ resource "time_sleep" "wait_for_cert_manager" {
 # Namespace labeling
 resource "kubernetes_labels" "cert_manager_namespace" {
   count = var.config.enable_cert_manager ? 1 : 0
-  
+
   api_version = "v1"
   kind        = "Namespace"
   metadata {

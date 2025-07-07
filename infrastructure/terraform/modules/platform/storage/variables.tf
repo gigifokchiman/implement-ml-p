@@ -23,7 +23,7 @@ variable "config" {
     port               = optional(number, 9000)
     buckets = list(object({
       name   = string
-      policy = optional(string, "private")  # Use policy instead of public for consistency
+      policy = optional(string, "private") # Use policy instead of public for consistency
     }))
   })
 }

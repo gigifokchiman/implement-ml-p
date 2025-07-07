@@ -72,7 +72,7 @@ resource "kubernetes_config_map" "audit_policy" {
 # Create a DaemonSet to collect audit logs (optional)
 resource "kubernetes_config_map" "audit_log_collector" {
   count = var.config.enable_log_collection ? 1 : 0
-  
+
   metadata {
     name      = "audit-log-collector-config"
     namespace = kubernetes_namespace.audit_logging.metadata[0].name
@@ -117,7 +117,7 @@ resource "kubernetes_config_map" "audit_log_collector" {
 # Service account for log collection
 resource "kubernetes_service_account" "log_collector" {
   count = var.config.enable_log_collection ? 1 : 0
-  
+
   metadata {
     name      = "audit-log-collector"
     namespace = kubernetes_namespace.audit_logging.metadata[0].name
@@ -131,7 +131,7 @@ resource "kubernetes_service_account" "log_collector" {
 # ClusterRole for log collection
 resource "kubernetes_cluster_role" "log_collector" {
   count = var.config.enable_log_collection ? 1 : 0
-  
+
   metadata {
     name = "audit-log-collector"
     labels = merge(var.tags, {
@@ -150,7 +150,7 @@ resource "kubernetes_cluster_role" "log_collector" {
 # ClusterRoleBinding for log collection
 resource "kubernetes_cluster_role_binding" "log_collector" {
   count = var.config.enable_log_collection ? 1 : 0
-  
+
   metadata {
     name = "audit-log-collector"
     labels = merge(var.tags, {
@@ -175,7 +175,7 @@ resource "kubernetes_cluster_role_binding" "log_collector" {
 # DaemonSet for log collection (optional)
 resource "kubernetes_daemonset" "log_collector" {
   count = var.config.enable_log_collection ? 1 : 0
-  
+
   metadata {
     name      = "audit-log-collector"
     namespace = kubernetes_namespace.audit_logging.metadata[0].name
@@ -202,7 +202,7 @@ resource "kubernetes_daemonset" "log_collector" {
 
       spec {
         service_account_name = kubernetes_service_account.log_collector[0].metadata[0].name
-        
+
         container {
           name  = "fluent-bit"
           image = "fluent/fluent-bit:2.2.0"

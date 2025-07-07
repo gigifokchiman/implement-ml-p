@@ -67,11 +67,11 @@ variable "additional_services" {
 variable "enable_health_checks" {
   description = "Enable health checks for registered services"
   type        = bool
-  default     = false  # Disabled - managed by ArgoCD
+  default     = false # Disabled - managed by ArgoCD
 }
 
 variable "enable_service_registry" {
   description = "Enable service registry ConfigMap creation"
   type        = bool
-  default     = false  # Disabled until namespace exists
+  default     = false # Disabled until namespace exists
 }

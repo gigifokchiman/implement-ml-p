@@ -39,7 +39,7 @@ variable "node_groups" {
     ami_type       = string
     disk_size      = number
     labels         = map(string)
-    taints         = map(object({
+    taints = map(object({
       key    = string
       value  = string
       effect = string
@@ -101,7 +101,7 @@ variable "team_configurations" {
       memory_limits   = string
       gpu_requests    = string
     })
-    network_policies = bool
+    network_policies   = bool
     allowed_registries = list(string)
   }))
   default = {}

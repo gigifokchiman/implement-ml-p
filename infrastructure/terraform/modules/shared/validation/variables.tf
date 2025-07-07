@@ -1,13 +1,13 @@
 variable "cluster_interface" {
   description = "Cluster interface to validate"
   type = object({
-    name        = string
-    endpoint    = string
-    version     = string
-    vpc_id      = optional(string)
-    is_ready    = bool
-    is_aws      = bool
-    is_local    = bool
+    name     = string
+    endpoint = string
+    version  = string
+    vpc_id   = optional(string)
+    is_ready = bool
+    is_aws   = bool
+    is_local = bool
   })
   default = null
 }

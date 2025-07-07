@@ -21,7 +21,7 @@ terraform {
 # ArgoCD for GitOps
 resource "helm_release" "argocd" {
   count = var.config.enable_argocd ? 1 : 0
-  
+
   name             = "argocd"
   repository       = "https://argoproj.github.io/argo-helm"
   chart            = "argo-cd"
@@ -51,15 +51,15 @@ resource "helm_release" "argocd" {
 # Wait for ArgoCD CRDs to be established
 resource "time_sleep" "wait_for_argocd" {
   count = var.config.enable_argocd ? 1 : 0
-  
+
   create_duration = "60s"
-  depends_on     = [helm_release.argocd]
+  depends_on      = [helm_release.argocd]
 }
 
 # Namespace labeling
 resource "kubernetes_labels" "argocd_namespace" {
   count = var.config.enable_argocd ? 1 : 0
-  
+
   api_version = "v1"
   kind        = "Namespace"
   metadata {
