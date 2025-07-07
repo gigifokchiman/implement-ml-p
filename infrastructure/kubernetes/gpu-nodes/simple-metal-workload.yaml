@@ -1,0 +1,110 @@
+# Simple Metal GPU workload with proper scheduling
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: metal-gpu-workload
+  namespace: default
+  labels:
+    app: metal-gpu
+    gpu-type: metal
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: metal-gpu
+  template:
+    metadata:
+      labels:
+        app: metal-gpu
+        gpu-type: metal
+    spec:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: apple.com/gpu
+                  operator: In
+                  values: [ "true" ]
+                - key: gpu-type
+                  operator: In
+                  values: [ "metal" ]
+
+      tolerations:
+        - key: apple.com/gpu
+          operator: Equal
+          value: present
+          effect: NoSchedule
+
+      containers:
+        - name: ml-container
+          image: tensorflow/tensorflow:latest
+          env:
+            - name: TF_METAL_DEVICE_PLACEMENT
+              value: "true"
+            - name: GPU_TYPE
+              value: "metal"
+          command:
+            - python
+            - -c
+            - |
+              import tensorflow as tf
+              print("🍎 Running on Metal GPU node")
+              print(f"GPUs available: {len(tf.config.list_physical_devices('GPU'))}")
+
+              # Keep running
+              import time
+              while True:
+                  print("💻 Metal GPU workload running...")
+                  time.sleep(30)
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: 2
+              memory: 4Gi
+
+---
+# CPU-only workload (will NOT go to GPU node)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cpu-only-workload
+  namespace: default
+  labels:
+    app: cpu-only
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cpu-only
+  template:
+    metadata:
+      labels:
+        app: cpu-only
+    spec:
+      nodeAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            preference:
+              matchExpressions:
+                - key: apple.com/gpu
+                  operator: DoesNotExist
+
+      containers:
+        - name: cpu-container
+          image: nginx:alpine
+          command:
+            - sh
+            - -c
+            - |
+              echo "💻 Running on CPU-only node"
+              echo "Node: $(hostname)"
+              nginx -g 'daemon off;'
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi

@@ -1,0 +1,101 @@
+# Metal GPU configuration for MacBook
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: metal-gpu-config
+  namespace: kube-system
+data:
+  # Node labels for Metal GPU
+  metal-node-labels: |
+    apple.com/gpu: "true"
+    gpu-type: "metal"
+    gpu-vendor: "apple"
+    node-role: "gpu-worker"
+
+---
+# Metal GPU workload affinity
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: metal-affinity-config
+  namespace: kube-system
+data:
+  metal-gpu-affinity: |
+    nodeAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        preference:
+          matchExpressions:
+          - key: apple.com/gpu
+            operator: In
+            values: ["true"]
+      - weight: 80
+        preference:
+          matchExpressions:
+          - key: gpu-type
+            operator: In
+            values: ["metal"]
+
+---
+# Example Metal GPU workload
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: metal-ml-workload
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: metal-ml
+  template:
+    metadata:
+      labels:
+        app: metal-ml
+    spec:
+      nodeAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            preference:
+              matchExpressions:
+                - key: apple.com/gpu
+                  operator: In
+                  values: [ "true" ]
+      containers:
+        - name: ml-container
+          # Use Metal-enabled images
+          image: tensorflow/tensorflow:latest
+          env:
+            - name: TF_METAL_DEVICE_PLACEMENT
+              value: "true"
+            - name: PYTORCH_ENABLE_MPS_FALLBACK
+              value: "1"
+            - name: GPU_TYPE
+              value: "metal"
+          command:
+            - python
+            - -c
+            - |
+              import tensorflow as tf
+              print("🍎 Metal GPU Status:")
+              print(f"Metal devices: {tf.config.list_physical_devices('GPU')}")
+              print("✅ Ready for ML workloads!")
+
+              # Keep container running
+              import time
+              time.sleep(3600)
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: 2
+              memory: 4Gi
+          volumeMounts:
+            - name: metal-devices
+              mountPath: /dev
+              readOnly: true
+      volumes:
+        - name: metal-devices
+          hostPath:
+            path: /dev

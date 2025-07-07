@@ -1,0 +1,160 @@
+# Demonstration of proper workload scheduling with dual-tainted nodes
+#
+# Architecture:
+# - Control Plane: Tainted with node-role.kubernetes.io/control-plane:NoSchedule
+# - GPU Worker: Tainted with apple.com/gpu=present:NoSchedule
+#
+# Result: Workloads must explicitly choose where to run
+
+---
+# 1. GPU Workload - Goes to GPU Worker Node
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gpu-workload
+  namespace: default
+  labels:
+    workload-type: gpu
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gpu-workload
+  template:
+    metadata:
+      labels:
+        app: gpu-workload
+    spec:
+      # MUST go to GPU node
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: apple.com/gpu
+                    operator: In
+                    values: [ "true" ]
+      # MUST tolerate GPU taint
+      tolerations:
+        - key: apple.com/gpu
+          operator: Equal
+          value: present
+          effect: NoSchedule
+      containers:
+        - name: gpu-container
+          image: tensorflow/tensorflow:latest
+          env:
+            - name: TF_METAL_DEVICE_PLACEMENT
+              value: "true"
+          command: [ "python", "-c", "print('🍎 GPU workload on Metal node')" ]
+          resources:
+            limits:
+              cpu: 2
+              memory: 4Gi
+
+---
+# 2. Infrastructure Workload - Goes to Control Plane
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: infra-workload
+  namespace: default
+  labels:
+    workload-type: infrastructure
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: infra-workload
+  template:
+    metadata:
+      labels:
+        app: infra-workload
+    spec:
+      # PREFER control plane
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: node-role.kubernetes.io/control-plane
+                    operator: Exists
+      # MUST tolerate control plane taint
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          effect: NoSchedule
+      containers:
+        - name: infra-container
+          image: nginx:alpine
+          command: [ "sh", "-c", "echo '🏗️ Infrastructure workload on control plane'; nginx -g 'daemon off;'" ]
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+
+---
+# 3. General Workload - Needs BOTH tolerations (flexible placement)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flexible-workload
+  namespace: default
+  labels:
+    workload-type: flexible
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: flexible-workload
+  template:
+    metadata:
+      labels:
+        app: flexible-workload
+    spec:
+      # No node preference - can go anywhere
+      # Tolerates BOTH taints
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          effect: NoSchedule
+        - key: apple.com/gpu
+          operator: Equal
+          value: present
+          effect: NoSchedule
+      containers:
+        - name: flexible-container
+          image: busybox
+          command: [ "sh", "-c", "echo '🔄 Flexible workload - can run anywhere'; sleep 3600" ]
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+
+---
+# 4. Default Workload - FAILS to schedule (no tolerations)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: default-workload
+  namespace: default
+  labels:
+    workload-type: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: default-workload
+  template:
+    metadata:
+      labels:
+        app: default-workload
+    spec:
+      # No tolerations = Cannot run on ANY tainted node
+      containers:
+        - name: default-container
+          image: busybox
+          command: [ "sh", "-c", "echo '❌ This will be Pending - no tolerations'; sleep 3600" ]
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi

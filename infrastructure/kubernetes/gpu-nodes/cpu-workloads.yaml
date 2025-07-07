@@ -1,0 +1,91 @@
+# CPU workloads that can run on tainted control plane
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cpu-only-tolerant
+  namespace: default
+  labels:
+    app: cpu-only-tolerant
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cpu-only-tolerant
+  template:
+    metadata:
+      labels:
+        app: cpu-only-tolerant
+    spec:
+      # Prefer non-GPU nodes
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: apple.com/gpu
+                    operator: DoesNotExist
+            - weight: 80
+              preference:
+                matchExpressions:
+                  - key: node-role.kubernetes.io/control-plane
+                    operator: Exists
+      # Tolerate control plane taint
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          effect: NoSchedule
+      containers:
+        - name: cpu-container
+          image: nginx:alpine
+          command:
+            - sh
+            - -c
+            - |
+              echo "💻 Running CPU workload with control plane toleration"
+              echo "Node: $(hostname)"
+              nginx -g 'daemon off;'
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+
+---
+# Example: Monitoring stack with control plane toleration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: monitoring-tolerations
+  namespace: monitoring
+data:
+  tolerations.yaml: |
+    # Add these tolerations to monitoring components
+    tolerations:
+    - key: node-role.kubernetes.io/control-plane
+      effect: NoSchedule
+    nodeSelector:
+      node-role: control-plane
+
+---
+# Example: ArgoCD with control plane toleration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-tolerations
+  namespace: argocd
+data:
+  tolerations.yaml: |
+    # Add these tolerations to ArgoCD components
+    tolerations:
+    - key: node-role.kubernetes.io/control-plane
+      effect: NoSchedule
+    affinity:
+      nodeAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          preference:
+            matchExpressions:
+            - key: node-role.kubernetes.io/control-plane
+              operator: Exists

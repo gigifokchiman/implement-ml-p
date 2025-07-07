@@ -1,0 +1,105 @@
+# Simple GPU Access Control - Only ML Team
+---
+# Update existing ML team quota to include GPU
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: ml-team-quota-gpu
+  namespace: app-ml-team
+spec:
+  hard:
+    requests.apple.com/gpu: "10"   # ML team can request up to 10 Metal GPUs
+    limits.apple.com/gpu: "10"
+
+---
+# Prevent other teams from using GPU via LimitRange
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: no-gpu-limit
+  namespace: app-data-team
+spec:
+  limits:
+    - max:
+        apple.com/gpu: "0"
+        nvidia.com/gpu: "0"
+      type: Container
+
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: no-gpu-limit
+  namespace: app-core-team
+spec:
+  limits:
+    - max:
+        apple.com/gpu: "0"
+        nvidia.com/gpu: "0"
+      type: Container
+
+---
+# RBAC - Allow ML team to schedule on GPU nodes
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: gpu-scheduler
+rules:
+  - apiGroups: [ "" ]
+    resources: [ "nodes" ]
+    verbs: [ "get", "list" ]
+    # Can only view GPU nodes
+  - apiGroups: [ "" ]
+    resources: [ "pods" ]
+    verbs: [ "create", "update", "patch" ]
+    # When pod has GPU toleration
+  - apiGroups: [ "" ]
+    resources: [ "pods/eviction" ]
+    verbs: [ "create" ]
+
+---
+# Bind to ML team service account
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ml-team-gpu-scheduler
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: gpu-scheduler
+subjects:
+  - kind: ServiceAccount
+    name: ml-team-service-account
+    namespace: app-ml-team
+
+---
+# ConfigMap documenting GPU access policy
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gpu-access-policy
+  namespace: kube-system
+data:
+  policy.md: |
+    # GPU Access Policy
+
+    ## Allowed Teams
+    - ML Team (namespace: app-ml-team) ✅
+
+    ## Denied Teams
+    - Data Team (namespace: app-data-team) ❌
+    - Core Team (namespace: app-core-team) ❌
+
+    ## Implementation
+    1. ResourceQuota allows GPU for ML team only
+    2. LimitRange prevents GPU in other namespaces
+    3. RBAC restricts GPU node scheduling
+    4. Node taints require explicit tolerations
+
+    ## Usage Example
+    ```yaml
+    # Only works in app-ml-team namespace
+    resources:
+      requests:
+        apple.com/gpu: 1
+    ```

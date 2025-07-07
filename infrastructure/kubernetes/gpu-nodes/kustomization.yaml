@@ -1,0 +1,9 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - node-pool-config.yaml
+  - gpu-node-affinity.yaml
+  - priority-classes.yaml
+  - metal-gpu-config.yaml
+  - workload-templates.yaml

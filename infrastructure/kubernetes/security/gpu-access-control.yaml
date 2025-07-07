@@ -1,0 +1,308 @@
+# GPU Access Control - Only ML Team
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: ml-team-gpu-quota
+  namespace: app-ml-team
+spec:
+  hard:
+    requests.nvidia.com/gpu: "10"  # ML team can request up to 10 GPUs
+    requests.apple.com/gpu: "10"   # Metal GPUs for local dev
+
+---
+# Deny GPU access to other teams
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: no-gpu-quota
+  namespace: app-data-team
+spec:
+  hard:
+    requests.nvidia.com/gpu: "0"
+    requests.apple.com/gpu: "0"
+
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: no-gpu-quota
+  namespace: app-core-team
+spec:
+  hard:
+    requests.nvidia.com/gpu: "0"
+    requests.apple.com/gpu: "0"
+
+---
+# NetworkPolicy to isolate GPU nodes (optional extra security)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: gpu-node-access
+  namespace: app-ml-team
+spec:
+  podSelector:
+    matchLabels:
+      gpu-access: "allowed"
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: app-ml-team
+  egress:
+    - { }
+
+---
+# ValidatingWebhookConfiguration to enforce GPU access
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gpu-admission-script
+  namespace: kube-system
+data:
+  validate.py: |
+    #!/usr/bin/env python3
+    import json
+    import sys
+    import base64
+
+    def validate_gpu_request(request):
+        # Parse admission request
+        obj = request['request']['object']
+        namespace = request['request']['namespace']
+
+        # Check if pod requests GPU
+        for container in obj.get('spec', {}).get('containers', []):
+            resources = container.get('resources', {})
+            limits = resources.get('limits', {})
+            requests = resources.get('requests', {})
+
+            # Check for GPU resources
+            gpu_resources = [
+                'nvidia.com/gpu',
+                'apple.com/gpu',
+                'amd.com/gpu'
+            ]
+
+            has_gpu = any(gpu in limits or gpu in requests for gpu in gpu_resources)
+
+            if has_gpu and namespace != 'app-ml-team':
+                return {
+                    "apiVersion": "admission.k8s.io/v1",
+                    "kind": "AdmissionReview",
+                    "response": {
+                        "uid": request['request']['uid'],
+                        "allowed": False,
+                        "status": {
+                            "message": f"GPU resources are only allowed for ML team. Current namespace: {namespace}"
+                        }
+                    }
+                }
+
+        # Allow if no GPU or if ML team
+        return {
+            "apiVersion": "admission.k8s.io/v1",
+            "kind": "AdmissionReview",
+            "response": {
+                "uid": request['request']['uid'],
+                "allowed": True
+            }
+        }
+
+    if __name__ == "__main__":
+        request = json.load(sys.stdin)
+        response = validate_gpu_request(request)
+        json.dump(response, sys.stdout)
+
+---
+# OPA Policy for GPU access control (alternative to webhook)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gpu-access-policy
+  namespace: opa-system
+data:
+  gpu-policy.rego: |
+    package kubernetes.admission
+
+    deny[msg] {
+        # Check if pod requests GPU resources
+        input.request.kind.kind == "Pod"
+        input.request.object.spec.containers[_].resources.requests[resource]
+        contains(resource, "gpu")
+
+        # Deny if not in ML team namespace
+        input.request.namespace != "app-ml-team"
+
+        msg := sprintf("GPU access denied. Only ML team (namespace: app-ml-team) can use GPU resources. Requested in namespace: %v", [input.request.namespace])
+    }
+
+    deny[msg] {
+        # Check GPU in limits
+        input.request.kind.kind == "Pod"
+        input.request.object.spec.containers[_].resources.limits[resource]
+        contains(resource, "gpu")
+
+        # Deny if not in ML team namespace
+        input.request.namespace != "app-ml-team"
+
+        msg := sprintf("GPU access denied. Only ML team can set GPU limits. Requested in namespace: %v", [input.request.namespace])
+    }
+
+---
+# RBAC - ClusterRole for GPU resources
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: gpu-user
+rules:
+  - apiGroups: [ "" ]
+    resources: [ "nodes" ]
+    verbs: [ "get", "list" ]
+  - apiGroups: [ "" ]
+    resources: [ "pods" ]
+    verbs: [ "get", "list", "create", "update", "patch", "delete" ]
+    # Resource name pattern matching GPU nodes
+  - apiGroups: [ "" ]
+    resources: [ "nodes" ]
+    resourceNames: [ "*-gpu-*", "*-worker" ]
+    verbs: [ "get" ]
+
+---
+# Bind GPU access to ML team only
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ml-team-gpu-access
+  namespace: app-ml-team
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: gpu-user
+subjects:
+  - kind: ServiceAccount
+    name: ml-team-service-account
+    namespace: app-ml-team
+  - kind: Group
+    name: ml-team
+    apiGroup: rbac.authorization.k8s.io
+
+---
+# PodSecurityPolicy for GPU workloads (if PSP is enabled)
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: ml-team-gpu-psp
+spec:
+  privileged: false
+  allowPrivilegeEscalation: false
+  requiredDropCapabilities:
+    - ALL
+  volumes:
+    - configMap
+    - emptyDir
+    - projected
+    - secret
+    - persistentVolumeClaim
+  hostNetwork: false
+  hostIPC: false
+  hostPID: false
+  runAsUser:
+    rule: MustRunAsNonRoot
+  seLinux:
+    rule: RunAsAny
+  fsGroup:
+    rule: RunAsAny
+  # Allow GPU device access
+  allowedCapabilities:
+    - SYS_ADMIN  # For GPU device access
+  hostDevices:
+    - pathPrefix: "/dev/nvidia"
+    - pathPrefix: "/dev/dri"  # For Intel/AMD GPUs
+
+---
+# Example: ML team GPU workload
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ml-gpu-workload
+  namespace: app-ml-team  # MUST be in ML team namespace
+  labels:
+    team: ml
+    gpu-enabled: "true"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ml-gpu-workload
+  template:
+    metadata:
+      labels:
+        app: ml-gpu-workload
+        team: ml
+        gpu-access: "allowed"
+    spec:
+      serviceAccountName: ml-team-service-account
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: apple.com/gpu
+                    operator: In
+                    values: [ "true" ]
+      tolerations:
+        - key: apple.com/gpu
+          operator: Equal
+          value: present
+          effect: NoSchedule
+      containers:
+        - name: ml-training
+          image: tensorflow/tensorflow:latest
+          env:
+            - name: TF_METAL_DEVICE_PLACEMENT
+              value: "true"
+            - name: TEAM
+              value: "ml"
+          resources:
+            requests:
+              cpu: 1
+              memory: 2Gi
+              apple.com/gpu: 1  # GPU request
+            limits:
+              cpu: 4
+              memory: 8Gi
+              apple.com/gpu: 1
+
+---
+# Example: Non-ML team CANNOT use GPU
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: data-team-no-gpu
+  namespace: app-data-team  # Data team namespace
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: data-team-app
+  template:
+    metadata:
+      labels:
+        app: data-team-app
+        team: data
+    spec:
+      serviceAccountName: data-team-service-account
+      containers:
+        - name: data-processing
+          image: python:3.9
+          resources:
+            requests:
+              cpu: 1
+              memory: 2Gi
+              # apple.com/gpu: 1  # This would be DENIED by ResourceQuota
+            limits:
+              cpu: 2
+              memory: 4Gi

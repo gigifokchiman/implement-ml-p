@@ -1,0 +1,133 @@
+# Node affinity for core services workloads
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: core-services-affinity
+  namespace: kube-system
+data:
+  # Monitoring stack affinity
+  monitoring-affinity: |
+    nodeAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        preference:
+          matchExpressions:
+          - key: node-role
+            operator: In
+            values: ["core-services"]
+      - weight: 80
+        preference:
+          matchExpressions:
+          - key: service-type
+            operator: In
+            values: ["infrastructure"]
+
+  # Database affinity
+  database-affinity: |
+    nodeAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        preference:
+          matchExpressions:
+          - key: node-role
+            operator: In
+            values: ["core-services"]
+
+  # Team apps affinity
+  team-apps-affinity: |
+    nodeAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 90
+        preference:
+          matchExpressions:
+          - key: node-role
+            operator: In
+            values: ["core-services"]
+      - weight: 50
+        preference:
+          matchExpressions:
+          - key: node-role
+            operator: NotIn
+            values: ["control-plane"]
+
+---
+# Example: Prometheus with core services affinity
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus-example
+  namespace: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
+  template:
+    metadata:
+      labels:
+        app: prometheus
+        component: monitoring
+    spec:
+      serviceAccountName: prometheus
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: node-role
+                    operator: In
+                    values: [ "core-services" ]
+      containers:
+        - name: prometheus
+          image: prom/prometheus:v2.45.0
+          ports:
+            - containerPort: 9090
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: 2
+              memory: 4Gi
+
+---
+# Example: ArgoCD with core services affinity
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argocd-server-example
+  namespace: argocd
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: argocd-server
+  template:
+    metadata:
+      labels:
+        app: argocd-server
+        component: gitops
+    spec:
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: node-role
+                    operator: In
+                    values: [ "core-services" ]
+      containers:
+        - name: argocd-server
+          image: quay.io/argoproj/argocd:v2.8.4
+          ports:
+            - containerPort: 8080
+            - containerPort: 8083
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: 1
+              memory: 2Gi

@@ -1,0 +1,65 @@
+# ConfigMap for GPU node configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gpu-node-config
+  namespace: kube-system
+data:
+  # Instructions for manually adding GPU nodes
+  add-gpu-node.sh: |
+    #!/bin/bash
+    # Script to add GPU node to existing kind cluster
+
+    # Example: Add a new worker node with GPU support
+    # Note: This requires manual docker manipulation for kind clusters
+
+    NODE_NAME=${1:-"data-platform-local-gpu-worker"}
+
+    echo "Adding GPU worker node: $NODE_NAME"
+
+    # For kind clusters, you would typically:
+    # 1. Create a new container with GPU support
+    # 2. Join it to the existing cluster
+    # 3. Label and taint appropriately
+
+    echo "Manual steps required:"
+    echo "1. docker run --gpus all --name $NODE_NAME ..."
+    echo "2. kubeadm join with proper tokens"
+    echo "3. kubectl label node $NODE_NAME nvidia.com/gpu.present=true"
+    echo "4. kubectl taint node $NODE_NAME nvidia.com/gpu=present:NoSchedule"
+
+  # Node labels for GPU nodes
+  gpu-node-labels.yaml: |
+    apiVersion: v1
+    kind: Node
+    metadata:
+      name: PLACEHOLDER_NODE_NAME
+      labels:
+        nvidia.com/gpu.present: "true"
+        nvidia.com/gpu.family: "rtx"  # Update based on your GPU
+        node-role: "gpu-worker"
+        workload-type: "gpu-compute"
+        environment: "local"
+    spec:
+      taints:
+      - key: "nvidia.com/gpu"
+        value: "present"
+        effect: "NoSchedule"
+
+---
+# RuntimeClass for GPU workloads
+apiVersion: node.k8s.io/v1
+kind: RuntimeClass
+metadata:
+  name: nvidia
+handler: nvidia
+scheduling:
+  nodeClassification:
+    tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
+        effect: NoSchedule
+  tolerations:
+    - key: nvidia.com/gpu
+      operator: Exists
+      effect: NoSchedule

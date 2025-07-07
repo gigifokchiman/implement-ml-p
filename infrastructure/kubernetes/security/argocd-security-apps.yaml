@@ -21,7 +21,7 @@ spec:
       prune: true
       selfHeal: true
     syncOptions:
-      - CreateNamespace=true
+      - CreateNamespace=false
 ---
 # TLS Certificates Application
 apiVersion: argoproj.io/v1alpha1
@@ -45,7 +45,7 @@ spec:
       prune: true
       selfHeal: true
     syncOptions:
-      - CreateNamespace=true
+      - CreateNamespace=false
 ---
 # Network Policies Application
 apiVersion: argoproj.io/v1alpha1
@@ -69,4 +69,4 @@ spec:
       prune: true
       selfHeal: true
     syncOptions:
-      - CreateNamespace=true
+      - CreateNamespace=false

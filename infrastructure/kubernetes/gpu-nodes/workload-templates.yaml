@@ -1,0 +1,217 @@
+# ML Workload Templates - GPU-agnostic with conditions
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ml-workload-config
+  namespace: default
+data:
+  # Image selection based on GPU type
+  image-config.yaml: |
+    # GPU-specific image mapping
+    metal: "tensorflow/tensorflow:latest"  # Metal support built-in
+    nvidia: "tensorflow/tensorflow:latest-gpu"  # CUDA support
+    cpu: "tensorflow/tensorflow:latest"  # CPU fallback
+
+---
+# Template: TensorFlow Training Job
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: tensorflow-training-template
+  namespace: default
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      nodeAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            preference:
+              matchExpressions:
+                - key: apple.com/gpu
+                  operator: In
+                  values: [ "true" ]
+          - weight: 80
+            preference:
+              matchExpressions:
+                - key: nvidia.com/gpu.present
+                  operator: In
+                  values: [ "true" ]
+      containers:
+        - name: tensorflow-job
+          image: tensorflow/tensorflow:latest  # Switch based on deployment
+          env:
+            # Metal GPU settings
+            - name: TF_METAL_DEVICE_PLACEMENT
+              value: "true"
+            # NVIDIA GPU settings
+            - name: NVIDIA_VISIBLE_DEVICES
+              value: "all"
+            # Universal settings
+            - name: TF_CPP_MIN_LOG_LEVEL
+              value: "1"
+          command:
+            - python
+            - -c
+            - |
+              import tensorflow as tf
+              import os
+
+              # Auto-detect GPU type
+              gpu_type = "cpu"
+              if tf.config.list_physical_devices('GPU'):
+                  if os.path.exists('/System/Library/Frameworks/Metal.framework'):
+                      gpu_type = "metal"
+                  else:
+                      gpu_type = "nvidia"
+
+              print(f"🚀 Running on: {gpu_type.upper()}")
+              print(f"Available devices: {tf.config.list_physical_devices()}")
+
+              # Your training code here
+              print("✅ Training completed!")
+          resources:
+            requests:
+              cpu: 1
+              memory: 2Gi
+            limits:
+              cpu: 4
+              memory: 8Gi
+
+---
+# Template: PyTorch Training Job
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: pytorch-training-template
+  namespace: default
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      nodeAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            preference:
+              matchExpressions:
+                - key: apple.com/gpu
+                  operator: In
+                  values: [ "true" ]
+      containers:
+        - name: pytorch-job
+          image: pytorch/pytorch:latest
+          env:
+            # Metal Performance Shaders
+            - name: PYTORCH_ENABLE_MPS_FALLBACK
+              value: "1"
+            - name: PYTORCH_MPS_HIGH_WATERMARK_RATIO
+              value: "0.0"
+          command:
+            - python
+            - -c
+            - |
+              import torch
+
+              # Auto-detect Metal
+              if torch.backends.mps.is_available():
+                  device = torch.device("mps")
+                  print("🍎 Using Metal Performance Shaders")
+              elif torch.cuda.is_available():
+                  device = torch.device("cuda")
+                  print("🟢 Using NVIDIA CUDA")
+              else:
+                  device = torch.device("cpu")
+                  print("💻 Using CPU")
+
+              print(f"Device: {device}")
+
+              # Test tensor operations
+              x = torch.randn(1000, 1000).to(device)
+              y = torch.randn(1000, 1000).to(device)
+              z = torch.mm(x, y)
+
+              print("✅ GPU tensor operations successful!")
+          resources:
+            requests:
+              cpu: 1
+              memory: 2Gi
+            limits:
+              cpu: 4
+              memory: 8Gi
+
+---
+# Simple ML API Service
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ml-api-service
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ml-api
+  template:
+    metadata:
+      labels:
+        app: ml-api
+    spec:
+      nodeAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            preference:
+              matchExpressions:
+                - key: apple.com/gpu
+                  operator: In
+                  values: [ "true" ]
+      containers:
+        - name: ml-api
+          image: python:3.9-slim
+          env:
+            - name: FLASK_ENV
+              value: "production"
+            - name: GPU_ENABLED
+              value: "true"
+          ports:
+            - containerPort: 5000
+          command:
+            - python
+            - -c
+            - |
+              from flask import Flask, jsonify
+              import json
+
+              app = Flask(__name__)
+
+              @app.route('/health')
+              def health():
+                  return jsonify({"status": "healthy", "gpu": "metal"})
+
+              @app.route('/predict')
+              def predict():
+                  # Your ML inference here
+                  return jsonify({"prediction": "sample", "device": "metal"})
+
+              if __name__ == '__main__':
+                  app.run(host='0.0.0.0', port=5000)
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: 2
+              memory: 4Gi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ml-api-service
+  namespace: default
+spec:
+  selector:
+    app: ml-api
+  ports:
+    - port: 5000
+      targetPort: 5000
+  type: ClusterIP

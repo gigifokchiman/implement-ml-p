@@ -1,0 +1,95 @@
+# Node affinity configurations for GPU workloads
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gpu-affinity-config
+  namespace: kube-system
+data:
+  # GPU workload affinity - require GPU nodes
+  gpu-required-affinity: |
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: nvidia.com/gpu.present
+            operator: In
+            values: ["true"]
+    tolerations:
+    - key: nvidia.com/gpu
+      operator: Exists
+      effect: NoSchedule
+
+  # GPU workload with fallback - prefer GPU but allow CPU
+  gpu-preferred-affinity: |
+    nodeAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        preference:
+          matchExpressions:
+          - key: nvidia.com/gpu.present
+            operator: In
+            values: ["true"]
+      - weight: 50
+        preference:
+          matchExpressions:
+          - key: node-role
+            operator: In
+            values: ["gpu-worker"]
+    tolerations:
+    - key: nvidia.com/gpu
+      operator: Exists
+      effect: NoSchedule
+
+  # CPU-only workload - avoid GPU nodes
+  cpu-only-affinity: |
+    nodeAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        preference:
+          matchExpressions:
+          - key: nvidia.com/gpu.present
+            operator: DoesNotExist
+
+---
+# Example GPU workload deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gpu-workload-example
+  namespace: default
+  labels:
+    app: gpu-example
+spec:
+  replicas: 0  # Set to 0 by default, scale when GPU nodes available
+  selector:
+    matchLabels:
+      app: gpu-example
+  template:
+    metadata:
+      labels:
+        app: gpu-example
+    spec:
+      runtimeClassName: nvidia
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: nvidia.com/gpu.present
+                  operator: In
+                  values: [ "true" ]
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: gpu-container
+          image: nvidia/cuda:11.8-runtime-ubuntu20.04
+          command: [ "sleep", "infinity" ]
+          resources:
+            limits:
+              nvidia.com/gpu: 1
+              memory: "4Gi"
+              cpu: "2"
+            requests:
+              memory: "2Gi"
+              cpu: "1"

@@ -1,0 +1,24 @@
+# Priority classes for GPU workloads
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: gpu-high-priority
+value: 1500
+globalDefault: false
+description: "High priority GPU workloads (training, inference)"
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: gpu-batch-priority
+value: 800
+globalDefault: false
+description: "Batch GPU workloads (can be preempted)"
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: gpu-dev-priority
+value: 400
+globalDefault: false
+description: "Development GPU workloads"
