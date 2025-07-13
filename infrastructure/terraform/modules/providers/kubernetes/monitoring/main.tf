@@ -18,6 +18,10 @@ resource "kubernetes_namespace" "monitoring" {
     labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"      = "monitoring"
       "app.kubernetes.io/component" = "monitoring"
+      "team"                        = "platform-engineering"
+      "cost-center"                 = "platform"
+      "environment"                 = var.environment
+      "workload-type"               = "monitoring"
     })
   }
 }

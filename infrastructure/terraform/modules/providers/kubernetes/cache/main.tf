@@ -74,10 +74,10 @@ resource "kubernetes_service" "redis" {
   metadata {
     name      = "redis"
     namespace = var.namespace
-    labels = {
+    labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"      = "redis"
       "app.kubernetes.io/component" = "cache"
-    }
+    })
   }
 
   spec {

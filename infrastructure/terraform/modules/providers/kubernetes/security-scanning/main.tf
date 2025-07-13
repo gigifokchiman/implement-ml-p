@@ -24,6 +24,9 @@ resource "kubernetes_namespace" "security_scanning" {
       "app.kubernetes.io/name"             = "security-scanning"
       "app.kubernetes.io/component"        = "security"
       "workload-type"                      = "security"
+      "team"                               = "platform-engineering"
+      "cost-center"                        = "platform"
+      "environment"                        = var.environment
       "pod-security.kubernetes.io/enforce" = "privileged" # Security tools need privileged access
       "pod-security.kubernetes.io/audit"   = "privileged"
       "pod-security.kubernetes.io/warn"    = "privileged"

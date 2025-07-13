@@ -14,6 +14,10 @@ resource "kubernetes_namespace" "velero" {
     labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"      = "velero"
       "app.kubernetes.io/component" = "backup"
+      "team"                        = "platform-engineering"
+      "cost-center"                 = "platform"
+      "environment"                 = var.environment
+      "workload-type"               = "backup"
     })
   }
 }

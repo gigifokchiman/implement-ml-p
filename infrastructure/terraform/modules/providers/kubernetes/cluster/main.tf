@@ -15,7 +15,7 @@ locals {
           kind: InitConfiguration
           nodeRegistration:
             kubeletExtraArgs:
-              node-labels: "ingress-ready=true,environment=${var.environment},cluster-name=${local.cluster_name},node-role=control-plane"
+              node-labels: "ingress-ready=true,environment=${var.environment},cluster-name=${local.cluster_name},node-role=control-plane,workload-type=control-plane"
             taints:
             - key: node-role.kubernetes.io/control-plane
               effect: NoSchedule
@@ -66,9 +66,10 @@ locals {
           nodeRegistration:
             kubeletExtraArgs:
               node-labels: "${join(",", [for k, v in merge(config.labels, {
-          environment  = var.environment
-          cluster-name = local.cluster_name
-          node-role    = name
+          environment   = var.environment
+          cluster-name  = local.cluster_name
+          node-role     = name
+          workload-type = lookup(config.labels, "workload-type", "worker")
 }) : "${k}=${v}"])}"
           EOT
 ]

@@ -65,6 +65,9 @@ resource "kubernetes_namespace" "team_namespaces" {
       "app.kubernetes.io/component" = "application"
       "app.kubernetes.io/team"      = each.key
       "workload-type"               = "application"
+      "team"                        = each.key == "ml-team" ? "ml" : each.key == "data-team" ? "data" : "core"
+      "cost-center"                 = each.key == "ml-team" ? "ml" : each.key == "data-team" ? "data" : "app"
+      "environment"                 = var.environment
     }
     annotations = var.use_aws ? {
       # AWS-specific annotations for service account integration

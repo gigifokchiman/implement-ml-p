@@ -131,10 +131,10 @@ resource "kubernetes_service" "minio" {
   metadata {
     name      = "minio"
     namespace = var.namespace
-    labels = {
+    labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"      = "minio"
       "app.kubernetes.io/component" = "storage"
-    }
+    })
   }
 
   spec {

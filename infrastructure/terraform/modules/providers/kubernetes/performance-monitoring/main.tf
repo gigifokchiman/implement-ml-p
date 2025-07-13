@@ -16,6 +16,9 @@ resource "kubernetes_namespace" "performance_monitoring" {
       "app.kubernetes.io/name"             = "performance-monitoring"
       "app.kubernetes.io/component"        = "observability"
       "workload-type"                      = "observability"
+      "team"                               = "platform-engineering"
+      "cost-center"                        = "platform"
+      "environment"                        = var.environment
       "pod-security.kubernetes.io/enforce" = "privileged"
       "pod-security.kubernetes.io/audit"   = "privileged"
       "pod-security.kubernetes.io/warn"    = "privileged"

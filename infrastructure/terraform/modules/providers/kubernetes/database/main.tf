@@ -140,10 +140,10 @@ resource "kubernetes_service" "postgres" {
   metadata {
     name      = "postgres"
     namespace = var.namespace
-    labels = {
+    labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"      = "postgres"
       "app.kubernetes.io/component" = "database"
-    }
+    })
   }
 
   spec {

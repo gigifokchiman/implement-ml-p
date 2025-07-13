@@ -9,6 +9,10 @@ resource "kubernetes_namespace" "cicd_system" {
     labels = merge(local.security_labels, {
       "app.kubernetes.io/name"             = "cicd-system"
       "security.platform/critical"         = "true"
+      "team"                               = "platform-engineering"
+      "cost-center"                        = "platform"
+      "environment"                        = var.environment
+      "workload-type"                      = "cicd"
       "pod-security.kubernetes.io/enforce" = "restricted"
     })
 

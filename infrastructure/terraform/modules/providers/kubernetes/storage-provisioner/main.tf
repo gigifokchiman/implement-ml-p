@@ -16,6 +16,9 @@ resource "kubernetes_namespace" "local_path_storage" {
       "app.kubernetes.io/name"      = "local-path-storage"
       "app.kubernetes.io/component" = "storage"
       "workload-type"               = "storage"
+      "team"                        = "platform-engineering"
+      "cost-center"                 = "platform"
+      "environment"                 = var.environment
     })
   }
 
