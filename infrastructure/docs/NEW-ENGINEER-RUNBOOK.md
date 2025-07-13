@@ -120,7 +120,7 @@ helm version
 terraform --version  # >= 1.0
 
 # Verify custom terraform provider is installed
-ls -la ~/.terraform.d/plugins/kind.local/gigifokchiman/kind/0.1.0/*/terraform-provider-kind
+ls -la ~/.terraform.d/plugins/kind.local/gigifokchiman/kind/0.1.4/*/terraform-provider-kind
 
 cd infrastructure
 ```
@@ -167,6 +167,7 @@ docker run -it --rm --user root \
   -v ~/.aws:/workspace/.aws:ro \
   -v ~/.kube:/workspace/.kube \
   ml-platform-tools
+
 ```
 
 **🔍 Docker Container Notes:**
@@ -208,9 +209,15 @@ make init-tf-local && make deploy-tf-local
 kind get clusters
 kubectl config use-context kind-data-platform-local
 
-kubectl get pods --all-namespaces
+kubectl get pods -A
 kubectl get namespaces
-kubectl get services --all-namespaces
+kubectl get services -A
+kubectl get pvc -A
+kubectl get rc,services -A
+
+
+
+
 
 # Verify the namespaces and labels
 ./scripts/monitoring/check-resource-labels.sh
@@ -296,6 +303,8 @@ make deploy-argocd-apps
 kubectl get namespaces --show-labels
 kubectl get resourcequota --all-namespaces
 kubectl get nodes --show-labels
+
+kubectl get events -n data-platform-performance --sort-by=.metadata.creationTimestamp
 
 ```
 
@@ -481,7 +490,192 @@ fi
 make test
 
 make apply-tf-local
-````
+```
+
+## 🔄 Provider Version Management
+
+### Enterprise Provider Version Management System
+
+This platform uses enterprise-grade provider version management based on Netflix/Airbnb patterns for consistent, secure
+deployments across all environments.
+
+#### Understanding the System
+
+**Centralized Configuration:**
+
+- All provider versions are managed centrally in `/infrastructure/terraform/versions/terraform-versions.yaml`
+- Environment-specific version strategies (local: flexible, staging: strict, prod: exact)
+- Automated generation of `versions.tf` files across all environments
+
+**Current Provider Versions:**
+
+```yaml
+terraform_version: ">= 1.6.0"
+provider_versions:
+  aws: "5.95.0"
+  kubernetes: "2.24.0"
+  helm: "2.17.0"
+  kind: "0.1.4"
+```
+
+#### How to Update Provider Versions
+
+**Step 1: Check Current Status**
+
+```bash
+# View current provider versions across all environments
+make version-status
+
+# Check for available provider updates
+make version-check-updates
+
+# Run security compliance audit
+make version-security-audit
+```
+
+**Step 2: Update Centralized Configuration**
+
+```bash
+# Edit the centralized configuration file
+vim infrastructure/terraform/versions/terraform-versions.yaml
+
+# Example: Update AWS provider from 5.95.0 to 5.96.0
+provider_versions:
+  aws: "5.96.0"  # Updated version
+  kubernetes: "2.24.0"
+  helm: "2.17.0"
+  kind: "0.1.4"
+```
+
+**Step 3: Generate Updated Versions**
+
+```bash
+# Generate new versions.tf files for all environments
+./infrastructure/scripts/generate-terraform-versions.sh
+
+# Verify the generated files
+ls infrastructure/terraform/environments/*/versions.tf
+```
+
+**Step 4: Apply Updates Per Environment**
+
+**Local Environment (flexible versioning):**
+
+```bash
+# Plan version updates for local
+make version-plan ENV=local
+
+# Apply to local environment
+make update-versions-local
+make init-tf-local && make apply-tf-local
+```
+
+**Development Environment (strict versioning):**
+
+```bash
+# Plan version updates for dev
+make version-plan ENV=dev
+
+# Apply to dev environment
+make update-versions-dev
+```
+
+**Production Environment (exact versioning - requires confirmation):**
+
+```bash
+# Plan version updates for production
+make version-plan ENV=prod
+
+# Apply to production (requires manual confirmation)
+make update-versions-prod
+```
+
+#### Validation and Compliance
+
+**Security Validation:**
+
+```bash
+# Run comprehensive security audit
+make version-security-audit
+
+# Generate compliance report
+make version-compliance-report
+```
+
+**Version Consistency Check:**
+
+```bash
+# Validate version security compliance
+make version-validate
+
+# Check versions across all environments
+make version-status
+```
+
+#### Adding New Modules
+
+**Zero Configuration Required:**
+
+- New modules automatically inherit provider versions from root configuration
+- No need to add provider constraints to individual modules
+- Centralized version management ensures consistency
+
+**Example: Creating a new module**
+
+```bash
+# Create new module (no provider version configuration needed)
+mkdir infrastructure/terraform/modules/my-new-module
+
+# Module automatically inherits versions from:
+# infrastructure/terraform/environments/<env>/versions.tf
+```
+
+#### Troubleshooting Version Issues
+
+**Lock File Inconsistencies:**
+
+```bash
+# If you encounter lock file errors
+cd infrastructure/terraform/environments/local
+rm -f .terraform.lock.hcl
+rm -rf .terraform
+terraform init --upgrade
+```
+
+**Provider Version Conflicts:**
+
+```bash
+# Check for version conflicts
+make version-validate
+
+# Update conflicting versions in terraform-versions.yaml
+# Then regenerate and reinitialize
+make init-tf-local
+```
+
+#### Best Practices
+
+1. **Always use centralized configuration** - Never add provider versions directly to modules
+2. **Test in lower environments first** - Update local → dev → staging → prod
+3. **Run security audits** - Use `make version-security-audit` before production updates
+4. **Generate compliance reports** - Document version changes for audit trail
+5. **Batch updates** - Update multiple providers together when possible
+
+#### Security Features
+
+- **Automated security scanning** of provider versions
+- **Compliance reporting** for audit requirements
+- **Environment-specific strategies** (flexible vs strict vs exact versioning)
+- **Change validation** before applying updates
+- **Rollback capabilities** via version control
+
+This enterprise provider version management system ensures:
+
+- ✅ **Consistency** across all environments and modules
+- ✅ **Security** through automated vulnerability scanning
+- ✅ **Compliance** with enterprise governance requirements
+- ✅ **Scalability** for large infrastructure deployments
+- ✅ **Maintainability** through centralized configuration
 
 ## 🛠️ Phase 5: Production Readiness (30 minutes) (WIP)
 

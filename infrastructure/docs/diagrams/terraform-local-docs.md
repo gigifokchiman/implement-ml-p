@@ -195,6 +195,7 @@ The infrastructure dependencies are visualized in the accompanying diagram files
 - Security groups with principle of least privilege
 - NAT gateways for outbound internet access
 
+- Multi-factor authentication required
 ### Data Security
 
 - Encryption at rest for all storage
@@ -205,7 +206,6 @@ The infrastructure dependencies are visualized in the accompanying diagram files
 
 - IAM roles with minimal required permissions
 - Regular rotation of access keys
-- Multi-factor authentication required
 
 ## Monitoring and Observability
 
