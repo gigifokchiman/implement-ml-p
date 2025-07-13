@@ -26,6 +26,12 @@ spec:
       server: https://kubernetes.default.svc
     - namespace: kube-system
       server: https://kubernetes.default.svc
+    - namespace: app-core-team
+      server: https://kubernetes.default.svc
+    - namespace: app-ml-team
+      server: https://kubernetes.default.svc
+    - namespace: app-data-team
+      server: https://kubernetes.default.svc
 
   # Cluster-scoped resources allowed to be managed
   clusterResourceWhitelist:
@@ -118,6 +124,8 @@ spec:
 
   destinations:
     - namespace: monitoring
+      server: https://kubernetes.default.svc
+    - namespace: data-platform-monitoring
       server: https://kubernetes.default.svc
     - namespace: security
       server: https://kubernetes.default.svc

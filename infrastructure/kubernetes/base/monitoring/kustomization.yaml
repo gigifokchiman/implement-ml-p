@@ -4,6 +4,8 @@ kind: Kustomization
 resources:
   - prometheus-operator-crds.yaml
   - service-monitors.yaml
+  - metrics-server.yaml
+  - ml-metrics.yaml
 
 labels:
   - includeSelectors: true

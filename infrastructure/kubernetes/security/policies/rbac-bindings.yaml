@@ -132,6 +132,9 @@ subjects:
   - kind: ServiceAccount
     name: ml-team-service-account
     namespace: app-ml-team
+  - kind: Group
+    name: ml-engineers
+    apiGroup: rbac.authorization.k8s.io
 
 ---
 # Data Team ClusterRoleBinding
@@ -150,6 +153,9 @@ subjects:
   - kind: ServiceAccount
     name: data-team-service-account
     namespace: app-data-team
+  - kind: Group
+    name: data-engineers
+    apiGroup: rbac.authorization.k8s.io
 
 ---
 # Core Team ClusterRoleBinding
@@ -168,6 +174,9 @@ subjects:
   - kind: ServiceAccount
     name: core-team-service-account
     namespace: app-core-team
+  - kind: Group
+    name: core-engineers
+    apiGroup: rbac.authorization.k8s.io
 
 ---
 # ML Team Namespace RoleBinding
@@ -187,6 +196,9 @@ subjects:
   - kind: ServiceAccount
     name: ml-team-service-account
     namespace: app-ml-team
+  - kind: Group
+    name: ml-engineers
+    apiGroup: rbac.authorization.k8s.io
 
 ---
 # Data Team Namespace RoleBinding
@@ -206,6 +218,9 @@ subjects:
   - kind: ServiceAccount
     name: data-team-service-account
     namespace: app-data-team
+  - kind: Group
+    name: data-engineers
+    apiGroup: rbac.authorization.k8s.io
 
 ---
 # Core Team Namespace RoleBinding
@@ -225,3 +240,6 @@ subjects:
   - kind: ServiceAccount
     name: core-team-service-account
     namespace: app-core-team
+  - kind: Group
+    name: core-engineers
+    apiGroup: rbac.authorization.k8s.io
