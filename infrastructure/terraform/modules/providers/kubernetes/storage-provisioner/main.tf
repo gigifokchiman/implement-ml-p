@@ -1,14 +1,6 @@
 # Local Path Provisioner for Kind clusters
 # This replaces the manual kubectl setup
 
-terraform {
-  required_providers {
-    kubernetes = {
-      source  = "hashicorp/kubernetes"
-      version = "~> 2.23"
-    }
-  }
-}
 
 locals {
   k8s_tags = {

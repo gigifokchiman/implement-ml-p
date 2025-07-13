@@ -1,39 +1,5 @@
 # Local Development Environment - Kind Cluster
-# Uses data-platform composition with Kubernetes provider
-
-terraform {
-  required_version = ">= 1.0"
-
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
-    }
-    kubernetes = {
-      source  = "hashicorp/kubernetes"
-      version = "~> 2.23"
-    }
-    helm = {
-      source  = "hashicorp/helm"
-      version = "~> 2.11"
-    }
-    # Local only
-    kind = {
-      source  = "kind.local/gigifokchiman/kind"
-      version = "0.1.1"
-    }
-    docker = {
-      source  = "kreuzwerker/docker"
-      version = "~> 3.0"
-    }
-  }
-
-  # backend "s3" {
-  #   bucket = "your-terraform-state-bucket"
-  #   key    = "local/terraform.tfstate"
-  #   region = "us-west-2"
-  # }
-}
+# Uses enterprise provider version management
 
 # AWS Provider (stub for module compatibility) - minimal configuration for Kind-only setup
 provider "aws" {
@@ -132,12 +98,11 @@ locals {
 module "data_platform" {
   source = "../../modules/compositions/data-platform"
 
-  name               = "data-platform"
-  cluster_name       = local.name_prefix
-  environment        = var.environment
-  use_aws            = false # Use Kind cluster instead of AWS EKS
-  kubernetes_version = var.kubernetes_version
-  # vpc_cidr         = var.vpc_cidr  # Not used for Kind clusters
+  name         = "data-platform"
+  cluster_name = local.name_prefix
+  environment  = var.environment
+  use_aws      = false # Use Kind cluster instead of AWS EKS
+  # vpc_cidr   = var.vpc_cidr  # Not used for Kind clusters
 
   # Node groups
   node_groups = local.node_groups

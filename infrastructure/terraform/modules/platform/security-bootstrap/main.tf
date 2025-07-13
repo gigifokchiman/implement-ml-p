@@ -1,14 +1,6 @@
 # Platform Security Bootstrap Interface
 # Orchestrates security infrastructure using dependency injection
 
-terraform {
-  required_providers {
-    kubernetes = {
-      source  = "hashicorp/kubernetes"
-      version = "~> 2.23"
-    }
-  }
-}
 
 # Cross-cutting concerns
 module "cross_cutting" {

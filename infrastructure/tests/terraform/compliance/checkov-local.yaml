@@ -4,6 +4,7 @@
 framework:
   - terraform
   - terraform_plan
+  - kubernetes
 
 # Target only local environment (relative to infrastructure/tests/terraform/compliance/)
 directory:
@@ -34,6 +35,24 @@ skip-check:
   
   # Local secrets management (less strict for development)
   - CKV_K8S_35  # Prefer using secrets as files over secrets as environment variables
+  
+  # LOCAL ONLY: Skip advanced S3 compliance checks for development
+  - CKV2_AWS_61  # S3 bucket lifecycle configuration (not needed for local dev)
+  - CKV2_AWS_62  # S3 bucket event notifications (not needed for local dev)
+  - CKV_AWS_144  # S3 cross-region replication (not needed for local dev)
+  - CKV_AWS_145  # S3 KMS encryption (AES256 is sufficient for local dev)
+  
+  # LOCAL ONLY: Skip advanced Kubernetes compliance checks for development
+  - CKV_K8S_155  # Minimize the admission of containers with capabilities (local dev flexibility)
+  - CKV_K8S_156  # Minimize the admission of privileged containers (local dev flexibility)
+  - CKV_K8S_157  # Minimize the admission of containers with allowPrivilegeEscalation (local dev)
+  - CKV_K8S_158  # Minimize the admission of containers with readOnlyRootFilesystem (local dev)
+  - CKV_K8S_160  # Ensure that the admission control plugin is set (not applicable to local Kind)
+  - CKV_K8S_161  # Ensure that the admission control plugin is configured (not applicable to local Kind)
+  - CKV_K8S_43   # Image should use digest (local dev can use tags)
+  - CKV_K8S_31   # Ensure seccomp profile is set to docker/default (local dev flexibility)
+  - CKV_K8S_15   # Image Pull Policy should be Always (local dev can use IfNotPresent)
+  - CKV2_K8S_6   # Minimize admission of pods without NetworkPolicy (local dev flexibility)
 
 # Output configuration
 output: cli

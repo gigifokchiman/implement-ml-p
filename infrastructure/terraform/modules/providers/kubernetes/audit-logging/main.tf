@@ -1,14 +1,6 @@
 # Kubernetes Audit Logging Provider
 # Creates audit policy ConfigMap for post-cluster configuration
 
-terraform {
-  required_providers {
-    kubernetes = {
-      source  = "hashicorp/kubernetes"
-      version = "~> 2.23"
-    }
-  }
-}
 
 # Create audit logging namespace
 resource "kubernetes_namespace" "audit_logging" {

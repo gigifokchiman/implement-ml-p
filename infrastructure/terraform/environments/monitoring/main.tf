@@ -1,28 +1,5 @@
 # Template for creating new Kind clusters for applications
 # Copy this file to terraform/environments/{app-name}/ and customize
-
-terraform {
-  required_version = ">= 1.0"
-  required_providers {
-    kind = {
-      source  = "kind.local/gigifokchiman/kind"
-      version = "0.1.0"
-    }
-    kubernetes = {
-      source  = "hashicorp/kubernetes"
-      version = "~> 2.23"
-    }
-    helm = {
-      source  = "hashicorp/helm"
-      version = "~> 2.11"
-    }
-    random = {
-      source  = "hashicorp/random"
-      version = "~> 3.4"
-    }
-  }
-}
-
 # Variables - customize these for your application
 variable "app_name" {
   description = "Name of the application"

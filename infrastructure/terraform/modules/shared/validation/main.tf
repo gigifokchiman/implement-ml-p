@@ -1,14 +1,6 @@
 # Interface Contract Validation Module
 # Validates that interfaces conform to expected contracts
 
-terraform {
-  required_providers {
-    null = {
-      source  = "hashicorp/null"
-      version = "~> 3.2"
-    }
-  }
-}
 
 # Validate cluster interface contract
 resource "null_resource" "validate_cluster_interface" {

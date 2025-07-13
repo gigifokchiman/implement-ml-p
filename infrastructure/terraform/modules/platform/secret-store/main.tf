@@ -1,22 +1,6 @@
 # Platform Secret Store Interface
 # Provides unified interface for both AWS Secrets Manager and Kubernetes secrets
 
-terraform {
-  required_providers {
-    kubernetes = {
-      source  = "hashicorp/kubernetes"
-      version = "~> 2.23"
-    }
-    helm = {
-      source  = "hashicorp/helm"
-      version = "~> 2.11"
-    }
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
-    }
-  }
-}
 
 # AWS Secrets Manager Provider
 module "aws_secrets" {

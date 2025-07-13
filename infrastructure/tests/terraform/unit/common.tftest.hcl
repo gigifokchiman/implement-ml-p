@@ -2,7 +2,7 @@
 
 run "validate_name_prefix" {
   command = plan
-  
+
   module {
     source = "../../../terraform/modules/common"
   }
@@ -30,7 +30,7 @@ run "validate_name_prefix" {
 
 run "validate_local_environment_detection" {
   command = plan
-  
+
   module {
     source = "../../../terraform/modules/common"
   }
@@ -58,7 +58,7 @@ run "validate_local_environment_detection" {
 
 run "validate_production_environment" {
   command = plan
-  
+
   module {
     source = "../../../terraform/modules/common"
   }
@@ -86,7 +86,7 @@ run "validate_production_environment" {
 
 run "validate_node_groups_configuration" {
   command = plan
-  
+
   module {
     source = "../../../terraform/modules/common"
   }
@@ -109,7 +109,7 @@ run "validate_node_groups_configuration" {
   # Validate all node groups have required attributes
   assert {
     condition = alltrue([
-      for ng in output.default_node_groups : 
+      for ng in output.default_node_groups :
       ng.disk_size != null && ng.disk_size > 0
     ])
     error_message = "All node groups should have valid disk_size"
@@ -117,7 +117,7 @@ run "validate_node_groups_configuration" {
 
   assert {
     condition = alltrue([
-      for ng in output.default_node_groups : 
+      for ng in output.default_node_groups :
       length(ng.instance_types) > 0
     ])
     error_message = "All node groups should have instance types"

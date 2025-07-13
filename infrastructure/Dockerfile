@@ -22,6 +22,7 @@ ENV GH_VERSION=2.40.1
 ENV K6_VERSION=v0.47.0
 ENV KUSTOMIZE_VERSION=5.0.1
 ENV GRAPHVIZ_VERSION=latest
+ENV KIND_TERRAFORM_PROVIDER_VERSION=0.1.4
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -178,6 +179,15 @@ RUN curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/
     mv kustomize /usr/local/bin/ && \
     kustomize version
 
+# kubeconform (Kubernetes YAML validation)
+RUN ARCH=$(dpkg --print-architecture) && \
+    if [ "$ARCH" = "arm64" ]; then ARCH="arm64"; else ARCH="amd64"; fi && \
+    KUBECONFORM_VERSION=$(curl -s https://api.github.com/repos/yannh/kubeconform/releases/latest | grep tag_name | cut -d '"' -f 4 | sed 's/v//') && \
+    curl -L "https://github.com/yannh/kubeconform/releases/download/v${KUBECONFORM_VERSION}/kubeconform-linux-${ARCH}.tar.gz" | tar xz && \
+    chmod +x kubeconform && \
+    mv kubeconform /usr/local/bin/ && \
+    kubeconform -v
+
 # kubectx and kubens (Kubernetes context and namespace switcher)
 RUN ARCH=$(dpkg --print-architecture) && \
     if [ "$ARCH" = "arm64" ]; then ARCH="arm64"; else ARCH="x86_64"; fi && \
@@ -237,13 +247,13 @@ RUN touch /tmp/terraform-provider-mlplatform-placeholder && \
 # Download terraform provider (simplified approach)
 RUN ARCH=$(dpkg --print-architecture) && \
     TERRAFORM_ARCH="linux_${ARCH}" && \
-    mkdir -p /workspace/.terraform.d/plugins/kind.local/gigifokchiman/kind/0.1.0/${TERRAFORM_ARCH} && \
+    mkdir -p /workspace/.terraform.d/plugins/kind.local/gigifokchiman/kind/${KIND_TERRAFORM_PROVIDER_VERSION}/${TERRAFORM_ARCH} && \
     echo "Attempting to download terraform provider for ${TERRAFORM_ARCH}" && \
-    (wget -q https://github.com/gigifokchiman/kind/releases/download/v0.1.0/terraform-provider-kind_v0.1.0_${TERRAFORM_ARCH}.tar.gz -O /tmp/provider.tar.gz || \
-     wget -q https://github.com/gigifokchiman/kind/releases/download/v0.1.0/terraform-provider-kind_v0.1.0_linux_amd64.tar.gz -O /tmp/provider.tar.gz) && \
+    (wget -q https://github.com/gigifokchiman/kind/releases/download/v${KIND_TERRAFORM_PROVIDER_VERSION}/terraform-provider-kind_v${KIND_TERRAFORM_PROVIDER_VERSION}_${TERRAFORM_ARCH}.tar.gz -O /tmp/provider.tar.gz || \
+     wget -q https://github.com/gigifokchiman/kind/releases/download/v${KIND_TERRAFORM_PROVIDER_VERSION}/terraform-provider-kind_v${KIND_TERRAFORM_PROVIDER_VERSION}_linux_amd64.tar.gz -O /tmp/provider.tar.gz) && \
     cd /tmp && tar -xzf provider.tar.gz && \
-    cp terraform-provider-kind /workspace/.terraform.d/plugins/kind.local/gigifokchiman/kind/0.1.0/${TERRAFORM_ARCH}/terraform-provider-kind && \
-    chmod +x /workspace/.terraform.d/plugins/kind.local/gigifokchiman/kind/0.1.0/${TERRAFORM_ARCH}/terraform-provider-kind && \
+    cp terraform-provider-kind /workspace/.terraform.d/plugins/kind.local/gigifokchiman/kind/${KIND_TERRAFORM_PROVIDER_VERSION}/${TERRAFORM_ARCH}/terraform-provider-kind && \
+    chmod +x /workspace/.terraform.d/plugins/kind.local/gigifokchiman/kind/${KIND_TERRAFORM_PROVIDER_VERSION}/${TERRAFORM_ARCH}/terraform-provider-kind && \
     echo "✅ Terraform provider installed" || echo "⚠️  Terraform provider not available - manual installation required"
 
 # Don't clean up for debugging
@@ -304,11 +314,12 @@ echo "OPA: $(opa version)"
 echo "Conftest: $(conftest --version)"
 echo "Graphviz: $(dot -V 2>&1)"
 echo "Kustomize: $(kustomize version)"
+echo "kubeconform: $(kubeconform -v)"
 echo "Node.js: $(node --version)"
 echo "npm: $(npm --version)"
 echo "K6 Binary: $(k6 version)"
 echo "K6 npm: $(npm list -g k6 2>/dev/null || echo 'Not installed via npm')"
-echo "Custom Kind Provider: $(ls -la ~/.terraform.d/plugins/registry.terraform.io/gigifokchiman/kind/0.1.0/*/terraform-provider-kind* 2>/dev/null || echo 'Not found')"
+echo "Custom Kind Provider: $(ls -la ~/.terraform.d/plugins/kind.local/gigifokchiman/kind/${KIND_TERRAFORM_PROVIDER_VERSION}/*/terraform-provider-kind* 2>/dev/null || echo 'Not found')"
 echo "=== All tools are ready! ==="
 EOF
 

@@ -1,14 +1,6 @@
 # AWS Audit Logging Provider
 # Enables EKS audit logging to CloudWatch
 
-terraform {
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
-    }
-  }
-}
 
 locals {
   name_prefix = "${var.name}-${var.environment}"

@@ -11,10 +11,11 @@ variable "environment" {
 }
 
 variable "kubernetes_version" {
-  description = "Kubernetes version (Kind will use default)"
+  description = "Kubernetes version"
   type        = string
   default     = "1.28"
 }
+
 
 variable "node_groups" {
   description = "Node groups configuration (adapted for Kind worker nodes)"

@@ -1,36 +1,15 @@
 # Platform Cluster Interface
 # Provides unified interface for both Kind (local) and EKS (AWS) clusters
 
-terraform {
-  required_providers {
-    kubernetes = {
-      source  = "hashicorp/kubernetes"
-      version = "~> 2.23"
-    }
-    helm = {
-      source  = "hashicorp/helm"
-      version = "~> 2.11"
-    }
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
-    }
-    kind = {
-      source  = "kind.local/gigifokchiman/kind"
-      version = "0.1.1"
-    }
-  }
-}
 
 # AWS EKS Cluster Provider
 module "aws_cluster" {
   count  = var.use_aws ? 1 : 0
   source = "../../providers/aws/cluster"
 
-  name               = var.name
-  environment        = var.environment
-  kubernetes_version = var.kubernetes_version
-  vpc_cidr           = var.vpc_cidr
+  name        = var.name
+  environment = var.environment
+  vpc_cidr    = var.vpc_cidr
 
   node_groups    = var.node_groups
   access_entries = var.access_entries
@@ -48,9 +27,8 @@ module "kind_cluster" {
   count  = var.use_aws ? 0 : 1
   source = "../../providers/kubernetes/cluster"
 
-  name               = var.name
-  environment        = var.environment
-  kubernetes_version = var.kubernetes_version
+  name        = var.name
+  environment = var.environment
 
   node_groups   = var.node_groups
   port_mappings = var.port_mappings

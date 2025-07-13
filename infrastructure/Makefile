@@ -59,6 +59,35 @@ apply-tf-local: ## (TF-LOCAL) Apply local terraform changes
 	@echo "$(GREEN)🚀 Applying local Terraform changes$(NC)"
 	@cd terraform/environments/local && terraform apply -auto-approve
 
+clean-helm-local: ## (TF-LOCAL) Clean ALL helm releases (aggressive local cleanup)
+	@echo "$(YELLOW)🧹 Force uninstalling specific conflicting releases$(NC)"
+	@helm uninstall nginx-ingress -n ingress-nginx --ignore-not-found || true
+	@helm uninstall cert-manager -n cert-manager --ignore-not-found || true
+	@helm uninstall argocd -n argocd --ignore-not-found || true
+	@echo "$(YELLOW)🧹 Uninstalling ALL remaining helm releases$(NC)"
+	@for release in $$(helm list -A --short 2>/dev/null || true); do \
+		namespace=$$(helm list -A -o json 2>/dev/null | jq -r ".[] | select(.name==\"$$release\") | .namespace" || echo "default"); \
+		echo "Uninstalling $$release from $$namespace"; \
+		helm uninstall $$release -n $$namespace --ignore-not-found || true; \
+	done
+	@echo "$(YELLOW)🧹 Cleaning ALL webhooks$(NC)"
+	@kubectl delete validatingwebhookconfiguration --all --ignore-not-found || true
+	@kubectl delete mutatingwebhookconfiguration --all --ignore-not-found || true
+	@echo "$(YELLOW)🧹 Cleaning ALL cert-manager CRDs$(NC)"
+	@kubectl get crd 2>/dev/null | grep cert-manager | awk '{print $$1}' | xargs -I {} kubectl delete crd {} --ignore-not-found || true
+	@echo "$(YELLOW)🧹 Cleaning specific namespaces$(NC)"
+	@kubectl delete namespace ingress-nginx --ignore-not-found || true
+	@kubectl delete namespace cert-manager --ignore-not-found || true
+	@kubectl delete namespace argocd --ignore-not-found || true
+	@kubectl delete namespace data-platform-security-scanning --ignore-not-found || true
+	@kubectl delete namespace data-platform-performance --ignore-not-found || true
+	@echo "$(YELLOW)🧹 Cleaning ALL conflicting resources$(NC)"
+	@kubectl delete deployment --all -A --ignore-not-found || true
+	@kubectl delete replicaset --all -A --ignore-not-found || true
+	@kubectl delete service --all -A --ignore-not-found || true
+	@kubectl delete ingress --all -A --ignore-not-found || true
+	@echo "$(GREEN)✅ All helm releases and conflicts cleaned$(NC)"
+
 clean-tf-local: ## (TF-LOCAL) Destroy local environment (uses terraform destroy)
 	@echo "$(RED)💣 Destroying local environment$(NC)"
 	@cd terraform/environments/local && terraform destroy -auto-approve || echo "Terraform destroy completed with warnings"
@@ -132,6 +161,7 @@ deploy-tf-local: ## Complete local ML platform deployment with cleanup
 	@echo "📍 Working in: $(shell pwd)"
 	@echo ""
 	@echo "🧹 Cleaning up existing resources..."
+	@$(MAKE) clean-helm-local
 	@$(MAKE) clean-tf-local
 	@echo ""
 	@echo "✅ Cleanup complete"
@@ -150,6 +180,7 @@ deploy-tf-local: ## Complete local ML platform deployment with cleanup
 	@$(MAKE) deploy-security-bootstrap-tf-local
 	@echo ""
 	@echo "🏗️  Step 4: Deploying platform services..."
+	@$(MAKE) init-tf-local
 	@$(MAKE) apply-tf-local
 	@echo ""
 	@echo "✅ Step 5: Verifying deployment..."
@@ -314,7 +345,7 @@ clean: ## Clean Terraform cache and temporary files
 
 test: ## Run infrastructure tests
 	@echo "$(BLUE)🧪 Running infrastructure tests$(NC)"
-	@cd tests && ./run-all.sh
+	@cd tests && ./run-tests.sh
 
 # =============================================================================
 # Security - Hybrid Infrastructure + GitOps
@@ -459,6 +490,62 @@ status: ## Show infrastructure status for all environments
 			echo "  $(YELLOW)Not initialized$(NC)"; \
 		fi \
 	done
+
+# =============================================================================
+# Enterprise Provider Version Management (Netflix/Airbnb Pattern)
+# =============================================================================
+
+# Core version management commands
+version-status: ## Show enterprise version status across all environments
+	@echo "$(BLUE)📊 Enterprise Provider Version Status$(NC)"
+	@$(SCRIPTS_DIR)/enterprise-version-manager.sh status
+
+version-validate: ## Validate version security compliance
+	@echo "$(BLUE)🔒 Validating Provider Security Compliance$(NC)"
+	@$(SCRIPTS_DIR)/enterprise-version-manager.sh validate
+
+version-check-updates: ## Check for available provider updates
+	@echo "$(BLUE)🔍 Checking for Provider Updates$(NC)"
+	@$(SCRIPTS_DIR)/enterprise-version-manager.sh check-updates
+
+version-plan: ## Plan provider version updates (specify ENV=environment)
+	@echo "$(BLUE)📋 Planning Version Updates for $(ENV)$(NC)"
+	@$(SCRIPTS_DIR)/enterprise-version-manager.sh plan-update $(ENV)
+
+version-security-audit: ## Run comprehensive security audit
+	@echo "$(BLUE)🔒 Running Security Audit$(NC)"
+	@$(SCRIPTS_DIR)/enterprise-version-manager.sh security-audit
+
+version-compliance-report: ## Generate compliance report
+	@echo "$(BLUE)📄 Generating Compliance Report$(NC)"
+	@$(SCRIPTS_DIR)/enterprise-version-manager.sh security-audit markdown > reports/version-compliance-$(shell date +%Y%m%d).md
+
+# Legacy commands (for compatibility)
+check-versions: version-status ## Alias for version-status
+update-versions: version-plan ## Alias for version-plan  
+validate-versions: version-validate ## Alias for version-validate
+
+# Update specific environment versions
+update-versions-local: ## Update local environment provider versions
+	@echo "$(BLUE)🔄 Updating Local Environment Versions$(NC)"
+	@$(SCRIPTS_DIR)/manage-versions.sh update --environment local
+
+update-versions-dev: ## Update dev environment provider versions
+	@echo "$(BLUE)🔄 Updating Dev Environment Versions$(NC)"
+	@$(SCRIPTS_DIR)/manage-versions.sh update --environment dev
+
+update-versions-staging: ## Update staging environment provider versions
+	@echo "$(BLUE)🔄 Updating Staging Environment Versions$(NC)"
+	@$(SCRIPTS_DIR)/manage-versions.sh update --environment staging
+
+update-versions-prod: ## Update production environment provider versions (requires confirmation)
+	@echo "$(RED)⚠️  WARNING: This will update PRODUCTION provider versions!$(NC)"
+	@read -p "Are you sure? Type 'yes' to continue: " -r; \
+	if [ "$$REPLY" = "yes" ]; then \
+		$(SCRIPTS_DIR)/manage-versions.sh update --environment prod; \
+	else \
+		echo "$(GREEN)✅ Production version update cancelled$(NC)"; \
+	fi
 
 # Version information
 version: ## Show Terraform versions for all environments
@@ -711,7 +798,7 @@ port-forward-argocd-local: ## Set up port forwarding to ArgoCD UI
 
 get-password-argocd-local: ## Get ArgoCD admin password (secure)
 	@echo "$(BLUE)🔑 ArgoCD admin password:$(NC)"
-	@$(SCRIPTS_DIR)/management/get-secret.sh argocd_admin_password || echo "Password not found - run 'terraform apply' first"
+	@kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath="{.data.password}" | base64 --decode || echo "Password not found - run 'terraform apply' first"
 	@echo ""
 
 get-secret-argocd-local: ## Get any platform secret (Usage: make get-secret SECRET=argocd_admin_password)

@@ -16,6 +16,7 @@ variable "kubernetes_version" {
   default     = "1.28"
 }
 
+
 variable "vpc_cidr" {
   description = "VPC CIDR block"
   type        = string

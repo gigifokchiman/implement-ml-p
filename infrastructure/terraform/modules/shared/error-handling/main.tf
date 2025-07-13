@@ -1,18 +1,6 @@
 # Error Handling and Recovery Module
 # Provides standardized error handling patterns across the platform
 
-terraform {
-  required_providers {
-    kubernetes = {
-      source  = "hashicorp/kubernetes"
-      version = "~> 2.23"
-    }
-    null = {
-      source  = "hashicorp/null"
-      version = "~> 3.2"
-    }
-  }
-}
 
 # Error Context ConfigMap
 resource "kubernetes_config_map" "error_context" {

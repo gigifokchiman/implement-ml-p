@@ -1,18 +1,6 @@
 # Platform Ingress Controller Module
 # Handles ingress management infrastructure
 
-terraform {
-  required_providers {
-    helm = {
-      source  = "hashicorp/helm"
-      version = "~> 2.11"
-    }
-    kubernetes = {
-      source  = "hashicorp/kubernetes"
-      version = "~> 2.23"
-    }
-  }
-}
 
 # NGINX Ingress Controller
 resource "helm_release" "nginx_ingress" {

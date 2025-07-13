@@ -1,20 +1,5 @@
 # Core Infrastructure Template - Managed by Terraform
 # Use this as a base for new application clusters
-
-terraform {
-  required_version = ">= 1.0"
-  required_providers {
-    kind = {
-      source  = "kind.local/gigifokchiman/kind"
-      version = "0.1.1"
-    }
-    kubernetes = {
-      source  = "hashicorp/kubernetes"
-      version = "~> 2.23"
-    }
-  }
-}
-
 # Variables
 variable "app_name" {
   description = "Name of the application"

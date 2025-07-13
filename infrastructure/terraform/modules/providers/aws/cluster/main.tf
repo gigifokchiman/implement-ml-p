@@ -1,22 +1,6 @@
 # AWS EKS Cluster Provider
 # Wraps terraform-aws-modules/eks with our platform interface
 
-terraform {
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
-    }
-    kubernetes = {
-      source  = "hashicorp/kubernetes"
-      version = "~> 2.23"
-    }
-    tls = {
-      source  = "hashicorp/tls"
-      version = "~> 4.0"
-    }
-  }
-}
 
 locals {
   name_prefix = "${var.name}-${var.environment}"

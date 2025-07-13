@@ -1,22 +1,6 @@
 # Platform Audit Logging Interface
 # Provides unified interface for both AWS CloudWatch and Kubernetes audit logging
 
-terraform {
-  required_providers {
-    kubernetes = {
-      source  = "hashicorp/kubernetes"
-      version = "~> 2.23"
-    }
-    helm = {
-      source  = "hashicorp/helm"
-      version = "~> 2.11"
-    }
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
-    }
-  }
-}
 
 # AWS CloudWatch Audit Logging Provider
 module "aws_audit_logging" {

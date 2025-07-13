@@ -1,22 +1,6 @@
 # Kubernetes Provider - Cert-Manager Implementation
 # Handles cert-manager deployment via Helm on Kubernetes
 
-terraform {
-  required_providers {
-    helm = {
-      source  = "hashicorp/helm"
-      version = "~> 2.11"
-    }
-    kubernetes = {
-      source  = "hashicorp/kubernetes"
-      version = "~> 2.23"
-    }
-    time = {
-      source  = "hashicorp/time"
-      version = "~> 0.9"
-    }
-  }
-}
 
 # Cert-Manager Helm Release
 resource "helm_release" "cert_manager" {

@@ -16,11 +16,6 @@ variable "use_aws" {
   default     = false
 }
 
-variable "kubernetes_version" {
-  description = "Kubernetes version"
-  type        = string
-  default     = "1.28"
-}
 
 variable "vpc_cidr" {
   description = "VPC CIDR block (AWS only)"

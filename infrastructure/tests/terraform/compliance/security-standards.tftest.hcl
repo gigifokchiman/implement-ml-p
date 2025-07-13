@@ -45,17 +45,17 @@ run "verify_production_settings" {
       Project     = "ml-platform"
       ManagedBy   = "terraform"
     }
-    
+
     # Production should have these settings
-    enable_backup = true
+    enable_backup         = true
     backup_retention_days = 30
-    deletion_protection = true
-    development_mode = false
-    
+    deletion_protection   = true
+    development_mode      = false
+
     database_config = {
-      storage_size = 100
+      storage_size          = 100
       backup_retention_days = 30
-      instance_class = "large"
+      instance_class        = "large"
     }
   }
 
@@ -92,14 +92,14 @@ run "verify_development_constraints" {
       Project     = "ml-platform"
       ManagedBy   = "terraform"
     }
-    
+
     # Development constraints
     database_config = {
-      storage_size = 20
+      storage_size          = 20
       backup_retention_days = 1
-      instance_class = "small"
+      instance_class        = "small"
     }
-    
+
     resource_quotas = {
       enabled = true
       compute = {
@@ -134,11 +134,11 @@ run "verify_security_configurations" {
       Project     = "ml-platform"
       ManagedBy   = "terraform"
     }
-    
+
     security_config = {
-      pod_security_standards = "restricted"
+      pod_security_standards   = "restricted"
       network_policies_enabled = true
-      secrets_encryption = true
+      secrets_encryption       = true
     }
   }
 

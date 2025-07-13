@@ -1,14 +1,6 @@
 # Platform Certificate Management Module
 # Handles certificate management infrastructure using provider abstraction
 
-terraform {
-  required_providers {
-    kubernetes = {
-      source  = "hashicorp/kubernetes"
-      version = "~> 2.23"
-    }
-  }
-}
 
 # Cert-Manager Provider Module
 module "kubernetes_cert_manager" {

@@ -1,14 +1,6 @@
 # Cross-Cutting Concerns Module
 # Handles shared concerns across all modules (logging, monitoring, tagging, etc.)
 
-terraform {
-  required_providers {
-    kubernetes = {
-      source  = "hashicorp/kubernetes"
-      version = "~> 2.23"
-    }
-  }
-}
 
 # Cross-cutting configuration
 locals {

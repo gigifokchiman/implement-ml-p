@@ -1,26 +1,6 @@
 # Kind Cluster Provider
 # Wraps Kind cluster for local development
 
-terraform {
-  required_providers {
-    kind = {
-      source  = "kind.local/gigifokchiman/kind"
-      version = "0.1.1"
-    }
-    kubernetes = {
-      source  = "hashicorp/kubernetes"
-      version = "~> 2.23"
-    }
-    docker = {
-      source  = "kreuzwerker/docker"
-      version = "~> 3.0"
-    }
-    null = {
-      source  = "hashicorp/null"
-      version = "~> 3.2"
-    }
-  }
-}
 
 locals {
   cluster_name = "${var.name}-${var.environment}"

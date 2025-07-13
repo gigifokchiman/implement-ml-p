@@ -1,23 +1,6 @@
 # ML Platform Composition Module
 # Orchestrates all platform components using dependency injection and service discovery
 
-terraform {
-  required_providers {
-    kubernetes = {
-      source = "hashicorp/kubernetes"
-    }
-    helm = {
-      source = "hashicorp/helm"
-    }
-    aws = {
-      source = "hashicorp/aws"
-    }
-    kind = {
-      source  = "kind.local/gigifokchiman/kind"
-      version = "0.1.1"
-    }
-  }
-}
 
 # Cross-cutting concerns for platform
 module "platform_cross_cutting" {
@@ -49,11 +32,10 @@ module "platform_cross_cutting" {
 module "cluster" {
   source = "../../platform/cluster"
 
-  name               = var.cluster_name != "" ? var.cluster_name : var.name
-  environment        = var.environment
-  use_aws            = var.use_aws
-  kubernetes_version = var.kubernetes_version
-  vpc_cidr           = var.vpc_cidr
+  name        = var.cluster_name != "" ? var.cluster_name : var.name
+  environment = var.environment
+  use_aws     = var.use_aws
+  vpc_cidr    = var.vpc_cidr
 
   node_groups    = var.node_groups
   access_entries = var.access_entries
@@ -154,7 +136,7 @@ module "cluster_interface" {
   cluster_outputs = {
     cluster_name     = module.cluster.cluster_name
     cluster_endpoint = module.cluster.cluster_endpoint
-    cluster_version  = var.kubernetes_version
+    cluster_version  = module.cluster.cluster_version
     vpc_id           = try(module.cluster.vpc_id, null)
     private_subnets  = try(module.cluster.private_subnets, null)
     public_subnets   = try(module.cluster.public_subnets, null)

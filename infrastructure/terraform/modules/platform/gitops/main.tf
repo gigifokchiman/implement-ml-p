@@ -1,22 +1,6 @@
 # Platform GitOps Module
 # Handles GitOps and continuous deployment infrastructure
 
-terraform {
-  required_providers {
-    helm = {
-      source  = "hashicorp/helm"
-      version = "~> 2.11"
-    }
-    kubernetes = {
-      source  = "hashicorp/kubernetes"
-      version = "~> 2.23"
-    }
-    time = {
-      source  = "hashicorp/time"
-      version = "~> 0.9"
-    }
-  }
-}
 
 # ArgoCD for GitOps
 resource "helm_release" "argocd" {

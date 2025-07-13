@@ -1,14 +1,6 @@
 # Service Discovery and Registry Module
 # Provides service discovery capabilities for loosely coupled modules
 
-terraform {
-  required_providers {
-    kubernetes = {
-      source  = "hashicorp/kubernetes"
-      version = "~> 2.23"
-    }
-  }
-}
 
 # Service Registry ConfigMap (namespace managed by ArgoCD)
 resource "kubernetes_config_map" "service_registry" {

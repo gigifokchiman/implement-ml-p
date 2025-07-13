@@ -1,14 +1,6 @@
 # AWS KMS Provider
 # Wraps terraform-aws-modules/kms with our platform interface
 
-terraform {
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
-    }
-  }
-}
 
 locals {
   name_prefix = "${var.name}-${var.environment}"

@@ -2,7 +2,7 @@
 
 run "validate_vpc_simulation_namespaces" {
   command = plan
-  
+
   module {
     source = "../../../terraform/modules/local-network"
   }
@@ -23,42 +23,42 @@ run "validate_vpc_simulation_namespaces" {
   }
 
   assert {
-    condition = contains(keys(output.subnet_namespaces), "public")
+    condition     = contains(keys(output.subnet_namespaces), "public")
     error_message = "Should include public subnet namespace"
   }
 
   assert {
-    condition = contains(keys(output.subnet_namespaces), "private")
+    condition     = contains(keys(output.subnet_namespaces), "private")
     error_message = "Should include private subnet namespace"
   }
 
   assert {
-    condition = contains(keys(output.subnet_namespaces), "database")
+    condition     = contains(keys(output.subnet_namespaces), "database")
     error_message = "Should include database subnet namespace"
   }
 
   assert {
-    condition = contains(keys(output.subnet_namespaces), "ml-workload")
+    condition     = contains(keys(output.subnet_namespaces), "ml-workload")
     error_message = "Should include ml-workload subnet namespace"
   }
 
   assert {
-    condition = contains(keys(output.subnet_namespaces), "monitoring")
+    condition     = contains(keys(output.subnet_namespaces), "monitoring")
     error_message = "Should include monitoring subnet namespace"
   }
 }
 
 run "validate_network_policies_creation" {
   command = plan
-  
+
   module {
     source = "../../../terraform/modules/local-network"
   }
 
   variables {
-    name_prefix  = "ml-platform-test"
-    environment  = "test"
-    cluster_name = "test-cluster"
+    name_prefix            = "ml-platform-test"
+    environment            = "test"
+    cluster_name           = "test-cluster"
     enable_strict_policies = true
     tags = {
       Environment = "test"
@@ -74,7 +74,7 @@ run "validate_network_policies_creation" {
 
 run "validate_cross_subnet_communication" {
   command = plan
-  
+
   module {
     source = "../../../terraform/modules/local-network"
   }

@@ -1,22 +1,6 @@
 # Terraform + Helm Integration Module
 # Infrastructure managed by Terraform, Applications by Helm
 
-terraform {
-  required_providers {
-    kubernetes = {
-      source  = "hashicorp/kubernetes"
-      version = "~> 2.23"
-    }
-    helm = {
-      source  = "hashicorp/helm"
-      version = "~> 2.11"
-    }
-    kind = {
-      source  = "kind.local/gigifokchiman/kind"
-      version = "0.1.1"
-    }
-  }
-}
 
 # Variables
 variable "app_name" {

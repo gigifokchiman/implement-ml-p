@@ -8,18 +8,18 @@ run "deploy_local_environment" {
     project_name = "ml-platform-test"
     environment  = "test"
     region       = "us-east-1"
-    
+
     common_tags = {
       Environment = "test"
       Project     = "ml-platform-test"
       ManagedBy   = "terraform"
       TestRun     = "true"
     }
-    
+
     enable_monitoring = true
     enable_backup     = false
     development_mode  = true
-    
+
     # Resource quotas for testing
     resource_quotas = {
       enabled = true
@@ -124,11 +124,11 @@ run "verify_database_deployment" {
       Project     = "ml-platform-test"
     }
     development_mode = true
-    
+
     database_config = {
-      storage_size = 20
+      storage_size          = 20
       backup_retention_days = 1
-      instance_class = "small"
+      instance_class        = "small"
     }
   }
 
@@ -155,10 +155,10 @@ run "verify_storage_deployment" {
       Project     = "ml-platform-test"
     }
     development_mode = true
-    
+
     storage_config = {
       minio_storage_size = "10Gi"
-      backup_enabled = false
+      backup_enabled     = false
     }
   }
 
