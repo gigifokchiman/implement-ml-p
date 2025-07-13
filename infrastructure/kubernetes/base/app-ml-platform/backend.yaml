@@ -35,7 +35,7 @@ spec:
 
       containers:
         - name: backend
-          image: nginx:alpine  # Replace with actual backend image
+          image: nginx:1.25-alpine  # Replace with actual backend image
 
           # Security context for container
           securityContext:

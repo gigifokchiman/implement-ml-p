@@ -190,37 +190,55 @@ subjects:
     apiGroup: rbac.authorization.k8s.io
 
 ---
-# PodSecurityPolicy for GPU workloads (if PSP is enabled)
-apiVersion: policy/v1beta1
-kind: PodSecurityPolicy
+# Pod Security Standards are enforced at the namespace level
+# GPU workloads must comply with restricted security standards
+# This replaces the deprecated PodSecurityPolicy
+
+# NOTE: Pod Security Standards are configured in namespace metadata:
+# pod-security.kubernetes.io/enforce: restricted
+# pod-security.kubernetes.io/audit: restricted
+# pod-security.kubernetes.io/warn: restricted
+
+# Kyverno policy to enforce GPU workload security requirements
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
 metadata:
-  name: ml-team-gpu-psp
+  name: ml-team-gpu-security
+  annotations:
+    policies.kyverno.io/title: ML Team GPU Security Policy
+    policies.kyverno.io/category: Security
+    policies.kyverno.io/description: >-
+      Enforces security requirements for GPU workloads in ML team namespace.
+      Replaces deprecated PodSecurityPolicy with modern Kyverno policy.
 spec:
-  privileged: false
-  allowPrivilegeEscalation: false
-  requiredDropCapabilities:
-    - ALL
-  volumes:
-    - configMap
-    - emptyDir
-    - projected
-    - secret
-    - persistentVolumeClaim
-  hostNetwork: false
-  hostIPC: false
-  hostPID: false
-  runAsUser:
-    rule: MustRunAsNonRoot
-  seLinux:
-    rule: RunAsAny
-  fsGroup:
-    rule: RunAsAny
-  # Allow GPU device access
-  allowedCapabilities:
-    - SYS_ADMIN  # For GPU device access
-  hostDevices:
-    - pathPrefix: "/dev/nvidia"
-    - pathPrefix: "/dev/dri"  # For Intel/AMD GPUs
+  validationFailureAction: enforce
+  background: true
+  rules:
+    - name: gpu-workload-security
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - app-ml-team
+      validate:
+        message: "GPU workloads must follow security requirements"
+        pattern:
+          spec:
+            securityContext:
+              runAsNonRoot: true
+              runAsUser: ">=1000"
+              fsGroup: ">=1000"
+            containers:
+              - name: "*"
+                securityContext:
+                  allowPrivilegeEscalation: false
+                  readOnlyRootFilesystem: true
+                  capabilities:
+                    drop:
+                      - ALL
+                  runAsNonRoot: true
 
 ---
 # Example: ML team GPU workload

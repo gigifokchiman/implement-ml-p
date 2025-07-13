@@ -37,7 +37,7 @@ spec:
 
       containers:
         - name: trainer
-          image: tensorflow/tensorflow:latest
+          image: tensorflow/tensorflow:2.13.1-gpu
 
           # Security context for container
           securityContext:
