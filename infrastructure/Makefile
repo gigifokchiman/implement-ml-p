@@ -58,7 +58,7 @@ plan-tf-local: ## (TF-LOCAL) Plan local terraform changes
 apply-tf-local: ## (TF-LOCAL) Apply local terraform changes
 	@echo "$(GREEN)🚀 Applying local Terraform changes$(NC)"
 	@echo "$(BLUE)🔧 Running pre-apply state fixes$(NC)"
-	@./scripts/fix-terraform-state.sh || echo "$(YELLOW)⚠️  State fix script completed with warnings$(NC)"
+	# @./scripts/fix-terraform-state.sh || echo "$(YELLOW)⚠️  State fix script completed with warnings$(NC)"
 	@cd terraform/environments/local && terraform apply -auto-approve
 
 clean-helm-local: ## (TF-LOCAL) Clean ALL helm releases (aggressive local cleanup)
@@ -156,18 +156,20 @@ deploy-security-bootstrap-tf-local: ## (TF-LOCAL) Deploy security infrastructure
 	@cd terraform/environments/local && terraform apply -target=module.data_platform.module.security_bootstrap -auto-approve
 	@echo "$(GREEN)✅ Security bootstrap complete with GitOps and Monitoring$(NC)"
 
-deploy-tf-local: ## Complete local ML platform deployment with cleanup
+clean-local: ## Clean and prepare local environment for deployment
 	@echo "$(GREEN)🚀 ML Platform Local Deployment$(NC)"
 	@echo "======================================"
 	@echo ""
 	@echo "📍 Working in: $(shell pwd)"
 	@echo ""
 	@echo "🧹 Cleaning up existing resources..."
-	@$(MAKE) clean-helm-local
+	# @$(MAKE) clean-helm-local
 	@$(MAKE) clean-tf-local
 	@echo ""
 	@echo "✅ Cleanup complete"
 	@echo ""
+
+deploy-tf-local: ## Complete local ML platform deployment with cleanup
 	@echo "🔧 Step 1: Setting up Terraform..."
 	@$(MAKE) init-tf-local
 	@echo "✅ Terraform provider setup complete"
@@ -347,7 +349,12 @@ clean: ## Clean Terraform cache and temporary files
 
 test: ## Run infrastructure tests
 	@echo "$(BLUE)🧪 Running infrastructure tests$(NC)"
-	@cd tests && ./run-tests.sh
+	@if [ -f /.dockerenv ] || [ -n "${DOCKER_CONTAINER}" ] || [ -n "${container}" ]; then \
+		echo "$(YELLOW)⚠️  Docker environment detected - using Docker-optimized settings$(NC)"; \
+		cd tests && timeout 600s ./run-tests.sh || { echo "$(RED)❌ Tests timed out after 10 minutes$(NC)"; exit 1; }; \
+	else \
+		cd tests && ./run-tests.sh; \
+	fi
 
 # =============================================================================
 # Security - Hybrid Infrastructure + GitOps
@@ -417,9 +424,13 @@ deploy-argocd-apps: ## (ArgoCD) Deploy ArgoCD applications
 	@echo "$(BLUE)📱 Setting up ArgoCD applications$(NC)"
 	@echo "🚀 Deploying base GitOps configuration..."
 	@kubectl apply -f kubernetes/base/gitops/argocd-projects.yaml
-	@kubectl wait --for=jsonpath='{.status.health.status}'=Healthy --timeout=300s application/ml-platform -n argocd || echo "⚠️  Manual sync may be required"
-	@kubectl wait --for=jsonpath='{.status.health.status}'=Healthy --timeout=300s application/ml-platform-infrastructure -n argocd || echo "⚠️  Manual sync may be required"
-	@echo "$(GREEN)✅ ArgoCD applications deployed$(NC)"
+	@echo "📱 Deploying team applications..."
+	@kubectl apply -f kubernetes/security/ml-team-application.yaml -f kubernetes/security/data-team-application.yaml -f kubernetes/security/core-team-application.yaml
+	@echo "⏳ Waiting for team applications to sync..."
+	@kubectl wait --for=jsonpath='{.status.health.status}'=Healthy --timeout=300s application/ml-team-application -n argocd || echo "⚠️  ML team app may need manual sync"
+	@kubectl wait --for=jsonpath='{.status.health.status}'=Healthy --timeout=300s application/data-team-application -n argocd || echo "⚠️  Data team app may need manual sync"
+	@kubectl wait --for=jsonpath='{.status.health.status}'=Healthy --timeout=300s application/core-team-application -n argocd || echo "⚠️  Core team app may need manual sync"
+	@echo "$(GREEN)✅ ArgoCD applications and team apps deployed$(NC)"
 
 port-forward: ## Setup port forwarding for all services
 	@echo "$(BLUE)🔗 Setting up port forwarding$(NC)"
@@ -524,7 +535,7 @@ version-compliance-report: ## Generate compliance report
 
 # Legacy commands (for compatibility)
 check-versions: version-status ## Alias for version-status
-update-versions: version-plan ## Alias for version-plan  
+update-versions: version-plan ## Alias for version-plan
 validate-versions: version-validate ## Alias for version-validate
 
 # Update specific environment versions
@@ -829,7 +840,7 @@ help-argocd: ## Show ArgoCD-specific help
 	@echo "  $(GREEN)make get-password-argocd-local$(NC)  Get admin password"
 	@echo ""
 	@echo "$(YELLOW)Application Management:$(NC)"
-	@echo "  $(GREEN)make deploy-argocd-apps$(NC)         Deploy ArgoCD applications"
+	@echo "  $(GREEN)make deploy-argocd-apps$(NC)         Deploy team applications and projects"
 	@echo "  $(GREEN)make deploy-argocd-security$(NC)     Deploy security policies"
 	@echo "  $(GREEN)make logs-argocd-APP$(NC)            Show app logs"
 	@echo "  $(GREEN)make debug-argocd-APP$(NC)           Debug app issues"
@@ -840,8 +851,9 @@ help-argocd: ## Show ArgoCD-specific help
 	@echo ""
 	@echo "$(YELLOW)Examples:$(NC)"
 	@echo "  $(GREEN)make deploy-argocd-local$(NC)              # Deploy complete ArgoCD setup"
-	@echo "  $(GREEN)make logs-argocd-security-policies$(NC)    # Show security-policies logs"
-	@echo "  $(GREEN)make debug-argocd-team-namespaces$(NC)     # Debug team-namespaces app"
+	@echo "  $(GREEN)make deploy-argocd-apps$(NC)               # Deploy team applications"
+	@echo "  $(GREEN)make logs-argocd-ml-team-application$(NC)  # Show ML team app logs"
+	@echo "  $(GREEN)make debug-argocd-security-policies$(NC)   # Debug security policies app"
 
 # =============================================================================
 # Team Application Deployment

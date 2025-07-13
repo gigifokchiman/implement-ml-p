@@ -82,6 +82,7 @@ resource "kubernetes_namespace" "team_namespaces" {
   }
 }
 
+
 # Resource quotas for team namespaces
 resource "kubernetes_resource_quota" "team_quotas" {
   for_each = var.team_configurations
