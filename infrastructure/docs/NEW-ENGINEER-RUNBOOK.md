@@ -262,7 +262,7 @@ Implement enterprise-grade security using plain Kubernetes + applications
 
 ```bash
 # Deploy app-level security
-make deploy-argocd-security
+make deploy-argocd-local
 
 # This creates:
 # ✅ Network policies for team isolation
@@ -286,8 +286,6 @@ kubectl patch application security-policies -n argocd --type merge --patch '{"op
 kubectl get networkpolicies --all-namespaces
 kubectl get certificates --all-namespaces
 kubectl get prometheusrules --all-namespaces
-
-make deploy-argocd-apps
 
 ```
 
@@ -327,7 +325,7 @@ kubectl describe quota ml-team-quota -n app-ml-team
 
 # Test resource quotas work - this should fail (exceeds quota)
 kubectl run test-quota --image=nginx -n app-ml-team --dry-run=client -o yaml | \
-kubectl set resources --local -f - --requests=cpu=10 --dry-run=client -o yaml | \
+kubectl set resources --local -f - --requests=cpu=100 --dry-run=client -o yaml | \
 kubectl apply --dry-run=client -f -
 
 kubectl get pods -n app-ml-team -o wide
@@ -380,8 +378,8 @@ kubectl get pods -n ml-team -o wide
 
 ```bash
 # Test RBAC boundaries
-kubectl auth can-i create pods --as=ml-engineer@company.com -n ml-team     # ✅ Should be yes
-kubectl auth can-i create pods --as=ml-engineer@company.com -n data-team   # ❌ Should be no
+kubectl auth can-i create pods --as=ml-engineer@company.com -n app-ml-team     # ✅ Should be yes
+kubectl auth can-i create pods --as=ml-engineer@company.com -n app-data-team   # ❌ Should be no
 
 # Test network policies (create temporary pod for testing)
 kubectl run network-test --image=nicolaka/netshoot -n ml-team
@@ -488,8 +486,6 @@ fi
 
 ```bash
 make test
-
-make apply-tf-local
 ```
 
 ## 🔄 Provider Version Management
