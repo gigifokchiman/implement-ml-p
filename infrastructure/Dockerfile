@@ -4,24 +4,23 @@ FROM ubuntu:22.04
 
 # Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive
-ENV TERRAFORM_VERSION=1.6.6
+ENV TERRAFORM_VERSION=1.12.2
 ENV KUBECTL_VERSION=v1.28.4
 ENV HELM_VERSION=v3.18.3
-ENV KIND_VERSION=v0.20.0
-ENV DOCKER_VERSION=latest
-ENV YQ_VERSION=v4.40.5
-ENV JQ_VERSION=1.7
-ENV AWS_CLI_VERSION=2.15.7
-ENV CHECKOV_VERSION=3.1.24
-ENV TFSEC_VERSION=v1.28.4
+ENV KIND_VERSION=v0.29.0
+# ENV DOCKER_VERSION=latest
+ENV YQ_VERSION=v4.46.1
+# ENV JQ_VERSION=latest
+ENV AWS_CLI_VERSION=2.27.49
+# ENV CHECKOV_VERSION=latest
 ENV TERRASCAN_VERSION=1.18.11
-ENV OPA_VERSION=v0.58.0
-ENV CONFTEST_VERSION=0.46.0
-ENV TRIVY_VERSION=0.47.0
-ENV GH_VERSION=2.40.1
-ENV K6_VERSION=v0.47.0
-ENV KUSTOMIZE_VERSION=5.0.1
-ENV GRAPHVIZ_VERSION=latest
+ENV OPA_VERSION=v1.6.0
+# ENV CONFTEST_VERSION=0.46.0
+ENV TRIVY_VERSION=0.64.1
+ENV GH_VERSION=2.74.1
+ENV K6_VERSION=v1.1.0
+# ENV KUSTOMIZE_VERSION=latest
+# ENV GRAPHVIZ_VERSION=latest
 ENV KIND_TERRAFORM_PROVIDER_VERSION=0.1.4
 
 # Install system dependencies
@@ -120,8 +119,8 @@ RUN pip3 install checkov && \
     checkov --version
 
 # tfsec (Terraform security scanner)
-RUN curl -s https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash && \
-    tfsec --version
+# RUN curl -s https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash && \
+#    tfsec --version
 
 # Terrascan (IaC security scanner)
 RUN ARCH=$(dpkg --print-architecture) && \
@@ -139,13 +138,13 @@ RUN ARCH=$(dpkg --print-architecture) && \
     opa version
 
 # Conftest (OPA testing framework)
-RUN ARCH=$(dpkg --print-architecture) && \
-    if [ "$ARCH" = "arm64" ]; then ARCH="arm64"; else ARCH="x86_64"; fi && \
-    wget https://github.com/open-policy-agent/conftest/releases/download/v${CONFTEST_VERSION}/conftest_${CONFTEST_VERSION}_Linux_${ARCH}.tar.gz && \
-    tar xzf conftest_${CONFTEST_VERSION}_Linux_${ARCH}.tar.gz && \
-    mv conftest /usr/local/bin/ && \
-    rm conftest_${CONFTEST_VERSION}_Linux_${ARCH}.tar.gz && \
-    conftest --version
+#RUN ARCH=$(dpkg --print-architecture) && \
+#    if [ "$ARCH" = "arm64" ]; then ARCH="arm64"; else ARCH="x86_64"; fi && \
+#    wget https://github.com/open-policy-agent/conftest/releases/download/v${CONFTEST_VERSION}/conftest_${CONFTEST_VERSION}_Linux_${ARCH}.tar.gz && \
+#    tar xzf conftest_${CONFTEST_VERSION}_Linux_${ARCH}.tar.gz && \
+#    mv conftest /usr/local/bin/ && \
+#    rm conftest_${CONFTEST_VERSION}_Linux_${ARCH}.tar.gz && \
+#    conftest --version
 
 # Install trivy (Container security scanner)
 RUN ARCH=$(dpkg --print-architecture) && \
@@ -311,7 +310,7 @@ echo "trivy: $(trivy --version)"
 echo "GitHub CLI: $(gh --version)"
 echo "Terrascan: $(terrascan version)"
 echo "OPA: $(opa version)"
-echo "Conftest: $(conftest --version)"
+# echo "Conftest: $(conftest --version)"
 echo "Graphviz: $(dot -V 2>&1)"
 echo "Kustomize: $(kustomize version)"
 echo "kubeconform: $(kubeconform -v)"
@@ -338,4 +337,5 @@ ENTRYPOINT ["/bin/bash"]
 LABEL maintainer="ML Platform Team"
 LABEL description="Infrastructure tools container with Terraform, kubectl, Helm, and security scanners"
 LABEL version="1.0.0"
-LABEL tools="terraform,kubectl,helm,kind,docker,aws-cli,k6,trivy,tfsec,gh,graphviz,checkov,terrascan,opa,conftest"
+LABEL tools="terraform,kubectl,helm,kind,docker,aws-cli,k6,trivy,tfsec,gh,graphviz,checkov,terrascan,opa"
+# conftest

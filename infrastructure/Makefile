@@ -57,6 +57,8 @@ plan-tf-local: ## (TF-LOCAL) Plan local terraform changes
 
 apply-tf-local: ## (TF-LOCAL) Apply local terraform changes
 	@echo "$(GREEN)🚀 Applying local Terraform changes$(NC)"
+	@echo "$(BLUE)🔧 Running pre-apply state fixes$(NC)"
+	@./scripts/fix-terraform-state.sh || echo "$(YELLOW)⚠️  State fix script completed with warnings$(NC)"
 	@cd terraform/environments/local && terraform apply -auto-approve
 
 clean-helm-local: ## (TF-LOCAL) Clean ALL helm releases (aggressive local cleanup)

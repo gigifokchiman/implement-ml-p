@@ -24,7 +24,10 @@ resource "kubernetes_namespace" "performance_monitoring" {
 
   lifecycle {
     ignore_changes = [
-      metadata[0].annotations
+      metadata[0].annotations,
+      metadata[0].labels["pod-security.kubernetes.io/enforce"],
+      metadata[0].labels["pod-security.kubernetes.io/audit"],
+      metadata[0].labels["pod-security.kubernetes.io/warn"]
     ]
   }
 }
@@ -35,13 +38,14 @@ resource "kubernetes_deployment" "jaeger" {
 
   metadata {
     name      = "jaeger"
-    namespace = var.name
+    namespace = kubernetes_namespace.performance_monitoring.metadata[0].name
     labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"      = "jaeger"
       "app.kubernetes.io/component" = "tracing"
     })
   }
 
+  depends_on = [kubernetes_namespace.performance_monitoring]
   spec {
     replicas = 1
 
@@ -158,13 +162,15 @@ resource "kubernetes_persistent_volume_claim" "jaeger_storage" {
 
   metadata {
     name      = "jaeger-storage"
-    namespace = var.name
+    namespace = kubernetes_namespace.performance_monitoring.metadata[0].name
     labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"      = "jaeger"
       "app.kubernetes.io/component" = "storage"
     })
   }
 
+
+  depends_on = [kubernetes_namespace.performance_monitoring]
   spec {
     access_modes       = ["ReadWriteOnce"]
     storage_class_name = "standard"
@@ -182,13 +188,15 @@ resource "kubernetes_service" "jaeger" {
 
   metadata {
     name      = "jaeger"
-    namespace = var.name
+    namespace = kubernetes_namespace.performance_monitoring.metadata[0].name
     labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"      = "jaeger"
       "app.kubernetes.io/component" = "tracing"
     })
   }
 
+
+  depends_on = [kubernetes_namespace.performance_monitoring]
   spec {
     selector = {
       "app.kubernetes.io/name"      = "jaeger"
@@ -229,12 +237,14 @@ resource "kubernetes_config_map" "fluent_bit_config" {
 
   metadata {
     name      = "fluent-bit-config"
-    namespace = var.name
+    namespace = kubernetes_namespace.performance_monitoring.metadata[0].name
     labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"      = "fluent-bit"
       "app.kubernetes.io/component" = "config"
     })
   }
+
+  depends_on = [kubernetes_namespace.performance_monitoring]
 
   data = {
     "fluent-bit.conf" = <<-EOT
@@ -303,13 +313,15 @@ resource "kubernetes_daemonset" "fluent_bit" {
 
   metadata {
     name      = "fluent-bit"
-    namespace = var.name
+    namespace = kubernetes_namespace.performance_monitoring.metadata[0].name
     labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"      = "fluent-bit"
       "app.kubernetes.io/component" = "log-processor"
     })
   }
 
+
+  depends_on = [kubernetes_namespace.performance_monitoring]
   spec {
     selector {
       match_labels = {
@@ -394,12 +406,14 @@ resource "kubernetes_service_account" "fluent_bit" {
 
   metadata {
     name      = "fluent-bit"
-    namespace = var.name
+    namespace = kubernetes_namespace.performance_monitoring.metadata[0].name
     labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"      = "fluent-bit"
       "app.kubernetes.io/component" = "log-processor"
     })
   }
+
+  depends_on = [kubernetes_namespace.performance_monitoring]
 }
 
 resource "kubernetes_cluster_role" "fluent_bit" {
@@ -440,7 +454,7 @@ resource "kubernetes_cluster_role_binding" "fluent_bit" {
   subject {
     kind      = "ServiceAccount"
     name      = kubernetes_service_account.fluent_bit[0].metadata[0].name
-    namespace = var.name
+    namespace = kubernetes_namespace.performance_monitoring.metadata[0].name
   }
 }
 
@@ -450,13 +464,15 @@ resource "kubernetes_deployment" "otel_collector" {
 
   metadata {
     name      = "otel-collector"
-    namespace = var.name
+    namespace = kubernetes_namespace.performance_monitoring.metadata[0].name
     labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"      = "otel-collector"
       "app.kubernetes.io/component" = "metrics"
     })
   }
 
+
+  depends_on = [kubernetes_namespace.performance_monitoring]
   spec {
     replicas = 1
 
@@ -553,12 +569,14 @@ resource "kubernetes_config_map" "otel_collector_config" {
 
   metadata {
     name      = "otel-collector-config"
-    namespace = var.name
+    namespace = kubernetes_namespace.performance_monitoring.metadata[0].name
     labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"      = "otel-collector"
       "app.kubernetes.io/component" = "config"
     })
   }
+
+  depends_on = [kubernetes_namespace.performance_monitoring]
 
   data = {
     "config.yaml" = yamlencode({
@@ -650,12 +668,14 @@ resource "kubernetes_service_account" "otel_collector" {
 
   metadata {
     name      = "otel-collector"
-    namespace = var.name
+    namespace = kubernetes_namespace.performance_monitoring.metadata[0].name
     labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"      = "otel-collector"
       "app.kubernetes.io/component" = "metrics"
     })
   }
+
+  depends_on = [kubernetes_namespace.performance_monitoring]
 }
 
 # Cluster role for OpenTelemetry Collector
@@ -704,7 +724,7 @@ resource "kubernetes_cluster_role_binding" "otel_collector" {
   subject {
     kind      = "ServiceAccount"
     name      = kubernetes_service_account.otel_collector[0].metadata[0].name
-    namespace = var.name
+    namespace = kubernetes_namespace.performance_monitoring.metadata[0].name
   }
 }
 
@@ -714,7 +734,7 @@ resource "kubernetes_service" "otel_collector" {
 
   metadata {
     name      = "otel-collector"
-    namespace = var.name
+    namespace = kubernetes_namespace.performance_monitoring.metadata[0].name
     labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"      = "otel-collector"
       "app.kubernetes.io/component" = "metrics"
@@ -726,6 +746,8 @@ resource "kubernetes_service" "otel_collector" {
     }
   }
 
+
+  depends_on = [kubernetes_namespace.performance_monitoring]
   spec {
     selector = {
       "app.kubernetes.io/name"      = "otel-collector"
@@ -766,13 +788,15 @@ resource "kubernetes_deployment" "elasticsearch" {
 
   metadata {
     name      = "elasticsearch"
-    namespace = var.name
+    namespace = kubernetes_namespace.performance_monitoring.metadata[0].name
     labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"      = "elasticsearch"
       "app.kubernetes.io/component" = "search"
     })
   }
 
+
+  depends_on = [kubernetes_namespace.performance_monitoring]
   spec {
     replicas = 1
 
@@ -869,13 +893,15 @@ resource "kubernetes_persistent_volume_claim" "elasticsearch_storage" {
 
   metadata {
     name      = "elasticsearch-storage"
-    namespace = var.name
+    namespace = kubernetes_namespace.performance_monitoring.metadata[0].name
     labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"      = "elasticsearch"
       "app.kubernetes.io/component" = "storage"
     })
   }
 
+
+  depends_on = [kubernetes_namespace.performance_monitoring]
   spec {
     access_modes = ["ReadWriteOnce"]
     resources {
@@ -892,13 +918,15 @@ resource "kubernetes_service" "elasticsearch" {
 
   metadata {
     name      = "elasticsearch"
-    namespace = var.name
+    namespace = kubernetes_namespace.performance_monitoring.metadata[0].name
     labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"      = "elasticsearch"
       "app.kubernetes.io/component" = "search"
     })
   }
 
+
+  depends_on = [kubernetes_namespace.performance_monitoring]
   spec {
     selector = {
       "app.kubernetes.io/name"      = "elasticsearch"
@@ -927,13 +955,15 @@ resource "kubernetes_deployment" "kibana" {
 
   metadata {
     name      = "kibana"
-    namespace = var.name
+    namespace = kubernetes_namespace.performance_monitoring.metadata[0].name
     labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"      = "kibana"
       "app.kubernetes.io/component" = "visualization"
     })
   }
 
+
+  depends_on = [kubernetes_namespace.performance_monitoring]
   spec {
     replicas = 1
 
@@ -1003,13 +1033,15 @@ resource "kubernetes_service" "kibana" {
 
   metadata {
     name      = "kibana"
-    namespace = var.name
+    namespace = kubernetes_namespace.performance_monitoring.metadata[0].name
     labels = merge(local.k8s_tags, {
       "app.kubernetes.io/name"      = "kibana"
       "app.kubernetes.io/component" = "visualization"
     })
   }
 
+
+  depends_on = [kubernetes_namespace.performance_monitoring]
   spec {
     selector = {
       "app.kubernetes.io/name"      = "kibana"

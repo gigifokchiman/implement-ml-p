@@ -24,6 +24,11 @@ resource "kubernetes_labels" "namespace_security" {
     "pod-security.kubernetes.io/audit"   = var.config.pod_security_standard
     "pod-security.kubernetes.io/warn"    = var.config.pod_security_standard
   }
+
+  lifecycle {
+    # Allow recreation if namespace is deleted
+    create_before_destroy = false
+  }
 }
 
 # Network Policy: Deny all traffic by default
