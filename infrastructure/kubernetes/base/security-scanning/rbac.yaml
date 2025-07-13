@@ -1,0 +1,43 @@
+# RBAC resources for security scanning tools
+# Note: ServiceAccount and ClusterRole are created by Terraform
+# This file contains additional RBAC for specific scanning needs
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: trivy-scanner
+  labels:
+    app.kubernetes.io/name: trivy
+    app.kubernetes.io/part-of: security-scanning
+rules:
+  # For scanning images in pods
+  - apiGroups: [ "" ]
+    resources: [ "pods", "pods/log" ]
+    verbs: [ "get", "list" ]
+  - apiGroups: [ "apps" ]
+    resources: [ "deployments", "daemonsets", "statefulsets", "replicasets" ]
+    verbs: [ "get", "list" ]
+  - apiGroups: [ "batch" ]
+    resources: [ "jobs", "cronjobs" ]
+    verbs: [ "get", "list" ]
+  # For storing scan results
+  - apiGroups: [ "" ]
+    resources: [ "configmaps" ]
+    verbs: [ "create", "update", "get", "list" ]
+    resourceNames: [ "trivy-scan-results" ]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: trivy-scanner
+  labels:
+    app.kubernetes.io/name: trivy
+    app.kubernetes.io/part-of: security-scanning
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: trivy-scanner
+subjects:
+  - kind: ServiceAccount
+    name: security-scanner
+    namespace: security-scanning

@@ -1,0 +1,342 @@
+# ArgoCD Security Hooks - Pre-sync security validation
+# These hooks run before every ArgoCD application sync to ensure security compliance
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: security-scan-scripts
+  namespace: data-platform-security-scanning
+  labels:
+    app.kubernetes.io/name: security-hooks
+    app.kubernetes.io/component: scanner
+data:
+  pre-sync-scan.sh: |
+    #!/bin/bash
+    set -euo pipefail
+
+    echo "=== ArgoCD Pre-Sync Security Scan ==="
+    echo "Application: ${ARGOCD_APP_NAME:-unknown}"
+    echo "Environment: ${ARGOCD_ENV:-unknown}"
+    echo "Timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    echo "=================================="
+
+    # Create scan directory
+    mkdir -p /tmp/security-scan
+    cd /tmp/security-scan
+
+    # Copy application manifests for scanning
+    if [[ -d "/manifests" ]]; then
+        cp -r /manifests/* . 2>/dev/null || echo "No manifests to copy"
+    fi
+
+    # Run security scans based on content
+    SCAN_FAILED=false
+
+    # 1. Kubernetes manifest security scan
+    if find . -name "*.yaml" -o -name "*.yml" | head -1 | grep -q .; then
+        echo "🔍 Scanning Kubernetes manifests..."
+
+        if checkov -f . --framework kubernetes --output cli --compact --quiet; then
+            echo "✅ Kubernetes security scan passed"
+        else
+            echo "❌ Kubernetes security scan failed"
+            SCAN_FAILED=true
+        fi
+    fi
+
+    # 2. Terraform configuration scan (if present)
+    if find . -name "*.tf" | head -1 | grep -q .; then
+        echo "🔍 Scanning Terraform configurations..."
+
+        if checkov -d . --framework terraform --output cli --compact --quiet; then
+            echo "✅ Terraform security scan passed"
+        else
+            echo "❌ Terraform security scan failed"
+            SCAN_FAILED=true
+        fi
+    fi
+
+    # 3. Container image security check
+    echo "🔍 Checking container image security..."
+
+    # Extract images from manifests
+    IMAGES=$(grep -r "image:" . | grep -v "imagePullPolicy" | awk -F: '{print $3}' | tr -d ' "' | sort -u | grep -v "^$" || echo "")
+
+    if [[ -n "$IMAGES" ]]; then
+        for image in $IMAGES; do
+            echo "Checking image: $image"
+
+            # Skip scanning for known secure base images or skip if image uses latest tag
+            if [[ "$image" == *":latest" ]]; then
+                echo "⚠️  Warning: Image uses 'latest' tag: $image"
+                if [[ "${ARGOCD_ENV:-}" == "prod" || "${ARGOCD_ENV:-}" == "staging" ]]; then
+                    echo "❌ Latest tags not allowed in ${ARGOCD_ENV} environment"
+                    SCAN_FAILED=true
+                fi
+            fi
+        done
+    fi
+
+    # 4. Policy compliance check
+    echo "🔍 Checking policy compliance..."
+
+    # Check for required security contexts
+    if grep -r "securityContext:" . >/dev/null 2>&1; then
+        echo "✅ Security contexts found"
+    else
+        echo "⚠️  Warning: No security contexts defined"
+        if [[ "${ARGOCD_ENV:-}" == "prod" ]]; then
+            echo "❌ Security contexts required in production"
+            SCAN_FAILED=true
+        fi
+    fi
+
+    # 5. Resource limits check
+    if grep -r "resources:" . >/dev/null 2>&1; then
+        echo "✅ Resource limits found"
+    else
+        echo "⚠️  Warning: No resource limits defined"
+        if [[ "${ARGOCD_ENV:-}" == "prod" ]]; then
+            echo "❌ Resource limits required in production"
+            SCAN_FAILED=true
+        fi
+    fi
+
+    # Final result
+    echo "=================================="
+    if [[ "$SCAN_FAILED" == "true" ]]; then
+        echo "❌ Security scan FAILED - Deployment blocked"
+        echo "Please fix security issues before deploying"
+        exit 1
+    else
+        echo "✅ Security scan PASSED - Deployment approved"
+        exit 0
+    fi
+
+  post-sync-report.sh: |
+    #!/bin/bash
+    set -euo pipefail
+
+    echo "=== ArgoCD Post-Sync Security Report ==="
+    echo "Application: ${ARGOCD_APP_NAME:-unknown}"
+    echo "Environment: ${ARGOCD_ENV:-unknown}"
+    echo "Timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    echo "===================================="
+
+    # Store deployment metadata for audit
+    kubectl create configmap "deployment-audit-$(date +%s)" \
+      --from-literal=app="${ARGOCD_APP_NAME:-unknown}" \
+      --from-literal=env="${ARGOCD_ENV:-unknown}" \
+      --from-literal=timestamp="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+      --from-literal=status="deployed" \
+      -n data-platform-security-scanning \
+      --dry-run=client -o yaml | kubectl apply -f -
+
+    # Run post-deployment security validation
+    echo "🔍 Running post-deployment security validation..."
+
+    # Wait for resources to be ready
+    sleep 10
+
+    # Run runtime security scan on new pods
+    if kubectl get pods -n "${ARGOCD_APP_NAMESPACE:-default}" --selector="app.kubernetes.io/instance=${ARGOCD_APP_NAME:-unknown}" >/dev/null 2>&1; then
+        echo "✅ Application pods are running"
+
+        # Trigger Trivy scan on new workloads
+        kubectl exec -n data-platform-security-scanning deployment/trivy-server -- \
+          trivy k8s --namespace "${ARGOCD_APP_NAMESPACE:-default}" cluster || echo "Trivy scan completed with warnings"
+    fi
+
+    echo "✅ Post-deployment security report completed"
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: argocd-pre-sync-security-scan
+  namespace: data-platform-security-scanning
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "-1"  # Run before other resources
+  labels:
+    app.kubernetes.io/name: argocd-security-hook
+    app.kubernetes.io/component: pre-sync-scanner
+spec:
+  ttlSecondsAfterFinished: 300  # Clean up after 5 minutes
+  backoffLimit: 1  # Don't retry on failure - fail fast
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: argocd-security-hook
+        app.kubernetes.io/component: pre-sync-scanner
+    spec:
+      restartPolicy: Never
+      serviceAccountName: security-scanner
+      containers:
+        - name: security-scanner
+          image: bridgecrew/checkov:3.2.447  # Use specific version for consistency
+          command: [ "/bin/bash" ]
+          args: [ "/scripts/pre-sync-scan.sh" ]
+          env:
+            - name: ARGOCD_APP_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['app.kubernetes.io/instance']
+            - name: ARGOCD_ENV
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['environment']
+            - name: ARGOCD_APP_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+            - name: manifests
+              mountPath: /manifests
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ "ALL" ]
+            readOnlyRootFilesystem: false  # Checkov needs to write temp files
+            runAsNonRoot: true
+            runAsUser: 65534
+      volumes:
+        - name: scripts
+          configMap:
+            name: security-scan-scripts
+            defaultMode: 0755
+        - name: manifests
+          emptyDir: { }
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: argocd-post-sync-security-report
+  namespace: data-platform-security-scanning
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "1"  # Run after other resources
+  labels:
+    app.kubernetes.io/name: argocd-security-hook
+    app.kubernetes.io/component: post-sync-reporter
+spec:
+  ttlSecondsAfterFinished: 300
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: argocd-security-hook
+        app.kubernetes.io/component: post-sync-reporter
+    spec:
+      restartPolicy: Never
+      serviceAccountName: security-scanner
+      containers:
+        - name: security-reporter
+          image: bitnami/kubectl:latest
+          command: [ "/bin/bash" ]
+          args: [ "/scripts/post-sync-report.sh" ]
+          env:
+            - name: ARGOCD_APP_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['app.kubernetes.io/instance']
+            - name: ARGOCD_ENV
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['environment']
+            - name: ARGOCD_APP_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ "ALL" ]
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65534
+      volumes:
+        - name: scripts
+          configMap:
+            name: security-scan-scripts
+            defaultMode: 0755
+
+---
+# Security Scanner ServiceAccount with minimal required permissions
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: security-scanner
+  namespace: data-platform-security-scanning
+  labels:
+    app.kubernetes.io/name: security-scanner
+    app.kubernetes.io/component: rbac
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: security-scanner
+  labels:
+    app.kubernetes.io/name: security-scanner
+    app.kubernetes.io/component: rbac
+rules:
+  # Read access for security scanning
+  - apiGroups: [ "" ]
+    resources: [ "pods", "services", "configmaps", "secrets" ]
+    verbs: [ "get", "list" ]
+  - apiGroups: [ "apps" ]
+    resources: [ "deployments", "replicasets", "daemonsets", "statefulsets" ]
+    verbs: [ "get", "list" ]
+  - apiGroups: [ "networking.k8s.io" ]
+    resources: [ "networkpolicies", "ingresses" ]
+    verbs: [ "get", "list" ]
+  # Create configmaps for audit logging
+  - apiGroups: [ "" ]
+    resources: [ "configmaps" ]
+    verbs: [ "create" ]
+    resourceNames: [ "deployment-audit-*" ]
+  # Execute commands in Trivy server for scanning
+  - apiGroups: [ "" ]
+    resources: [ "pods/exec" ]
+    verbs: [ "create" ]
+    resourceNames: [ "trivy-server-*" ]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: security-scanner
+  labels:
+    app.kubernetes.io/name: security-scanner
+    app.kubernetes.io/component: rbac
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: security-scanner
+subjects:
+  - kind: ServiceAccount
+    name: security-scanner
+    namespace: data-platform-security-scanning

@@ -1,0 +1,44 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: security-scanning
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "20"  # After core infrastructure
+    argocd.argoproj.io/delete-protection: "true"  # Prevent accidental deletion
+spec:
+  project: platform-security  # Use restricted project
+  source:
+    repoURL: https://github.com/gigifokchiman/infrastructure
+    targetRevision: HEAD
+    path: infrastructure/kubernetes/base/security-scanning
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: security-scanning
+  syncPolicy:
+    automated:
+      prune: false  # Never auto-prune security tools
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false  # Namespace created by Terraform
+      - ServerSideApply=true
+      - Validate=true
+      - FailOnSharedResource=false  # Allow shared resources
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  revisionHistoryLimit: 3
+  ignoreDifferences:
+    - group: ""
+      kind: ServiceAccount
+      jsonPointers:
+        - /metadata/annotations
+    - group: ""
+      kind: Secret
+      jsonPointers:
+        - /data

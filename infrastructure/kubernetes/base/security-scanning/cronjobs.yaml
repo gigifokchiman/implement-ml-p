@@ -1,0 +1,116 @@
+# Scheduled security scanning jobs
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: namespace-scanner
+  namespace: security-scanning
+  labels:
+    app.kubernetes.io/name: namespace-scanner
+    app.kubernetes.io/part-of: security-scanning
+spec:
+  schedule: "*/30 * * * *"  # Every 30 minutes
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: namespace-scanner
+            app.kubernetes.io/part-of: security-scanning
+        spec:
+          serviceAccountName: security-scanner
+          restartPolicy: OnFailure
+          containers:
+            - name: scanner
+              image: aquasec/trivy:0.48.3
+              command:
+                - sh
+                - -c
+                - |
+                  echo "Starting namespace scan..."
+
+                  # Get all namespaces except kube-system and kube-public
+                  namespaces=$(kubectl get ns -o jsonpath='{.items[*].metadata.name}' | \
+                    tr ' ' '\n' | grep -v -E '^(kube-system|kube-public|kube-node-lease)$')
+
+                  for ns in $namespaces; do
+                    echo "Scanning namespace: $ns"
+
+                    # Get all pods in namespace
+                    pods=$(kubectl get pods -n $ns -o jsonpath='{.items[*].metadata.name}' 2>/dev/null)
+
+                    for pod in $pods; do
+                      # Get containers in pod
+                      containers=$(kubectl get pod $pod -n $ns -o jsonpath='{.spec.containers[*].image}' 2>/dev/null)
+
+                      for image in $containers; do
+                        echo "Scanning image: $image"
+                        trivy image --severity HIGH,CRITICAL --quiet $image || true
+                      done
+                    done
+                  done
+
+                  echo "Namespace scan completed"
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 256Mi
+                limits:
+                  cpu: 500m
+                  memory: 512Mi
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: compliance-scanner
+  namespace: security-scanning
+  labels:
+    app.kubernetes.io/name: compliance-scanner
+    app.kubernetes.io/part-of: security-scanning
+spec:
+  schedule: "0 */6 * * *"  # Every 6 hours
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: compliance-scanner
+            app.kubernetes.io/part-of: security-scanning
+        spec:
+          serviceAccountName: security-scanner
+          restartPolicy: OnFailure
+          containers:
+            - name: scanner
+              image: aquasec/trivy:0.48.3
+              command:
+                - sh
+                - -c
+                - |
+                  echo "Starting compliance scan..."
+
+                  # Run CIS Kubernetes Benchmark
+                  trivy k8s --compliance k8s-cis-1.23 cluster || true
+
+                  # Run NSA Kubernetes Hardening Guide
+                  trivy k8s --compliance k8s-nsa-1.0 cluster || true
+
+                  # Store results
+                  kubectl create configmap compliance-scan-results \
+                    --from-literal=timestamp="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+                    --from-literal=status="completed" \
+                    -n security-scanning \
+                    --dry-run=client -o yaml | kubectl apply -f -
+
+                  echo "Compliance scan completed"
+              resources:
+                requests:
+                  cpu: 200m
+                  memory: 512Mi
+                limits:
+                  cpu: 1000m
+                  memory: 1Gi

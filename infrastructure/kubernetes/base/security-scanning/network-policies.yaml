@@ -1,0 +1,80 @@
+# Network policies for security scanning namespace
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-security-scanner-egress
+  namespace: security-scanning
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: security-scanning
+  policyTypes:
+    - Egress
+  egress:
+    # Allow DNS
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+    # Allow access to Kubernetes API
+    - to:
+        - namespaceSelector: { }
+      ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 6443
+    # Allow scanning all pods
+    - to:
+        - namespaceSelector: { }
+        - podSelector: { }
+    # Allow external registry access
+    - to:
+        - namespaceSelector: { }
+      ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-monitoring-ingress
+  namespace: security-scanning
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: security-scanning
+  policyTypes:
+    - Ingress
+  ingress:
+    # Allow Prometheus scraping
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: monitoring
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: prometheus
+      ports:
+        - protocol: TCP
+          port: 8765  # Falco metrics
+        - protocol: TCP
+          port: 4954  # Trivy metrics
+    # Allow ArgoCD sync
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: argocd
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: argocd-application-controller
+    # Allow internal communication
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: security-scanning

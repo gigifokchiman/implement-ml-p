@@ -1,0 +1,22 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: security-scanning
+
+resources:
+  - namespace.yaml
+  - trivy-deployment.yaml
+  - falco-deployment.yaml
+  - network-policies.yaml
+  - rbac.yaml
+
+configMapGenerator:
+  - name: trivy-config
+    literals:
+      - TRIVY_CACHE_DIR=/tmp/trivy/.cache
+      - TRIVY_TIMEOUT=10m
+      - TRIVY_DB_REPOSITORY=ghcr.io/aquasecurity/trivy-db
+
+commonLabels:
+  app.kubernetes.io/part-of: security-scanning
+  app.kubernetes.io/managed-by: argocd
