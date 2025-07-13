@@ -14,6 +14,7 @@ variable "config" {
     enable_prometheus   = bool
     enable_grafana      = bool
     enable_alertmanager = bool
+    enable_metrics_server = optional(bool, true)
     storage_size        = string
     retention_days      = number
     prometheus_version  = optional(string, "55.0.0")

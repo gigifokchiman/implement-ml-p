@@ -26,6 +26,69 @@ resource "kubernetes_namespace" "monitoring" {
   }
 }
 
+# Metrics Server for resource metrics (CPU/Memory)
+resource "helm_release" "metrics_server" {
+  count = var.config.enable_metrics_server != false ? 1 : 0
+
+  name       = "metrics-server"
+  repository = "https://kubernetes-sigs.github.io/metrics-server/"
+  chart      = "metrics-server"
+  version    = "3.11.0"
+  namespace  = "kube-system"
+
+  values = [
+    yamlencode({
+      args = [
+        "--cert-dir=/tmp",
+        "--secure-port=4443",
+        "--kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname",
+        "--kubelet-use-node-status-port",
+        "--metric-resolution=15s",
+        # For local Kind clusters - disable TLS verification
+        var.environment == "local" ? "--kubelet-insecure-tls" : null
+      ]
+
+      resources = {
+        requests = {
+          cpu    = "100m"
+          memory = "200Mi"
+        }
+        limits = {
+          cpu    = var.environment == "local" ? "200m" : "500m"
+          memory = var.environment == "local" ? "300Mi" : "500Mi"
+        }
+      }
+
+      securityContext = {
+        allowPrivilegeEscalation = false
+        capabilities = {
+          drop = ["ALL"]
+        }
+        readOnlyRootFilesystem = true
+        runAsNonRoot          = true
+        runAsUser            = 1000
+        seccompProfile = {
+          type = "RuntimeDefault"
+        }
+      }
+
+      nodeSelector = {
+        "kubernetes.io/os" = "linux"
+      }
+
+      priorityClassName = "system-cluster-critical"
+
+      # API Service configuration
+      apiService = {
+        create                = true
+        insecureSkipTLSVerify = var.environment == "local" ? true : false
+      }
+    })
+  ]
+
+  depends_on = [kubernetes_namespace.monitoring]
+}
+
 # Prometheus using Helm
 resource "helm_release" "prometheus" {
   count = var.config.enable_prometheus ? 1 : 0
