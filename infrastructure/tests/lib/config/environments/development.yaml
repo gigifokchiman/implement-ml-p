@@ -1,0 +1,41 @@
+# Development environment configuration
+# Balanced approach - security-conscious but allows development flexibility
+
+# Development security settings
+security:
+  severity_threshold: "HIGH"     # High and critical issues
+  fail_on_violations: true       # Block on violations
+  max_violations: 10             # Limited violations allowed
+
+  # Development-specific skip checks (minimal set)
+  skip_checks:
+    checkov:
+      # Cost optimization exemptions for development
+      - "CKV_AWS_109" # S3 lifecycle policy
+      - "CKV_AWS_61"  # S3 public access (for testing)
+
+      # Development workflow exemptions
+      - "CKV_K8S_43"  # Allow latest tags for rapid iteration
+
+    trivy:
+      # Allow some S3 access for development testing
+      - "AVD-AWS-0089" # S3 bucket logging (trivy equivalent)
+
+# Development tool settings
+tools:
+  checkov:
+    soft_fail: false             # Enforce security standards
+    download_external_modules: true
+
+  terraform:
+    parallelism: 4               # Moderate parallelism
+
+# Development cache settings
+cache:
+  max_age_minutes: 90           # Moderate caching
+
+# Development reporting
+reporting:
+  formats: [ "cli", "json" ]
+  detailed_errors: true
+  include_skipped: true

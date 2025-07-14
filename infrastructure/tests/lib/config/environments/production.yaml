@@ -1,0 +1,38 @@
+# Production environment configuration
+# Strict security settings with zero tolerance for violations
+
+# Production security settings (strictest)
+security:
+  severity_threshold: "MEDIUM"   # All severities enforced
+  fail_on_violations: true       # Zero tolerance
+  max_violations: 0              # No violations allowed
+
+  # Production skip checks (absolute minimum)
+  skip_checks:
+    checkov: [ ]                  # No exemptions in production
+    trivy: [ ]                    # No exemptions in production
+
+# Production tool settings (most thorough)
+tools:
+  checkov:
+    soft_fail: false             # Hard failure on any violation
+    download_external_modules: true
+    include_all_checkov_policies: true  # Enable all available checks
+
+  terraform:
+    parallelism: 8               # Full parallelism for thorough checking
+    timeout: 600                 # Longer timeout for comprehensive scans
+
+  trivy:
+    timeout: 600                 # Comprehensive vulnerability scanning
+
+# Production cache settings (conservative)
+cache:
+  max_age_minutes: 30           # Short cache for fresh security data
+
+# Production reporting (comprehensive)
+reporting:
+  formats: [ "cli", "json", "sarif" ]
+  detailed_errors: true
+  include_passed: true
+  include_skipped: true

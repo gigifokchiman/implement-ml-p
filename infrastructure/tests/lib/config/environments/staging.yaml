@@ -1,0 +1,36 @@
+# Staging environment configuration
+# Production-like settings with minimal exemptions for testing
+
+# Staging security settings (nearly production-level)
+security:
+  severity_threshold: "HIGH"     # High and critical enforced
+  fail_on_violations: true       # Block on violations
+  max_violations: 2              # Very limited violations
+
+  # Staging skip checks (minimal production-like exemptions)
+  skip_checks:
+    checkov:
+      # Testing-specific exemptions only
+      - "CKV_K8S_43"  # Allow latest tags for testing new features
+
+    trivy: [ ]                    # No trivy exemptions in staging
+
+# Staging tool settings (production-like)
+tools:
+  checkov:
+    soft_fail: false             # Enforce standards
+    download_external_modules: true
+
+  terraform:
+    parallelism: 6               # High parallelism
+    timeout: 450                 # Extended timeout
+
+# Staging cache settings
+cache:
+  max_age_minutes: 45           # Moderate caching
+
+# Staging reporting (detailed)
+reporting:
+  formats: [ "cli", "json", "sarif" ]
+  detailed_errors: true
+  include_skipped: true

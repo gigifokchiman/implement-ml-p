@@ -1,0 +1,61 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: checkov-scan
+  namespace: data-platform-security-scanning
+  labels:
+    app.kubernetes.io/name: checkov
+    app.kubernetes.io/component: security-scanner
+spec:
+  ttlSecondsAfterFinished: 300  # Clean up after 5 minutes
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: checkov
+        app.kubernetes.io/component: security-scanner
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: checkov
+          image: bridgecrew/checkov:latest
+          command:
+            - sh
+            - -c
+            - |
+              echo "Starting Checkov security scan..."
+
+              # Create a simple test terraform file
+              mkdir -p /tmp/terraform-test
+              cat > /tmp/terraform-test/main.tf << 'EOF'
+              resource "aws_s3_bucket" "example" {
+                bucket = "my-test-bucket"
+              }
+
+              resource "aws_s3_bucket_public_access_block" "example" {
+                bucket = aws_s3_bucket.example.id
+                block_public_acls       = true
+                block_public_policy     = true
+                ignore_public_acls      = true
+                restrict_public_buckets = true
+              }
+              EOF
+
+              # Run checkov scan
+              echo "Running Checkov scan on test terraform..."
+              checkov -d /tmp/terraform-test --framework terraform --output cli --quiet
+
+              echo "Checkov scan completed successfully!"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ "ALL" ]
+            readOnlyRootFilesystem: false
+            runAsNonRoot: true
+            runAsUser: 65534

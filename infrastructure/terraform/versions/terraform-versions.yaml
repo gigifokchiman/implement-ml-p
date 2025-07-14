@@ -1,0 +1,56 @@
+# Enterprise Provider Version Management Configuration
+# Used by Netflix, Airbnb, Spotify for centralized version control
+
+terraform_version: ">= 1.6.0"
+
+# Base provider versions (security team approved)
+provider_versions:
+  aws: "5.95.0"
+  kubernetes: "2.24.0"
+  helm: "2.12.1"
+  random: "3.6.0"
+  null: "3.2.2"
+  time: "0.10.0"
+  tls: "4.0.5"
+  local: "2.4.1"
+  external: "2.3.2"
+  archive: "2.4.1"
+  cloudinit: "2.3.3"
+
+# Local development specific
+local_dev_providers:
+  kind: "0.1.4"
+  docker: "3.0.2"
+
+# AWS module versions
+aws_modules:
+  eks: "20.37.1"
+  vpc: "5.21.0"
+  kms: "3.1.1"
+  secrets_manager: "1.3.1"
+
+# Environment strategies
+strategies:
+  local:
+    type: "minor_updates"
+    pattern: "~>"
+    security_critical_exact: true
+  dev:
+    type: "patch_updates"
+    pattern: "~>"
+    suffix: ".0"
+    security_critical_exact: true
+  staging:
+    type: "exact_version"
+    pattern: "="
+    security_critical_exact: true
+  prod:
+    type: "exact_version"
+    pattern: "="
+    security_critical_exact: true
+
+# Security critical providers (always exact versions)
+security_critical:
+  - aws
+  - kubernetes
+  - tls

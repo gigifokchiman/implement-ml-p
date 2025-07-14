@@ -1,0 +1,83 @@
+# Base configuration for infrastructure testing
+# This file contains common settings shared across all environments
+
+# Tool versions and settings
+tools:
+  terraform:
+    version: "1.6.0"
+    timeout: 300
+    parallelism: 10
+
+  checkov:
+    version: "latest"
+    timeout: 180
+    output_format: "cli"
+    framework: [ "terraform", "terraform_plan", "kubernetes" ]
+    quiet: false
+    compact: true
+
+  kubeconform:
+    version: "0.6.3"
+    timeout: 60
+    summary: true
+    output: "json"
+
+  opa:
+    version: "0.57.0"
+    timeout: 60
+
+  trivy:
+    version: "latest"
+    timeout: 300
+
+# Path configurations
+paths:
+  terraform_root: "../terraform"
+  kubernetes_root: "../kubernetes"
+  policies_root: "kubernetes/policies"
+  cache_dir: ".cache"
+  reports_dir: "reports"
+
+# Test execution settings
+execution:
+  parallel_environments: true
+  parallel_tools: true
+  max_parallel_jobs: 4
+  fail_fast: false
+
+# Caching settings
+cache:
+  enabled: true
+  max_age_minutes: 60
+  terraform_plans: true
+  security_scans: true
+  kubernetes_manifests: true
+
+# Security settings (base level - most permissive)
+security:
+  severity_threshold: "CRITICAL"
+  fail_on_violations: false
+  max_violations: 50
+
+  # Tools to use for security scanning
+  tools:
+    primary: "checkov"      # Primary security scanner
+    secondary: "trivy"      # Secondary for infrastructure config scanning
+    container: "trivy"      # Container and config scanning
+
+  # Base skip checks (minimal set for development)
+  skip_checks:
+    checkov: [ ]  # No base skips - environment will override
+
+# Reporting settings
+reporting:
+  formats: [ "cli", "json" ]
+  include_passed: false
+  include_skipped: false
+  detailed_errors: true
+
+# Environment-specific overrides will be loaded based on:
+# environments/local.yaml - Local development
+# environments/development.yaml - Development environment
+# environments/staging.yaml - Staging environment
+# environments/production.yaml - Production environment

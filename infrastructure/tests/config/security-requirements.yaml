@@ -1,0 +1,334 @@
+# Security Requirements Configuration
+# Defines security scanning requirements for different environments
+# This file centralizes all security requirements and thresholds
+
+# Global settings that apply to all environments
+global:
+  # Available tools and their purposes
+  tools:
+    trivy:
+      description: "Container and IaC vulnerability scanning"
+      required_version: ">=0.45.0"
+    tfsec:
+      description: "Terraform-specific security scanning"
+      required_version: ">=1.28.0"
+    checkov:
+      description: "Multi-framework security scanning"
+      required_version: ">=2.5.0"
+
+  # Default scan targets
+  scan_targets:
+    - terraform
+    - kubernetes
+    - docker
+    - helm
+
+# Environment-specific requirements
+environments:
+  # Local development environment - relaxed for developer productivity
+  local:
+    description: "Developer workstation environment"
+
+    # Enforcement settings
+    enforcement:
+      block_on_failure: false      # Don't block development
+      exit_code_on_failure: 0      # Always exit 0 for local
+
+    # Severity thresholds
+    severity:
+      minimum_severity: "CRITICAL"  # Only report critical issues
+      fail_on_severity: "CRITICAL"  # Only fail on critical
+
+    # Maximum allowed violations
+    violations:
+      max_total: 100               # Allow many violations during dev
+      max_critical: 10             # But limit critical ones
+      max_high: 50                 # Some limit on high severity
+
+    # Tools configuration
+    tools:
+      trivy:
+        enabled: true
+        severity: [ "CRITICAL" ]     # Only scan for critical
+        skip_update: true          # Skip DB updates for speed
+        timeout: 30                # Quick timeout
+
+      tfsec:
+        enabled: true
+        minimum_severity: "CRITICAL"
+        soft_fail: true
+
+      checkov:
+        enabled: true
+        soft_fail: true
+        compact: true
+        framework: [ "terraform", "kubernetes" ]
+
+    # Excluded checks for local development
+    exclusions:
+      # Container/Pod security (relaxed for local KIND)
+      - id: "CKV_K8S_14"
+        reason: "Latest tags acceptable in local development"
+      - id: "CKV_K8S_15"
+        reason: "Root user acceptable for local testing"
+      - id: "CKV_K8S_22"
+        reason: "Read-write filesystem needed for development"
+      - id: "CKV_K8S_40"
+        reason: "Privileged containers may be needed locally"
+
+      # Resource limits (not enforced locally)
+      - id: "CKV_K8S_10"
+        reason: "CPU limits not required locally"
+      - id: "CKV_K8S_11"
+        reason: "CPU requests not required locally"
+      - id: "CKV_K8S_12"
+        reason: "Memory limits not required locally"
+      - id: "CKV_K8S_13"
+        reason: "Memory requests not required locally"
+
+      # Network security (relaxed for local)
+      - id: "CKV_K8S_19"
+        reason: "HTTPS not required for local testing"
+      - id: "CKV_K8S_20"
+        reason: "TLS not required for local testing"
+
+      # High severity checks that are OK in local
+      - id: "KSV014"
+        reason: "Read-only filesystem not required locally"
+      - id: "KSV118"
+        reason: "Default security context acceptable locally"
+
+      # VPC/Network security (not applicable to local KIND)
+      - id: "CKV_AWS_60"
+        reason: "VPC endpoint not required for local development"
+      - id: "CKV_AWS_61"
+        reason: "S3 bucket public access block not required locally"
+      - id: "CKV_AWS_62"
+        reason: "S3 bucket public access block not required locally"
+      - id: "CKV_AWS_53"
+        reason: "S3 bucket public access block not required locally"
+      - id: "CKV_AWS_54"
+        reason: "S3 bucket public read access allowed locally"
+      - id: "CKV_AWS_55"
+        reason: "S3 bucket public write access allowed locally"
+      - id: "CKV_AWS_56"
+        reason: "S3 bucket policy restrictions not needed locally"
+      - id: "CKV_AWS_79"
+        reason: "VPC Flow Logs not required for local"
+      - id: "CKV_AWS_127"
+        reason: "VPC default security group restrictions not needed locally"
+      - id: "CKV2_AWS_11"
+        reason: "VPC Flow Logs not required for local"
+      - id: "CKV2_AWS_12"
+        reason: "VPC default security group restrictions not needed locally"
+
+      # AWS/Cloud (using local alternatives)
+      - id: "CKV_AWS_3"
+        reason: "S3 bucket checks not applicable to local MinIO"
+      - id: "CKV_AWS_4"
+        reason: "S3 bucket checks not applicable to local MinIO"
+      - id: "CKV_AWS_5"
+        reason: "S3 bucket checks not applicable to local MinIO"
+      - id: "CKV_AWS_6"
+        reason: "S3 bucket checks not applicable to local MinIO"
+      - id: "CKV_AWS_18"
+        reason: "S3 encryption not required for local MinIO"
+      - id: "CKV_AWS_21"
+        reason: "S3 versioning not required for local MinIO"
+      - id: "CKV_AWS_144"
+        reason: "S3 replication not required for local MinIO"
+      - id: "CKV_AWS_145"
+        reason: "S3 MFA delete not required for local MinIO"
+
+  # Development environment - balanced security
+  development:
+    description: "Shared development cluster"
+
+    enforcement:
+      block_on_failure: true
+      exit_code_on_failure: 1
+
+    severity:
+      minimum_severity: "HIGH"
+      fail_on_severity: "HIGH"
+
+    violations:
+      max_total: 20
+      max_critical: 0
+      max_high: 5
+
+    tools:
+      trivy:
+        enabled: true
+        severity: [ "CRITICAL", "HIGH" ]
+        skip_update: false
+        timeout: 120
+
+      tfsec:
+        enabled: true
+        minimum_severity: "HIGH"
+        soft_fail: false
+
+      checkov:
+        enabled: true
+        soft_fail: false
+        compact: false
+        framework: [ "terraform", "kubernetes", "helm" ]
+
+    exclusions:
+      # Development-specific exemptions
+      - id: "CKV_K8S_14"
+        reason: "Latest tags allowed in dev for rapid iteration"
+      - id: "CKV_K8S_43"
+        reason: "Mutable tags allowed in dev"
+
+  # Staging environment - production-like security
+  staging:
+    description: "Pre-production staging environment"
+
+    enforcement:
+      block_on_failure: true
+      exit_code_on_failure: 1
+
+    severity:
+      minimum_severity: "MEDIUM"
+      fail_on_severity: "HIGH"
+
+    violations:
+      max_total: 5
+      max_critical: 0
+      max_high: 0
+      max_medium: 5
+
+    tools:
+      trivy:
+        enabled: true
+        severity: [ "CRITICAL", "HIGH", "MEDIUM" ]
+        skip_update: false
+        timeout: 300
+
+      tfsec:
+        enabled: true
+        minimum_severity: "MEDIUM"
+        soft_fail: false
+
+      checkov:
+        enabled: true
+        soft_fail: false
+        compact: false
+        framework: [ "terraform", "kubernetes", "helm", "secrets" ]
+
+    exclusions: [ ]  # No exclusions in staging
+
+  # Production environment - strictest security
+  production:
+    description: "Production environment with zero tolerance"
+
+    enforcement:
+      block_on_failure: true
+      exit_code_on_failure: 1
+      require_approval: true       # Manual approval required
+
+    severity:
+      minimum_severity: "LOW"      # Report everything
+      fail_on_severity: "MEDIUM"   # Fail on medium and above
+
+    violations:
+      max_total: 0                 # Zero tolerance
+      max_critical: 0
+      max_high: 0
+      max_medium: 0
+
+    tools:
+      trivy:
+        enabled: true
+        severity: [ "CRITICAL", "HIGH", "MEDIUM", "LOW" ]
+        skip_update: false
+        timeout: 600
+        include_non_failures: true # Include informational findings
+
+      tfsec:
+        enabled: true
+        minimum_severity: "LOW"
+        soft_fail: false
+        include_passed: true       # Show what passed too
+
+      checkov:
+        enabled: true
+        soft_fail: false
+        compact: false
+        framework: [ "all" ]         # Check everything
+        create_baseline: true      # Track security posture
+
+    exclusions: [ ]  # No exclusions in production
+
+# Reporting configuration
+reporting:
+  # Output formats by environment
+  formats:
+    local: [ "cli" ]
+    development: [ "cli", "json" ]
+    staging: [ "cli", "json", "junit" ]
+    production: [ "cli", "json", "junit", "sarif" ]
+
+  # Report storage
+  storage:
+    local:
+      enabled: false
+    development:
+      enabled: true
+      path: "/tmp/security-reports"
+      retention_days: 7
+    staging:
+      enabled: true
+      path: "/var/log/security-scans"
+      retention_days: 30
+    production:
+      enabled: true
+      path: "/var/log/security-scans"
+      retention_days: 90
+      backup_enabled: true
+
+# Alerting configuration
+alerting:
+  # Alert channels by severity and environment
+  channels:
+    local:
+      critical: [ "console" ]
+    development:
+      critical: [ "console", "slack" ]
+      high: [ "console" ]
+    staging:
+      critical: [ "console", "slack", "pagerduty" ]
+      high: [ "console", "slack" ]
+      medium: [ "console" ]
+    production:
+      critical: [ "console", "slack", "pagerduty", "email" ]
+      high: [ "console", "slack", "pagerduty" ]
+      medium: [ "console", "slack" ]
+      low: [ "console" ]
+
+# Compliance frameworks
+compliance:
+  frameworks:
+    - name: "CIS Kubernetes Benchmark"
+      version: "1.8.0"
+      environments: [ "staging", "production" ]
+    - name: "PCI DSS"
+      version: "4.0"
+      environments: [ "production" ]
+    - name: "SOC 2"
+      environments: [ "staging", "production" ]
+    - name: "HIPAA"
+      environments: [ "production" ]
+
+# Override mechanism
+# Allows temporary exemptions with expiration and approval
+overrides:
+# Example override structure
+# - check_id: "CKV_K8S_15"
+#   environments: ["staging"]
+#   reason: "Migration in progress"
+#   expires: "2024-12-31"
+#   approved_by: "security-team"
+#   ticket: "SEC-1234"

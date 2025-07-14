@@ -1,0 +1,84 @@
+# Local development environment configuration
+# Optimized for developer productivity and KIND cluster compatibility
+
+# Override base security settings for local development
+security:
+  severity_threshold: "CRITICAL"  # Only fail on critical issues
+  fail_on_violations: false       # Don't block development
+  max_violations: 100            # Allow more violations during development
+
+  # Local-specific skip checks for KIND cluster compatibility
+  skip_checks:
+    checkov:
+      # KIND cluster limitations
+      - "CKV_K8S_43"  # Image should use immutable tags
+      - "CKV_K8S_14"  # Image tag should not be latest
+      - "CKV_K8S_15"  # Image should not run as root
+      - "CKV_K8S_22"  # Use read-only filesystem
+      - "CKV_K8S_23"  # Minimize admission controller permissions
+      - "CKV_K8S_28"  # Minimize container privileges
+      - "CKV_K8S_29"  # Apply security context
+      - "CKV_K8S_30"  # Apply security context to containers
+      - "CKV_K8S_37"  # Minimize capabilities
+      - "CKV_K8S_40"  # Containers should not run as privileged
+      - "CKV_K8S_43"  # Image should use immutable tags
+
+      # Local storage limitations
+      - "CKV_AWS_3"   # S3 bucket public read prohibited
+      - "CKV_AWS_4"   # S3 bucket public write prohibited
+      - "CKV_AWS_5"   # S3 bucket SSL requests only
+      - "CKV_AWS_6"   # S3 bucket logging
+      - "CKV_AWS_18"  # S3 bucket server side encryption
+      - "CKV_AWS_21"  # S3 bucket versioning
+      - "CKV_AWS_144" # S3 bucket cross-region replication
+      - "CKV_AWS_145" # S3 bucket MFA delete
+
+      # Networking (KIND uses host networking)
+      - "CKV_K8S_19"  # Ingress should use HTTPS
+      - "CKV_K8S_20"  # Ingress should use TLS 1.2+
+      - "CKV_K8S_42"  # Service should not use NodePort
+
+      # Resource limits (relaxed for development)
+      - "CKV_K8S_10"  # CPU limits should be set
+      - "CKV_K8S_11"  # CPU requests should be set
+      - "CKV_K8S_12"  # Memory limits should be set
+      - "CKV_K8S_13"  # Memory requests should be set
+
+      # Development-specific exemptions
+      - "CKV_K8S_35"  # Prefer using secrets as files
+      - "CKV_K8S_34"  # Ensure that Tiller (Helm v2) is not deployed
+      - "CKV_K8S_45"  # Ensure that the cluster allows only authenticated requests
+
+      # MinIO compatibility (used instead of real S3)
+      - "CKV_AWS_61"  # S3 bucket public access block
+      - "CKV_AWS_62"  # S3 bucket public access block account level
+      - "CKV_AWS_53"  # S3 bucket public access block bucket level
+
+      # Local development database settings
+      - "CKV_AWS_16"  # RDS instances should be encrypted
+      - "CKV_AWS_17"  # RDS instances should not be publicly accessible
+      - "CKV_AWS_23"  # RDS instances should have backup retention
+      - "CKV_AWS_24"  # RDS instances should have enhanced monitoring
+
+      # Local CA and certificate exemptions
+      - "CKV_AWS_49"  # ElasticSearch should use TLS
+      - "CKV_AWS_83"  # ElasticSearch should be encrypted
+
+
+# Local-specific tool settings
+tools:
+  checkov:
+    soft_fail: true              # Don't exit with error code
+    download_external_modules: false  # Faster execution
+
+  terraform:
+    parallelism: 2              # Reduced for local machine
+
+# Local cache settings (more aggressive caching)
+cache:
+  max_age_minutes: 120          # Cache longer during development
+
+# Local reporting (less verbose)
+reporting:
+  formats: [ "cli" ]
+  detailed_errors: false
