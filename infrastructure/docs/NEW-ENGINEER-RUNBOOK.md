@@ -1,12 +1,29 @@
-# New Engineer Runbook
+# 🚀 New Engineer Runbook
 
-**Complete hands-on guide for new engineers to experience the modern ML platform infrastructure with team isolation and
-security.**
+> **Complete hands-on guide for new engineers to experience the modern ML platform infrastructure with team isolation
+and security.**
+
+## 📋 Table of Contents
+
+1. [Overview](#-overview)
+2. [Prerequisites](#-prerequisites)
+3. [Phase 1: Platform Deployment](#-phase-1-single-cluster-team-platform)
+4. [Phase 2: Testing & Validation](#-phase-2-testing--validation)
+5. [Phase 3: Advanced Topics](#-phase-3-advanced-topics)
+6. [Learning Summary](#-learning-summary)
+7. [Troubleshooting](#-troubleshooting)
+8. [Cleanup](#-cleanup)
+
+---
 
 ## 🎯 Overview
 
-This runbook guides you through the modern ML platform infrastructure approach - **single cluster with team isolation**
-and **Kubernetes-native security**. By the end, you'll have:
+This runbook guides you through the **modern ML platform infrastructure approach** - single cluster with team isolation
+and Kubernetes-native security.
+
+### What You'll Accomplish
+
+By the end of this runbook, you'll have:
 
 - ✅ **Deployed** a production-ready single cluster with team boundaries
 - ✅ **Experienced** resource quotas, RBAC, and network policies
@@ -14,55 +31,59 @@ and **Kubernetes-native security**. By the end, you'll have:
 - ✅ **Tested** the complete team isolation and monitoring setup
 - ✅ **Prepared** for secure, scalable application development
 
-**Estimated Time:** 3-4 hours (single session)
+### Key Metrics
 
-**Architecture Approach:** Single cluster with namespace isolation (80% of multi-cluster benefits, 20% of complexity)
+- **Estimated Time:** 3-4 hours (single session)
+- **Architecture:** Single cluster with namespace isolation
+- **Benefits:** 80% of multi-cluster benefits, 20% of complexity
 
 ### System Requirements
 
-- **CPU**: 4+ cores recommended
-- **RAM**: 8GB minimum, 16GB recommended
-- **Storage**: 20GB free space
-- **OS**: macOS (currently tested in macOS)
+| Component   | Requirement     | Recommended    |
+|-------------|-----------------|----------------|
+| **CPU**     | 4+ cores        | 8+ cores       |
+| **RAM**     | 8GB minimum     | 16GB           |
+| **Storage** | 20GB free space | 50GB           |
+| **OS**      | macOS/Linux     | macOS (tested) |
 
 ### Repository Setup
 
 ```bash
 # Clone the repository
-git clone https://github.com/gigifokchiman/implement-ml-p.git # OR download from the github. 
+git clone https://github.com/gigifokchiman/implement-ml-p.git
 cd implement-ml-p
 
 # Verify structure
 ls -la infrastructure/
 ```
 
+---
+
 ## 📋 Prerequisites
 
-**Choose Your Approach:**
+Choose your preferred setup approach:
 
-### Option A: Local Tool Installation
+### Option A: Local Tool Installation 🔧
 
-### Required Tools
+**Required Tools:**
 
 ```bash
+# Update package manager
 brew update && brew upgrade
 ```
 
-| Tool       | Version  | Purpose                   | Installation                                                                                                |
-|------------|----------|---------------------------|-------------------------------------------------------------------------------------------------------------|
-| AWS CLI    | 2.0+     | AWS cloud operations      | `brew install awscli`                                                                                       |
-| Docker     | 20.10+   | Container runtime         | [Docker Desktop](https://www.docker.com/products/docker-desktop)                                            |
-| Git        | 2.30+    | Version control           | `brew install git` or [Git Downloads](https://git-scm.com/downloads)                                        |
-| Kind       | 0.20+    | Local Kubernetes clusters | `brew install kind` or [Kind Releases](https://kind.sigs.k8s.io/docs/user/quick-start/#installation)        |
-| kubectl    | 1.27+    | Kubernetes CLI            | `brew install kubectl` or [kubectl Install](https://kubernetes.io/docs/tasks/tools/)                        |
-| Kubernetes | 1.27+    | Container orchestration   | Included with Docker Desktop                                                                                |
-| Kustomize  | 5.0+     | Kubernetes configuration  | `brew install kustomize` or [Kustomize Install](https://kubectl.docs.kubernetes.io/installation/kustomize/) |
-| Helm       | v3.18.3+ | Deploy to k8s             | `brew install helm`                                                                                         |
-| Terraform  | 1.0+     | Infrastructure as Code    | `brew install terraform` or [Terraform Downloads](https://www.terraform.io/downloads)                       |
+| Tool          | Version  | Purpose                    | Installation                                                     |
+|---------------|----------|----------------------------|------------------------------------------------------------------|
+| **AWS CLI**   | 2.0+     | AWS cloud operations       | `brew install awscli`                                            |
+| **Docker**    | 20.10+   | Container runtime          | [Docker Desktop](https://www.docker.com/products/docker-desktop) |
+| **Git**       | 2.30+    | Version control            | `brew install git`                                               |
+| **Kind**      | 0.20+    | Local Kubernetes clusters  | `brew install kind`                                              |
+| **kubectl**   | 1.27+    | Kubernetes CLI             | `brew install kubectl`                                           |
+| **Kustomize** | 5.0+     | Kubernetes configuration   | `brew install kustomize`                                         |
+| **Helm**      | v3.18.3+ | Kubernetes package manager | `brew install helm`                                              |
+| **Terraform** | 1.0+     | Infrastructure as Code     | `brew install terraform`                                         |
 
-### Custom Terraform Provider
-
-This project uses a custom Kind terraform provider. Download it locally:
+**Custom Terraform Provider Setup:**
 
 ```bash
 # Detect your architecture
@@ -76,78 +97,67 @@ else
     exit 1
 fi
 
-# Create terraform plugins directory with proper architecture folder
+# Create terraform plugins directory
 mkdir -p ~/.terraform.d/plugins/kind.local/gigifokchiman/kind/0.1.0/$TERRAFORM_ARCH
 
 # Download and install the provider
 wget https://github.com/gigifokchiman/kind/releases/download/v0.1.0/terraform-provider-kind_v0.1.0_${TERRAFORM_ARCH}.tar.gz \
   -O /tmp/terraform-provider-kind.tar.gz
+
 cd /tmp && tar -xzf terraform-provider-kind.tar.gz
 cp terraform-provider-kind_v0.1.0 ~/.terraform.d/plugins/kind.local/gigifokchiman/kind/0.1.0/$TERRAFORM_ARCH/terraform-provider-kind
 
-# Make it executable
+# Make it executable and clean up
 chmod +x ~/.terraform.d/plugins/kind.local/gigifokchiman/kind/0.1.0/$TERRAFORM_ARCH/terraform-provider-kind
-
-# Clean up
 rm -f /tmp/terraform-provider-kind*
 ```
 
-
-### Optional Tools
-
-| Tool     | Purpose                                                          | Installation            |
-|----------|------------------------------------------------------------------|-------------------------|
-| gh       | GitHub CLI                                                       | `brew install gh`       |
-| Go       | For changing the configuration from the kind terraform           | `brew install go`       |
-| graphviz | Infrastructure visualization and diagram generation (macos only) | `brew install graphviz` |
-| k6       | Load testing and performance validation                          | `brew install k6`       |
-| jq       | JSON processing                                                  | `brew install jq`       |
-| tfsec    | Terraform security scanning                                      | `brew install tfsec`    |
-| trivy    | Container security scanning                                      | `brew install trivy`    |
-| yq       | YAML processing                                                  | `brew install yq`       |
-
-### Option A: Local approach
+**Verification:**
 
 ```bash
-# Verify installations
+# Verify all tool installations
 awscli --version
 docker --version
 git version
 kind --version
-kubectl version --client  # >= 1.25
+kubectl version --client
 kustomize version
 helm version
-terraform --version  # >= 1.0
+terraform --version
 
-# Verify custom terraform provider is installed
+# Verify custom terraform provider
 ls -la ~/.terraform.d/plugins/kind.local/gigifokchiman/kind/0.1.4/*/terraform-provider-kind
 
+# Navigate to infrastructure directory
 cd infrastructure
 ```
 
-### Option B: Docker-Only Approach (Recommended for Quick Start)
+**Optional Tools:**
 
-### Required Tools
+| Tool         | Purpose            | Installation            |
+|--------------|--------------------|-------------------------|
+| **gh**       | GitHub CLI         | `brew install gh`       |
+| **jq**       | JSON processing    | `brew install jq`       |
+| **yq**       | YAML processing    | `brew install yq`       |
+| **k6**       | Load testing       | `brew install k6`       |
+| **trivy**    | Security scanning  | `brew install trivy`    |
+| **graphviz** | Diagram generation | `brew install graphviz` |
+
+### Option B: Docker-Only Approach 🐳 (Recommended)
+
+**Benefits:**
+
+- ✅ No local tool installation required
+- ✅ Consistent tool versions across team members
+- ✅ All security scanners pre-installed
+- ✅ Performance and monitoring tools included
+
+**Setup:**
 
 ```bash
+# Update package manager
 brew update && brew upgrade
-```
 
-**🐳 Docker Container Benefits:**
-
-- ✅ **No local tool installation** required
-- ✅ **Consistent tool versions** across team members
-- ✅ **All security scanners** pre-installed (Checkov, tfsec, Terrascan, OPA)
-- ✅ **Performance tools** included (K6, Chaos Toolkit)
-- ✅ **Kubernetes utilities** (k9s, kubectx, kubens, Kustomize)
-- ✅ **Monitoring tools** (Prometheus CLI tools)
-
-| Tool    | Version | Purpose              | Installation                                                     |
-|---------|---------|----------------------|------------------------------------------------------------------|
-| AWS CLI | 2.0+    | AWS cloud operations | `brew install awscli`                                            |
-| Docker  | 20.10+  | Container runtime    | [Docker Desktop](https://www.docker.com/products/docker-desktop) |
-
-```bash
 # Verify Docker installation
 docker --version
 docker info
@@ -159,7 +169,7 @@ docker build -t ml-platform-tools .
 # Verify all tools are working
 docker run --rm ml-platform-tools health-check.sh
 
-# IMPORTANT: Use --network host so container can access Kind cluster
+# Start the container with proper access
 docker run -it --rm --user root \
   --network host \
   -v ~/.docker/run/docker.sock:/var/run/docker.sock \
@@ -167,195 +177,205 @@ docker run -it --rm --user root \
   -v ~/.aws:/workspace/.aws:ro \
   -v ~/.kube:/workspace/.kube \
   ml-platform-tools
-
 ```
 
-**🔍 Docker Container Notes:**
-- `--network host` is REQUIRED for kubectl to access the Kind cluster
+> **🔍 Important:** `--network host` is REQUIRED for kubectl to access the Kind cluster
 
-## 🚀 Phase 1: Single Cluster Team Platform (45 minutes)
+---
 
-### Step 1.1: Documentation Review (10 minutes)
+## 🚀 Phase 1: Single Cluster Team Platform
 
-Please read the documentations in the docs folder.
+### Step 1.1: Documentation Review (10 minutes) 📚
 
-### Step 1.2: Deploy Single Cluster with Team Isolation (20 minutes)
+**Recommended Reading:**
 
-Deploy a single cluster with proper team boundaries:
+Please review the following documentation in the `docs/` folder:
+
+- Platform architecture overview
+- Security model documentation
+- Team isolation concepts
+- GitOps workflow
+
+### Step 1.2: Deploy Core Infrastructure (20 minutes) ⚙️
+
+**Deploy the main ML platform cluster:**
 
 ```bash
-# Deploy the main ML platform cluster with comprehensive setup
+# Option 1: Fresh deployment
 make deploy-tf-local
 
-# If you want to clean up the existing infrastructure
+# Option 2: Clean existing and redeploy
 make clean-local && make deploy-tf-local
 
-# This creates:
-# ✅ Single Kind cluster (ml-platform-local)
-# ✅ Database (PostgreSQL) in database namespace
-# ✅ Cache (Redis) in cache namespace  
-# ✅ Storage (MinIO) with pre-created buckets in storage namespace
-# ✅ Local path storage provisioner
-# ✅ Kubernetes networking and services
-# ✅ TLS termination at ingress with Let's Encrypt
-# ✅ Kubernetes audit logging for compliance
-#
-# Verify deployment
+# Option 3: Apply incremental changes
+make init-tf-local && make apply-tf-local
+```
+
+**What gets created:**
+
+- ✅ **Kind cluster** - Local Kubernetes development environment
+- ✅ **Database** - PostgreSQL in dedicated namespace
+- ✅ **Cache** - Redis for high-speed data caching
+- ✅ **Storage** - MinIO with pre-created buckets
+- ✅ **Networking** - Local path provisioner and services
+- ✅ **Security** - TLS termination and audit logging
+
+**Verification:**
+
+```bash
+# Verify cluster creation
 kind get clusters
 kubectl config use-context kind-data-platform-local
 
+# Check core components
 kubectl get pods -A
 kubectl get namespaces
 kubectl get services -A
 kubectl get pvc -A
-kubectl get rc,services -A
 
-# Verify the namespaces and labels
-
-# you can see that app-xx-team not found as it will be handled by the argocd
-# 👥 Team Namespaces:
-# ⚠️  Team namespace app-ml-team not found
-# ⚠️  Team namespace app-data-team not found
-# ⚠️  Team namespace app-core-team not found
-
-# 📊 Compliance Report
-# ===================
-# Total checks: 43
-# Passed: 43
-# Failed: 0
-
-# to apply a small change
-make init-tf-local && make apply-tf-local
+# Verify storage buckets
+kubectl get jobs -A | grep create-bucket
 ```
 
-**🎯 Understanding What We Built:**
+> **📝 Note:** Team namespaces (app-ml-team, app-data-team, app-core-team) will be created by ArgoCD in the next step.
 
-- **Kind cluster**: Local Kubernetes development environment with multi-node setup
-- **Database**: PostgreSQL instance in dedicated namespace for metadata storage
-- **Cache**: Redis instance for high-speed data caching
-- **Storage**: MinIO object storage with pre-created buckets (ml-artifacts, data-lake, model-registry, etc.)
-- **Local Path Provisioner**: Dynamic volume provisioning for persistent workloads
+### Step 1.3: Deploy GitOps & Security (15 minutes) 🔐
 
-**What Just Happened:**
-
-1. **Terraform** created a Kind cluster with proper networking
-2. **Kubernetes** deployed PostgreSQL, Redis, MinIO as core services
-3. **Storage buckets** created for ML artifacts, data lake, and model registry
-4. All components are running and ready for argocd and application development
-
-### Step 1.3: Deploy ArgoCD
-
-**🎯 Security Without Service Mesh Complexity**
-
-Implement enterprise-grade security using plain Kubernetes + applications
+**Deploy ArgoCD and security policies:**
 
 ```bash
-# Deploy app-level security
+# Deploy GitOps and application-level security
 make deploy-argocd-local
-
-# This creates:
-# ✅ Network policies for team isolation
-# ✅ Rate limiting per team and endpoint
-# ✅ Application-level security middleware
-# ✅ Team namespaces (ml-team, data-team, app-team)
-
-
-# Debugging why the application cannot be synced
-kubectl get applications -n argocd
-kubectl describe application security-policies -n argocd | grep -A 10 "Message:"
-kubectl describe application security-policies -n argocd | grep -A 10 "Status:"
-
-# patch
-kubectl patch application security-policies -n argocd --type merge --patch '{"operation": {"sync":
-      {}}}'
-
-# Verify security components
-kubectl get networkpolicies -A
-kubectl get certificates -A
-kubectl get prometheusrules -A
 ```
 
+**What gets created:**
 
-### Step 1.3: Checkers and testing
+- ✅ **ArgoCD** - GitOps continuous deployment
+- ✅ **Team namespaces** - ml-team, data-team, core-team
+- ✅ **Network policies** - Team isolation
+- ✅ **Resource quotas** - CPU/memory limits per team
+- ✅ **RBAC policies** - Role-based access control
+- ✅ **Security middleware** - Rate limiting and headers
 
-#### Testings
+**Verification:**
 
 ```bash
+# Check ArgoCD applications
+kubectl get applications -n argocd
+
+# Verify team namespaces were created
+kubectl get namespaces | grep app-.*-team
+
+# Check security components
+kubectl get networkpolicies -A
+kubectl get resourcequota -A
+kubectl get certificates -A
+```
+
+**Troubleshooting ArgoCD sync issues:**
+
+```bash
+# Debug application sync status
+kubectl describe application security-policies -n argocd | grep -A 10 "Message:"
+
+# Force sync if needed
+kubectl patch application security-policies -n argocd --type merge \
+  --patch '{"operation": {"sync": {}}}'
+```
+
+---
+
+## 🧪 Phase 2: Testing & Validation
+
+### Step 2.1: Run Comprehensive Tests (10 minutes) ✅
+
+```bash
+# Run all infrastructure tests
 make test
 ```
 
-#### Labels
-```bash
+### Step 2.2: Validate Labels & Compliance (5 minutes) 🏷️
 
-# Check that labels are properly applied (for compliance)
+```bash
+# Check resource labeling compliance
 ./scripts/monitoring/check-resource-labels.sh
 
-# Verify team isolation
+# Verify team isolation labels
 kubectl get namespaces --show-labels
-kubectl get resourcequota --all-namespaces
 kubectl get nodes --show-labels
 
+# Check performance events
 kubectl get events -n data-platform-performance --sort-by=.metadata.creationTimestamp
 ```
 
-#### Quota
-```bash
-# Deploy ML workload (already created in ml-team namespace)
-kubectl describe quota ml-team-quota -n app-ml-team
+### Step 2.3: Test Resource Quotas (10 minutes) 💾
 
-# Test resource quotas
+```bash
+# Check current quota usage
+kubectl describe quota ml-team-quota -n app-ml-team
+kubectl get resourcequota --all-namespaces
+
+# Test quota enforcement
 ./scripts/security/test-resource-quotas.sh local
 ```
 
-#### Security
+**Expected Results:**
+
+- ✅ Small pods within quota should be allowed
+- ❌ Pods exceeding quota should be blocked
+- ✅ Multi-pod quota exhaustion should be prevented
+
+### Step 2.4: Validate Security & RBAC (10 minutes) 🔒
+
 ```bash
+# Run security isolation checks
 ./scripts/security/check-single-cluster-isolation.sh
 
 # Test RBAC boundaries
 kubectl auth can-i create pods \
     --as=ml-engineer@company.com \
     --as-group=ml-engineers \
-    -n app-ml-team   # ✅ Should be yes
+    -n app-ml-team   # ✅ Should be YES
+
 kubectl auth can-i create pods \
     --as=data-engineer@company.com \
     --as-group=data-engineers \
-    -n app-ml-team    # ❌ Should be no
+    -n app-ml-team   # ❌ Should be NO
 
-# Check team resource usage
-kubectl get resourcequota --all-namespaces
-kubectl top pods --all-namespaces 2>/dev/null || echo "Metrics server not installed"
-
-# Test TLS certificates (if cert-manager deployed)
-kubectl get certificates --all-namespaces
-
-# Test network policies and team isolation
-echo "Testing network isolation..."
+# Test network policies
 kubectl get networkpolicies --all-namespaces
 
+# Verify TLS certificates
+kubectl get certificates --all-namespaces
 ```
 
-#### Monitor
-```bash
-kubectl get servicemonitors --all-namespaces 2>/dev/null || echo "Prometheus CRDs not installed"
-kubectl get prometheusrules --all-namespaces 2>/dev/null || echo "Prometheus CRDs not installed"
+### Step 2.5: Monitor System Health (5 minutes) 📊
 
-# Check basic cluster monitoring
+```bash
+# Check basic monitoring
 kubectl top nodes 2>/dev/null || echo "Metrics server not deployed"
-kubectl top pods --all-namespaces | head -10 2>/dev/null || echo "Metrics server not deployed"
+kubectl top pods --all-namespaces | head -10 2>/dev/null
+
+# Check monitoring CRDs
+kubectl get servicemonitors --all-namespaces 2>/dev/null || echo "Prometheus CRDs not installed"
+kubectl get prometheusrules --all-namespaces 2>/dev/null
 
 # Test monitoring stack (if deployed)
 if kubectl get pods -n monitoring &>/dev/null; then
     echo "🔍 Monitoring stack found - testing access..."
+    
+    # Port forward to monitoring services
     kubectl port-forward -n monitoring svc/prometheus-server 9090:9090 &
     kubectl port-forward -n monitoring svc/prometheus-grafana 3000:80 &
     
-    echo "Prometheus: http://localhost:9090"
-    echo "Grafana: http://localhost:3000"
+    echo "🎯 Access URLs:"
+    echo "  Prometheus: http://localhost:9090"
+    echo "  Grafana: http://localhost:3000"
     echo ""
-    echo "Try these Prometheus queries:"
-    echo "- sum(rate(container_cpu_usage_seconds_total[5m])) by (namespace)"
-    echo "- sum(container_memory_working_set_bytes) by (namespace) / 1024^3"
-    echo "- count(kube_pod_info) by (namespace)"
+    echo "📈 Suggested Prometheus queries:"
+    echo "  - sum(rate(container_cpu_usage_seconds_total[5m])) by (namespace)"
+    echo "  - sum(container_memory_working_set_bytes) by (namespace) / 1024^3"
+    echo "  - count(kube_pod_info) by (namespace)"
     
     sleep 5
     pkill -f "kubectl port-forward"
@@ -364,17 +384,15 @@ else
 fi
 ```
 
-## 🛠️ Phase 2: Others
+---
 
-### Understanding the System
+## 🔧 Phase 3: Advanced Topics
+
+### Provider Version Management
 
 **Centralized Configuration:**
 
-- All provider versions are managed centrally in `/infrastructure/terraform/versions/terraform-versions.yaml`
-- Environment-specific version strategies (local: flexible, staging: strict, prod: exact)
-- Automated generation of `versions.tf` files across all environments
-
-**Current Provider Versions:**
+All provider versions are managed in `/infrastructure/terraform/versions/terraform-versions.yaml`:
 
 ```yaml
 terraform_version: ">= 1.6.0"
@@ -385,265 +403,137 @@ provider_versions:
   kind: "0.1.4"
 ```
 
-#### How to Update Provider Versions
-
-**Step 1: Check Current Status**
+**Version Management Commands:**
 
 ```bash
-# View current provider versions across all environments
+# Check current status
 make version-status
-
-# Check for available provider updates
 make version-check-updates
-
-# Run security compliance audit
 make version-security-audit
-```
 
-**Step 2: Update Centralized Configuration**
-
-```bash
-# Edit the centralized configuration file
-vim infrastructure/terraform/versions/terraform-versions.yaml
-
-# Example: Update AWS provider from 5.95.0 to 5.96.0
-provider_versions:
-  aws: "5.96.0"  # Updated version
-  kubernetes: "2.24.0"
-  helm: "2.17.0"
-  kind: "0.1.4"
-```
-
-**Step 3: Generate Updated Versions**
-
-```bash
-# Generate new versions.tf files for all environments
+# Update versions (edit yaml file first)
 ./infrastructure/scripts/generate-terraform-versions.sh
-
-# Verify the generated files
 ls infrastructure/terraform/environments/*/versions.tf
-```
 
-**Step 4: Apply Updates Per Environment**
-
-**Local Environment (flexible versioning):**
-
-```bash
-# Plan version updates for local
+# Apply updates per environment
 make version-plan ENV=local
-
-# Apply to local environment
 make update-versions-local
 make init-tf-local && make apply-tf-local
 ```
 
-**Development Environment (strict versioning):**
-
-```bash
-# Plan version updates for dev
-make version-plan ENV=dev
-
-# Apply to dev environment
-make update-versions-dev
-```
-
-**Production Environment (exact versioning - requires confirmation):**
-
-```bash
-# Plan version updates for production
-make version-plan ENV=prod
-
-# Apply to production (requires manual confirmation)
-make update-versions-prod
-```
-
-#### Validation and Compliance
-
-**Security Validation:**
-
-```bash
-# Run comprehensive security audit
-make version-security-audit
-
-# Generate compliance report
-make version-compliance-report
-```
-
-**Version Consistency Check:**
-
-```bash
-# Validate version security compliance
-make version-validate
-
-# Check versions across all environments
-make version-status
-```
-
-#### Adding New Modules
+### Adding New Modules
 
 **Zero Configuration Required:**
 
-- New modules automatically inherit provider versions from root configuration
-- No need to add provider constraints to individual modules
-- Centralized version management ensures consistency
-
-**Example: Creating a new module**
-
 ```bash
-# Create new module (no provider version configuration needed)
+# Create new module (inherits versions automatically)
 mkdir infrastructure/terraform/modules/my-new-module
 
-# Module automatically inherits versions from:
-# infrastructure/terraform/environments/<env>/versions.tf
+# No provider version configuration needed
+# Versions automatically inherited from environment
 ```
 
-#### Troubleshooting Version Issues
+### Troubleshooting Version Issues
 
-**Lock File Inconsistencies:**
+**Lock File Problems:**
 
 ```bash
-# If you encounter lock file errors
+# Fix lock file inconsistencies
 cd infrastructure/terraform/environments/local
 rm -f .terraform.lock.hcl
 rm -rf .terraform
 terraform init --upgrade
 ```
 
-**Provider Version Conflicts:**
+**Version Conflicts:**
 
 ```bash
-# Check for version conflicts
+# Check for conflicts
 make version-validate
 
-# Update conflicting versions in terraform-versions.yaml
-# Then regenerate and reinitialize
+# Update terraform-versions.yaml, then:
 make init-tf-local
 ```
 
-#### Best Practices
+---
 
-1. **Always use centralized configuration** - Never add provider versions directly to modules
-2. **Test in lower environments first** - Update local → dev → staging → prod
-3. **Run security audits** - Use `make version-security-audit` before production updates
-4. **Generate compliance reports** - Document version changes for audit trail
-5. **Batch updates** - Update multiple providers together when possible
+## 🎯 Learning Summary
 
-#### Security Features
+### Architecture Understanding
 
-- **Automated security scanning** of provider versions
-- **Compliance reporting** for audit requirements
-- **Environment-specific strategies** (flexible vs strict vs exact versioning)
-- **Change validation** before applying updates
-- **Rollback capabilities** via version control
+**What You've Built:**
 
-This enterprise provider version management system ensures:
-
-- ✅ **Consistency** across all environments and modules
-- ✅ **Security** through automated vulnerability scanning
-- ✅ **Compliance** with enterprise governance requirements
-- ✅ **Scalability** for large infrastructure deployments
-- ✅ **Maintainability** through centralized configuration
-
-## 🎯 What I Learned
-
-### Architecture Approach
 - ✅ **Single Cluster** with team isolation (not multi-cluster complexity)
 - ✅ **Kubernetes-native security** (not service mesh overhead)
 - ✅ **Resource quotas & RBAC** provide strong boundaries
 - ✅ **Network policies** ensure team isolation
 - ✅ **Proper labeling** enables cost tracking and governance
 
-### Key Commands Mastered
+**Key Components:**
+
+| Component          | Purpose                               | Location                        |
+|--------------------|---------------------------------------|---------------------------------|
+| **Team Isolation** | Resource quotas, namespace boundaries | `kubernetes/security/policies/` |
+| **RBAC**           | Team-specific role-based access       | `kubernetes/security/rbac/`     |
+| **Security**       | TLS, audit, network policies          | `kubernetes/security/`          |
+| **Monitoring**     | Team dashboards and alerting          | `kubernetes/monitoring/`        |
+
+### Essential Commands
+
 ```bash
-# Deploy single cluster with team isolation
+# Deploy and manage infrastructure
+make deploy-tf-local
+make deploy-argocd-local
+make test
 
-# Apply comprehensive security
-./infrastructure/scripts/security/deploy-kubernetes-security.sh
+# Security and compliance
+./scripts/security/check-single-cluster-isolation.sh
+./scripts/security/test-resource-quotas.sh local
+kubectl auth can-i create pods --as=ml-engineer@company.com -n app-ml-team
 
-# Test team boundaries
-kubectl auth can-i create pods --as=ml-engineer@company.com -n data-team
-
-# Query by team labels
+# Monitoring and troubleshooting
 kubectl get pods -l team=ml-engineering --all-namespaces
+kubectl top nodes
+kubectl get resourcequota --all-namespaces
 ```
-
-### Architecture Understanding
-
-- Single cluster with strong namespace isolation
-- Team-specific quotas, RBAC, and network policies
-- TLS, audit logging, rate limiting without service mesh
-- Smart resource labeling for cost and governance
-- Migration path to multi-cluster available when needed
 
 ### Next Steps for Development
 
-1. Deploy applications to team namespaces with proper resource constraints
-2. Implement team-specific monitoring and alerting
-3. Use blue-green deployments for safe releases
-4. Scale to multi-cluster only if compliance or performance requires it
-
-## 🚀 Ready for Secure, Scalable Development!
-EOF
-
-echo "✅ Learning complete! Check MY-PLATFORM-LEARNING.md"
-```
-
-## 🎉 Congratulations!
-
-You've successfully completed the modern single-cluster platform experience! You now understand:
-
-- ✅ **Single Cluster Team Isolation** - 80% of multi-cluster benefits, 20% of complexity
-- ✅ **Kubernetes-Native Security** - Enterprise compliance without service mesh
-- ✅ **Resource Quotas & RBAC** - Strong team boundaries and governance
-- ✅ **Smart Labeling Strategy** - Cost tracking and resource management
-- ✅ **Migration Path** - Multi-cluster ready when you need it
-- ✅ **Production Security** - TLS, audit, network policies, rate limiting
-
-## 🚀 What's Next?
-
-1. **Deploy Team Applications**: Use the isolated namespaces for development
-2. **Enhance Security**: Add Pod Security Standards if needed
-3. **Monitor Team Usage**: Track resource consumption and costs
-4. **Scale Wisely**: Migrate to multi-cluster only when compliance/performance requires it
-
-**Key Components Deployed:**
-- `kubernetes/team-isolation/` - Resource quotas and namespace boundaries
-- `kubernetes/rbac/` - Team-specific role-based access control
-- `kubernetes/security/` - TLS, audit, network policies, rate limiting
-- `kubernetes/monitoring/` - Team dashboards and alerting
-
-**You've made the smart choice: Simple, secure, scalable!** 🎯
+1. **Deploy Applications** - Use team namespaces with proper resource constraints
+2. **Implement Monitoring** - Team-specific dashboards and alerting
+3. **Blue-Green Deployments** - Safe release strategies
+4. **Scale Wisely** - Multi-cluster only when compliance requires it
 
 ---
 
-*Welcome to the team! You now understand our modern infrastructure platform.*
+## 🚨 Troubleshooting
 
-## 🚨 Common Issues & Solutions
+### Common Issues & Solutions
 
-### Terraform Kind Provider Checksum Error
+#### Terraform Kind Provider Checksum Error
 
-If you encounter this error:
+**Error:**
 ```
 Error: Failed to install provider
 Error while installing gigifokchiman/kind v0.1.0: the local package doesn't match checksums
 ```
 
-**Solution**:
+**Solution:**
 ```bash
-# Navigate to the environment directory
-cd infrastructure/terraform/environments/<app-name>
+# Navigate to environment directory
+cd infrastructure/terraform/environments/local
 
-# Remove the lock file and terraform cache
+# Clean and reinitialize
 rm -f .terraform.lock.hcl
 rm -rf .terraform
-
-# Reinitialize Terraform
 terraform init --upgrade
 ```
 
-### Platform Deployment Issues
+#### Platform Deployment Failures
 
-If deployment fails:
+**Symptoms:** Pods not starting, services unavailable
+
+**Solution:**
 ```bash
 # Check cluster status
 kind get clusters
@@ -651,61 +541,74 @@ kubectl get pods --all-namespaces
 
 # Clean up and retry
 helm uninstall <app-name> -n <namespace>
-cd infrastructure/terraform/environments/<app-name>
 terraform destroy -auto-approve
-kind delete cluster --name <app-name>-local
+kind delete cluster --name data-platform-local
 
 # Retry deployment
-./infrastructure/scripts/deployment/deploy-new-app.sh <app-name> <port>
+make deploy-tf-local
 ```
 
-### Port Conflicts
+#### Port Conflicts
 
-If you get port binding errors:
+**Error:** Port binding failures
+
+**Solution:**
 ```bash
 # Check what's using the port
 lsof -i :8080
 
-# Use different ports
-./infrastructure/scripts/deployment/deploy-new-app.sh my-app 8090 8453
+# Use different ports in configuration
+# Or stop conflicting services
 ```
 
-## 🆘 Getting Help
+#### ArgoCD Sync Issues
 
-If you encounter issues:
+**Symptoms:** Applications stuck in "OutOfSync" status
 
-1. **Check Documentation**: [TERRAFORM-HELM-SIMPLE.md](./TERRAFORM-HELM-SIMPLE.md)
-2. **Review Scripts**: All deployment scripts have built-in help
-3. **Ask Team**: Share your deployment configurations for review
+**Solution:**
+
+```bash
+# Check application status
+kubectl get applications -n argocd
+kubectl describe application <app-name> -n argocd
+
+# Force sync
+kubectl patch application <app-name> -n argocd --type merge \
+  --patch '{"operation": {"sync": {}}}'
+```
+
+### Getting Help
+
+1. **Documentation** - Check `docs/` folder for detailed guides
+2. **Scripts** - All deployment scripts have built-in help (`--help`)
+3. **Team** - Share configurations for review
+4. **Issues** - Report problems with detailed logs
 
 ---
 
-**Time to build amazing applications!** 🚀
+## 🧹 Cleanup
 
-## 🧹 Cleanup Instructions
-
-### Option A: Clean from Local (Recommended)
+### Option A: Standard Cleanup (Recommended)
 
 ```bash
 # Exit Docker container if running
 exit
 
-# Clean up from local machine (has proper kube config write access)
+# Clean up from local machine
 cd infrastructure
 make clean-tf-local
 
-# If you get permission errors, manually clean:
+# Manual cleanup if needed
 kind delete cluster --name data-platform-local
-kind delete cluster --name ml-platform-local
 ```
 
-### Option B: Clean from Docker (if needed)
+### Option B: Docker Cleanup
 
 ```bash
-# Inside Docker container - may have kube config write issues
+# From Docker container
 make clean-tf-local
 
-# If kube config errors occur, clean manually:
+# If issues occur
 docker exec -it $(docker ps -q --filter ancestor=ml-platform-tools) \
   bash -c "kind delete cluster --name data-platform-local --kubeconfig /dev/null"
 ```
@@ -720,6 +623,29 @@ kind get clusters | xargs -I {} kind delete cluster --name {}
 cd infrastructure/terraform/environments/local
 rm -rf .terraform .terraform.lock.hcl terraform.tfstate*
 
-# Clean Docker
+# Clean Docker resources
 docker system prune -f
 ```
+
+---
+
+## 🎉 Congratulations!
+
+You've successfully completed the modern single-cluster platform experience!
+
+**What You've Mastered:**
+
+- ✅ **Single Cluster Team Isolation** - 80% of multi-cluster benefits, 20% of complexity
+- ✅ **Kubernetes-Native Security** - Enterprise compliance without service mesh
+- ✅ **Resource Quotas & RBAC** - Strong team boundaries and governance
+- ✅ **Smart Labeling Strategy** - Cost tracking and resource management
+- ✅ **GitOps Workflow** - Declarative, version-controlled deployments
+- ✅ **Production Security** - TLS, audit, network policies, rate limiting
+
+**You've made the smart choice: Simple, secure, scalable!** 🎯
+
+---
+
+*Welcome to the team! You now understand our modern infrastructure platform.*
+
+**Time to build amazing applications!** 🚀
