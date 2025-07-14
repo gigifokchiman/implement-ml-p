@@ -53,6 +53,7 @@ resource "kubernetes_labels" "argocd_namespace" {
     "name"                   = "argocd"
     "team"                   = "platform-engineering"
     "cost-center"            = "platform"
+    "workload-type"          = "gitops"
     "app.kubernetes.io/name" = "argocd"
   })
 

@@ -177,12 +177,7 @@ docker run -it --rm --user root \
 
 ### Step 1.1: Documentation Review (10 minutes)
 
-```bash
-# Read the modern approach docs
-cat SINGLE-CLUSTER-BEST-PRACTICES.md
-cat KUBERNETES-SECURITY-SUMMARY.md
-cat LABELING-SUMMARY.md
-```
+Please read the documentations in the docs folder.
 
 ### Step 1.2: Deploy Single Cluster with Team Isolation (20 minutes)
 
@@ -192,8 +187,8 @@ Deploy a single cluster with proper team boundaries:
 # Deploy the main ML platform cluster with comprehensive setup
 make deploy-tf-local
 
-# If you have tf provider issues
-make init-tf-local && make deploy-tf-local
+# If you want to clean up the existing infrastructure
+make clean-local && make deploy-tf-local
 
 # This creates:
 # ✅ Single Kind cluster (ml-platform-local)
@@ -215,12 +210,7 @@ kubectl get services -A
 kubectl get pvc -A
 kubectl get rc,services -A
 
-
-
-
-
 # Verify the namespaces and labels
-./scripts/monitoring/check-resource-labels.sh
 
 # you can see that app-xx-team not found as it will be handled by the argocd
 # 👥 Team Namespaces:
@@ -236,7 +226,6 @@ kubectl get rc,services -A
 
 # to apply a small change
 make init-tf-local && make apply-tf-local
-
 ```
 
 **🎯 Understanding What We Built:**
@@ -270,8 +259,6 @@ make deploy-argocd-local
 # ✅ Application-level security middleware
 # ✅ Team namespaces (ml-team, data-team, app-team)
 
-# Check team isolation compliance (validates deployment)
-./scripts/security/check-single-cluster-isolation.sh
 
 # Debugging why the application cannot be synced
 kubectl get applications -n argocd
@@ -283,15 +270,21 @@ kubectl patch application security-policies -n argocd --type merge --patch '{"op
       {}}}'
 
 # Verify security components
-kubectl get networkpolicies --all-namespaces
-kubectl get certificates --all-namespaces
-kubectl get prometheusrules --all-namespaces
-
+kubectl get networkpolicies -A
+kubectl get certificates -A
+kubectl get prometheusrules -A
 ```
 
 
 ### Step 1.3: Checkers and testing
 
+#### Testings
+
+```bash
+make test
+```
+
+#### Labels
 ```bash
 
 # Check that labels are properly applied (for compliance)
@@ -303,115 +296,35 @@ kubectl get resourcequota --all-namespaces
 kubectl get nodes --show-labels
 
 kubectl get events -n data-platform-performance --sort-by=.metadata.creationTimestamp
-
 ```
 
-**🎯 Key Learning Points:**
-
-- Each platform gets its own isolated cluster
-- Consistent deployment process across all platforms
-- Easy to customize via Helm values
-- Infrastructure and applications are cleanly separated
-
-## 🧪 Phase 2: Team Workload Management (30 minutes)
-
-### Step 2.1: Deploy Team-Specific Workloads (15 minutes)
-
-Deploy applications to each team namespace with proper constraints:
-
+#### Quota
 ```bash
 # Deploy ML workload (already created in ml-team namespace)
 kubectl describe quota ml-team-quota -n app-ml-team
 
-# Test resource quotas work - this should fail (exceeds quota)
-kubectl run test-quota --image=nginx -n app-ml-team --dry-run=client -o yaml | \
-kubectl set resources --local -f - --requests=cpu=100 --dry-run=client -o yaml | \
-kubectl apply --dry-run=client -f -
-
-kubectl get pods -n app-ml-team -o wide
-
-# Or test with a simpler approach - create a pod that exceeds quota
-cat <<EOF | kubectl apply --dry-run=client -f -
-apiVersion: v1
-kind: Pod
-metadata:
-  name: test-quota-exceed
-  namespace: ml-team
-spec:
-  containers:
-  - name: nginx
-    image: nginx
-    resources:
-      requests:
-        cpu: "25"
-        memory: "100Gi"
-EOF
-
-# Deploy within quota limits (delete existing pod first if needed)
-kubectl delete pod ml-inference -n ml-team --ignore-not-found=true
-
-# Create pod with resource requests within quota
-cat <<EOF | kubectl apply -f -
-apiVersion: v1
-kind: Pod
-metadata:
-  name: ml-inference
-  namespace: ml-team
-spec:
-  containers:
-  - name: nginx
-    image: nginx
-    resources:
-      requests:
-        cpu: "1"
-        memory: "2Gi"
-      limits:
-        cpu: "2"
-        memory: "4Gi"
-EOF
-
-# Check node placement (should prefer GPU-labeled nodes)
-kubectl get pods -n ml-team -o wide
+# Test resource quotas
+./scripts/security/test-resource-quotas.sh local
 ```
 
-### Step 2.2: Test Team Isolation and RBAC (15 minutes)
-
+#### Security
 ```bash
-# Test RBAC boundaries
-kubectl auth can-i create pods --as=ml-engineer@company.com -n app-ml-team     # ✅ Should be yes
-kubectl auth can-i create pods --as=ml-engineer@company.com -n app-data-team   # ❌ Should be no
+./scripts/security/check-single-cluster-isolation.sh
 
-# Test network policies (create temporary pod for testing)
-kubectl run network-test --image=nicolaka/netshoot -n ml-team
-# Exec into pod: kubectl exec -it network-test -n ml-team -- /bin/bash
-# Inside pod, try: curl data-team-service.data-team (should fail due to network policies)
-# Clean up: kubectl delete pod network-test -n ml-team
+# Test RBAC boundaries
+kubectl auth can-i create pods \
+    --as=ml-engineer@company.com \
+    --as-group=ml-engineers \
+    -n app-ml-team   # ✅ Should be yes
+kubectl auth can-i create pods \
+    --as=data-engineer@company.com \
+    --as-group=data-engineers \
+    -n app-ml-team    # ❌ Should be no
 
 # Check team resource usage
 kubectl get resourcequota --all-namespaces
 kubectl top pods --all-namespaces 2>/dev/null || echo "Metrics server not installed"
 
-# Verify label compliance (important for cost tracking)
-./infrastructure/scripts/monitoring/check-resource-labels.sh
-
-# Port forward to monitoring
-kubectl port-forward -n monitoring svc/prometheus-grafana 3000:80 &
-echo "Grafana: http://localhost:3000 (admin/prom-operator)"
-
-# View team dashboards
-# Open Grafana and look for "Team Resource Usage" dashboard
-
-# Clean up
-pkill -f "kubectl port-forward"
-```
-
-## 🧹 Phase 3: Security & Monitoring Validation (20 minutes)
-
-### Step 3.1: Security Testing (10 minutes)
-
-Validate that your security controls are working:
-
-```bash
 # Test TLS certificates (if cert-manager deployed)
 kubectl get certificates --all-namespaces
 
@@ -419,47 +332,16 @@ kubectl get certificates --all-namespaces
 echo "Testing network isolation..."
 kubectl get networkpolicies --all-namespaces
 
-# Validate team RBAC boundaries
-kubectl auth can-i create pods --as=system:serviceaccount:app-ml-team:default -n app-ml-team
-kubectl auth can-i create pods --as=system:serviceaccount:app-ml-team:default -n app-data-team
-
-# Test resource quotas enforcement
-kubectl get resourcequota --all-namespaces
-kubectl describe resourcequota -n app-ml-team
-
-# Test security scanning results (if deployed)
-kubectl get vulnerabilityreports --all-namespaces 2>/dev/null || echo "Security scanning not deployed"
 ```
 
-### Step 3.2: Team Monitoring & Alerting (10 minutes)
-
+#### Monitor
 ```bash
-# Check team-specific monitoring (if Prometheus deployed)
 kubectl get servicemonitors --all-namespaces 2>/dev/null || echo "Prometheus CRDs not installed"
 kubectl get prometheusrules --all-namespaces 2>/dev/null || echo "Prometheus CRDs not installed"
-
-# Apply monitoring configs if missing
-if kubectl get crd servicemonitors.monitoring.coreos.com &>/dev/null; then
-    kubectl apply -f kubernetes/monitoring/namespace-monitoring.yaml
-    kubectl apply -f kubernetes/monitoring/team-dashboards.yaml
-    echo "Team monitoring configs applied ✅"
-fi
 
 # Check basic cluster monitoring
 kubectl top nodes 2>/dev/null || echo "Metrics server not deployed"
 kubectl top pods --all-namespaces | head -10 2>/dev/null || echo "Metrics server not deployed"
-
-# Validate resource usage per team
-echo ""
-echo "📊 Team Resource Usage:"
-echo "======================"
-for ns in app-ml-team app-data-team app-core-team; do
-    if kubectl get namespace $ns &>/dev/null; then
-        echo "Namespace: $ns"
-        kubectl describe resourcequota -n $ns 2>/dev/null || echo "  No resource quota found"
-        echo ""
-    fi
-done
 
 # Test monitoring stack (if deployed)
 if kubectl get pods -n monitoring &>/dev/null; then
@@ -482,20 +364,9 @@ else
 fi
 ```
 
-## 🛠️ Phase 4: Testing
+## 🛠️ Phase 2: Others
 
-```bash
-make test
-```
-
-## 🔄 Provider Version Management
-
-### Enterprise Provider Version Management System
-
-This platform uses enterprise-grade provider version management based on Netflix/Airbnb patterns for consistent, secure
-deployments across all environments.
-
-#### Understanding the System
+### Understanding the System
 
 **Centralized Configuration:**
 
@@ -673,101 +544,9 @@ This enterprise provider version management system ensures:
 - ✅ **Scalability** for large infrastructure deployments
 - ✅ **Maintainability** through centralized configuration
 
-## 🛠️ Phase 5: Production Readiness (30 minutes) (WIP)
-
-### Step 5.1: Disaster Recovery Testing (15 minutes)
-
-Test your DR procedures:
-
-```bash
-# Review DR runbook
-cat kubernetes/disaster-recovery/dr-runbook.md
-
-# Test backup procedures (if Velero installed)
-# kubectl apply -f kubernetes/disaster-recovery/velero-backup.yaml
-
-# Test blue-green deployment
-echo "Testing blue-green deployment..."
-kubectl label namespace ml-team environment=blue
-kubectl create namespace ml-team-green
-kubectl label namespace ml-team-green environment=green
-
-# Deploy to green environment
-kubectl run ml-inference-green --image=nginx -n ml-team-green
-
-# Simulate traffic switch (service selector change)
-echo "Blue-green deployment tested ✅"
-
-# Cleanup test
-kubectl delete namespace ml-team-green
-```
-
-### Step 4.2: Migration Path Planning (15 minutes)
-
-```bash
-# Understand when to migrate to multi-cluster
-echo "📋 Multi-Cluster Decision Matrix"
-echo "==============================="
-
-# Current single cluster status
-echo "✅ Current Status (Single Cluster):"
-echo "   • Teams: $(kubectl get namespaces -l team --no-headers | wc -l | xargs)"
-echo "   • Resource isolation: Strong (quotas + limits)"
-echo "   • Security: Enterprise-grade (TLS + RBAC + NetworkPolicies)"
-echo "   • Complexity: Low"
-echo "   • Cost: Minimal"
-echo ""
-
-# When to consider multi-cluster
-echo "⚠️  Consider Multi-Cluster When:"
-echo "   • Hard compliance boundaries needed (SOX, GDPR)"
-echo "   • Teams need different K8s versions"
-echo "   • Network policies insufficient for security"
-echo "   • Resource contention causes performance issues"
-echo ""
-
-# Your migration path is ready
-echo "🚀 Migration Path Ready:"
-echo "   • Federation scripts available: ./infrastructure/scripts/archive/setup-federation.sh"
-echo "   • Multi-cluster tested and working"
-echo "   • Can migrate gradually by team"
-echo "   • Keep shared services in main cluster"
-```
-
-## 🧹 Phase 5: Knowledge Transfer & Cleanup (15 minutes)
-
-### Step 5.1: Team Knowledge Transfer (10 minutes)
-
-```bash
-# Document your team's setup for others
-echo "📚 Creating team knowledge base..."
-
-# Key learnings
-echo "✅ Single cluster approach validated"
-echo "✅ Team isolation working (quotas + RBAC + network policies)"
-echo "✅ Security implemented without service mesh"
-echo "✅ Monitoring and alerting configured"
-echo "✅ Migration path to multi-cluster ready"
-
-# Share the approach
-echo ""
-echo "🎯 Recommend this setup to other teams:"
-echo "   1. Start with single cluster + team isolation"
-echo "   2. Use Kubernetes-native security (not service mesh)"
-echo "   3. Migrate to multi-cluster only when needed"
-echo "   4. 80% of benefits, 20% of complexity"
-```
-
-### Step 5.2: Learning Documentation (5 minutes)
-
-```bash
-# Create your learning summary
-cat > MY-PLATFORM-LEARNING.md << 'EOF'
-# My Modern Platform Learning Summary
-
 ## 🎯 What I Learned
 
-### Smart Architecture Approach
+### Architecture Approach
 - ✅ **Single Cluster** with team isolation (not multi-cluster complexity)
 - ✅ **Kubernetes-native security** (not service mesh overhead)
 - ✅ **Resource quotas & RBAC** provide strong boundaries
@@ -777,7 +556,6 @@ cat > MY-PLATFORM-LEARNING.md << 'EOF'
 ### Key Commands Mastered
 ```bash
 # Deploy single cluster with team isolation
-./infrastructure/scripts/security/deploy-single-cluster-isolation.sh
 
 # Apply comprehensive security
 ./infrastructure/scripts/security/deploy-kubernetes-security.sh
