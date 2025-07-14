@@ -83,30 +83,8 @@ resource "kubernetes_namespace" "team_namespaces" {
 }
 
 
-# Resource quotas for team namespaces
-resource "kubernetes_resource_quota" "team_quotas" {
-  for_each = var.team_configurations
-
-  metadata {
-    name      = "${each.key}-quota"
-    namespace = kubernetes_namespace.team_namespaces[each.key].metadata[0].name
-  }
-
-  spec {
-    hard = merge({
-      "requests.cpu"            = each.value.resource_quota.cpu_requests
-      "requests.memory"         = each.value.resource_quota.memory_requests
-      "limits.cpu"              = each.value.resource_quota.cpu_limits
-      "limits.memory"           = each.value.resource_quota.memory_limits
-      "requests.nvidia.com/gpu" = each.value.resource_quota.gpu_requests
-      },
-      # Add storage quota if specified
-      can(each.value.resource_quota.storage_requests) ? {
-        "requests.storage" = each.value.resource_quota.storage_requests
-      } : {}
-    )
-  }
-}
+# Resource quotas are now managed by ArgoCD
+# See: infrastructure/kubernetes/security/policies/resource-quotas.yaml
 
 # Network policies for team namespaces (if enabled)
 resource "kubernetes_network_policy" "team_default_deny" {

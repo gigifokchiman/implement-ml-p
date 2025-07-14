@@ -11,11 +11,11 @@ metadata:
 spec:
   hard:
     # CPU limits
-    requests.cpu: "20"
-    limits.cpu: "40"
+    requests.cpu: "2"
+    limits.cpu: "4"
     # Memory limits
-    requests.memory: "64Gi"
-    limits.memory: "128Gi"
+    requests.memory: "4Gi"
+    limits.memory: "8Gi"
     # Storage limits
     requests.storage: "500Gi"
     # Object limits
@@ -40,11 +40,11 @@ metadata:
 spec:
   hard:
     # CPU limits
-    requests.cpu: "16"
-    limits.cpu: "32"
+    requests.cpu: "1"
+    limits.cpu: "2"
     # Memory limits
-    requests.memory: "48Gi"
-    limits.memory: "96Gi"
+    requests.memory: "2Gi"
+    limits.memory: "4Gi"
     # Storage limits
     requests.storage: "1Ti"
     # Object limits
@@ -69,11 +69,11 @@ metadata:
 spec:
   hard:
     # CPU limits
-    requests.cpu: "8"
-    limits.cpu: "16"
+    requests.cpu: "1"
+    limits.cpu: "2"
     # Memory limits
-    requests.memory: "24Gi"
-    limits.memory: "48Gi"
+    requests.memory: "2Gi"
+    limits.memory: "4Gi"
     # Storage limits
     requests.storage: "200Gi"
     # Object limits
