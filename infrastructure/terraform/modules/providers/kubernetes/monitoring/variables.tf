@@ -11,13 +11,13 @@ variable "environment" {
 variable "config" {
   description = "Monitoring configuration"
   type = object({
-    enable_prometheus   = bool
-    enable_grafana      = bool
-    enable_alertmanager = bool
+    enable_prometheus     = bool
+    enable_grafana        = bool
+    enable_alertmanager   = bool
     enable_metrics_server = optional(bool, true)
-    storage_size        = string
-    retention_days      = number
-    prometheus_version  = optional(string, "55.0.0")
+    storage_size          = string
+    retention_days        = number
+    prometheus_version    = optional(string, "55.0.0")
   })
 }
 

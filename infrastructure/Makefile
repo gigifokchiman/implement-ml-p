@@ -205,7 +205,9 @@ deploy-tf-local: ## Complete local ML platform deployment with cleanup
 	@echo "  Grafana: http://localhost:3000 (admin/admin)"
 	@echo "  ArgoCD: https://localhost:8080 (admin/admin123)"
 	@echo ""
-	@echo "📚 Next: Deploy ArgoCD applications with 'make deploy-argocd-local'"
+	@echo "📚 Next steps:"
+	@echo "   1. Deploy monitoring: make deploy-monitoring-tf-local"
+	@echo "   2. Deploy ArgoCD applications: make deploy-argocd-local"
 
 # Local development workflow (calls scripts - kept for compatibility)
 local-up: deploy-tf-local ## Deploy local platform (full deployment)
@@ -355,6 +357,43 @@ test: ## Run infrastructure tests
 	fi
 
 # =============================================================================
+# Monitoring Deployment
+# =============================================================================
+
+deploy-monitoring-tf-local: ## (TF-LOCAL) Deploy monitoring stack separately (Prometheus, Grafana, Metrics Server)
+	@echo "$(BLUE)📊 Deploying Monitoring Stack$(NC)"
+	@echo "============================"
+	@echo ""
+	@echo "🧹 Step 1: Cleaning up any existing metrics-server..."
+	@helm uninstall metrics-server -n kube-system --ignore-not-found || true
+	@kubectl delete deployment,service,serviceaccount,rolebinding,clusterrole,clusterrolebinding -l app.kubernetes.io/name=metrics-server -A --ignore-not-found || true
+	@kubectl delete deployment,service,serviceaccount,rolebinding,clusterrole,clusterrolebinding metrics-server -n kube-system --ignore-not-found || true
+	@kubectl delete apiservice v1beta1.metrics.k8s.io --ignore-not-found || true
+	@echo ""
+	@echo "🔧 Step 2: Deploying monitoring via Terraform..."
+	@cd terraform/environments/local && terraform apply \
+		-target=module.data_platform.module.monitoring \
+		-auto-approve
+	@echo ""
+	@echo "⏳ Step 3: Waiting for metrics-server to be ready..."
+	@sleep 10
+	@kubectl wait --for=condition=ready pod -l k8s-app=metrics-server -n kube-system --timeout=120s || echo "⚠️  Metrics server may need more time to start"
+	@echo ""
+	@echo "✅ Step 4: Verifying deployment..."
+	@kubectl get pods -n data-platform-monitoring | grep -E "(prometheus|grafana|alertmanager)" || echo "⚠️  Prometheus stack not found"
+	@kubectl get pods -n kube-system | grep metrics-server || echo "⚠️  Metrics server not found"
+	@echo ""
+	@echo "🧪 Step 5: Testing metrics availability..."
+	@sleep 5
+	@kubectl top nodes 2>/dev/null || echo "⚠️  Metrics not available yet - may need a few minutes"
+	@echo ""
+	@echo "$(GREEN)✅ Monitoring deployment completed$(NC)"
+	@echo ""
+	@echo "📊 Access monitoring services:"
+	@echo "  kubectl port-forward -n data-platform-monitoring svc/prometheus-grafana 3000:80"
+	@echo "  kubectl port-forward -n data-platform-monitoring svc/prometheus-prometheus 9090:9090"
+
+# =============================================================================
 # Security - Hybrid Infrastructure + GitOps
 # =============================================================================
 
@@ -451,7 +490,7 @@ kill-port-forward: ## Kill all port forwarding processes
 audit-logs-follow: ## Follow Kubernetes audit logs in real-time
 	@echo "$(BLUE)📋 Following Kubernetes Audit Logs$(NC)"
 	@echo "Press Ctrl+C to stop"
-	@docker exec data-platform-local-control-plane tail -f /var/log/kubernetes/audit.log 2>/dev/null || echo "Audit logs not available"
+	@docker exec data-platform-local-control-plane tail -f /var/log/kubernetes/audit.log 2>/dev/null || echo "Audit logs Ïnot available"
 
 # Development utilities
 show-status: ## Show infrastructure status

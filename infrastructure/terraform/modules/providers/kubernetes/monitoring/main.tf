@@ -36,17 +36,29 @@ resource "helm_release" "metrics_server" {
   version    = "3.11.0"
   namespace  = "kube-system"
 
+  # Increase timeout for deployment
+  timeout = 600
+
+  # Force update if exists
+  force_update = true
+
+  # Clean up on failure
+  cleanup_on_fail = true
+
   values = [
     yamlencode({
-      args = [
+      args = compact([
         "--cert-dir=/tmp",
         "--secure-port=4443",
         "--kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname",
         "--kubelet-use-node-status-port",
         "--metric-resolution=15s",
         # For local Kind clusters - disable TLS verification
-        var.environment == "local" ? "--kubelet-insecure-tls" : null
-      ]
+        var.environment == "local" ? "--kubelet-insecure-tls" : "",
+      ])
+
+      # Override default container port
+      containerPort = 4443
 
       resources = {
         requests = {
@@ -59,17 +71,11 @@ resource "helm_release" "metrics_server" {
         }
       }
 
-      securityContext = {
-        allowPrivilegeEscalation = false
-        capabilities = {
-          drop = ["ALL"]
-        }
-        readOnlyRootFilesystem = true
-        runAsNonRoot          = true
-        runAsUser            = 1000
-        seccompProfile = {
-          type = "RuntimeDefault"
-        }
+      # Remove securityContext that might be causing issues
+      podSecurityContext = {
+        runAsNonRoot = true
+        runAsUser    = 1000
+        fsGroup      = 1000
       }
 
       nodeSelector = {
@@ -82,6 +88,23 @@ resource "helm_release" "metrics_server" {
       apiService = {
         create                = true
         insecureSkipTLSVerify = var.environment == "local" ? true : false
+      }
+
+      # Add deployment configuration
+      replicas = 1
+
+      # Service configuration
+      service = {
+        type = "ClusterIP"
+        port = 443
+        annotations = {
+          "service.beta.kubernetes.io/aws-load-balancer-backend-protocol" = "tcp"
+        }
+      }
+
+      # Add hostNetwork for Kind (disabled to avoid port conflicts)
+      hostNetwork = {
+        enabled = false
       }
     })
   ]

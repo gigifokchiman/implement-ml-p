@@ -93,13 +93,18 @@ resource "kubernetes_resource_quota" "team_quotas" {
   }
 
   spec {
-    hard = {
+    hard = merge({
       "requests.cpu"            = each.value.resource_quota.cpu_requests
       "requests.memory"         = each.value.resource_quota.memory_requests
       "limits.cpu"              = each.value.resource_quota.cpu_limits
       "limits.memory"           = each.value.resource_quota.memory_limits
       "requests.nvidia.com/gpu" = each.value.resource_quota.gpu_requests
-    }
+      },
+      # Add storage quota if specified
+      can(each.value.resource_quota.storage_requests) ? {
+        "requests.storage" = each.value.resource_quota.storage_requests
+      } : {}
+    )
   }
 }
 
